@@ -1,0 +1,127 @@
+# Bifrost IdP Test Requests
+
+# Set the base URL
+@host = http://127.0.0.1:5000
+
+# ----------------------------------------
+# !! SET THESE VARIABLES !!
+# ----------------------------------------
+# 1. Create a "Finance Bot Telegram" app in /admin
+# 2. Set allowed_methods to: email,telegram
+# 3. Copy the client_id here:
+@client_id_bot = bifrost_client_...
+# 4. Copy the *RAW* client_secret (flashed in admin) here:
+@client_secret_bot = a1b2c3d4...
+
+# 5. Create an email user (e.g., test@user.com / password)
+# 6. Go to "App Links" in /admin and link that user to this app
+@test_user_email = test@user.com
+@test_user_password = password
+
+# 7. Run test #5 or #8, then paste the resulting JWT here:
+@test_jwt = eyJ0eXAiOiJK...
+
+# ----------------------------------------
+# Phase 1: Health Check
+# ----------------------------------------
+
+###
+# 1. Health Check
+GET {{host}}/health
+
+# ----------------------------------------
+# Phase 2: Admin Routes
+# ----------------------------------------
+
+###
+# 2. Get Admin Login Page
+GET {{host}}/admin/login
+
+###
+# 3. Attempt Admin Login (Successful)
+POST {{host}}/admin/login
+Content-Type: application/x-www-form-urlencoded
+email=admin@bifrost.com&password=your-strong-admin-password
+
+# ----------------------------------------
+# Phase 4: Headless API (Get a JWT)
+# ----------------------------------------
+
+###
+# 5. API Email/Pass Login (Successful)
+# @name APIEmailLogin_Success
+# (Run this to get a @test_jwt)
+POST {{host}}/auth/api/login
+Content-Type: application/json
+
+{
+  "client_id": "{{client_id_bot}}",
+  "email": "{{test_user_email}}",
+  "password": "{{test_user_password}}"
+}
+
+###
+# 8. API Telegram Login (Find or Create)
+# @name APITelegramLogin
+# (Run this to get a @test_jwt)
+POST {{host}}/auth/api/telegram-login
+Content-Type: application/json
+
+{
+  "client_id": "{{client_id_bot}}",
+  "telegram_id": "987654321",
+  "display_name": "Test Telegram User"
+}
+
+
+# ----------------------------------------
+# Phase 5: Internal Validation API
+# ----------------------------------------
+
+###
+# 11. Internal: Validate Token (Successful)
+# @name InternalValidate_Success
+# This uses HTTP Basic Auth (client_id as user, secret as pass)
+# Expected: 200 OK { "is_valid": true, "account_id": "..." }
+POST {{host}}/internal/validate-token
+Content-Type: application/json
+Authorization: Basic {{client_id_bot}} {{client_secret_bot}}
+
+{
+  "jwt": "{{test_jwt}}"
+}
+
+###
+# 12. Internal: Validate Token (Invalid JWT)
+# @name InternalValidate_BadToken
+# Expected: 401 Unauthorized { "is_valid": false }
+POST {{host}}/internal/validate-token
+Content-Type: application/json
+Authorization: Basic {{client_id_bot}} {{client_secret_bot}}
+
+{
+  "jwt": "ey.invalid.token"
+}
+
+###
+# 13. Internal: Validate Token (Auth Failed - Bad Secret)
+# @name InternalValidate_BadSecret
+# Expected: 401 Unauthorized (WWW-Authenticate header)
+POST {{host}}/internal/validate-token
+Content-Type: application/json
+Authorization: Basic {{client_id_bot}} bad-secret-here
+
+{
+  "jwt": "{{test_jwt}}"
+}
+
+###
+# 14. Internal: Validate Token (Auth Failed - No Auth)
+# @name InternalValidate_NoAuth
+# Expected: 401 Unauthorized (WWW-Authenticate header)
+POST {{host}}/internal/validate-token
+Content-Type: application/json
+
+{
+  "jwt": "{{test_jwt}}"
+}
