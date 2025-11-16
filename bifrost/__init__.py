@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from flask_pymongo import PyMongo
-from config import Config
+# [cite_start]from config import Config  <-- REMOVE THIS LINE [cite: 948]
 import datetime
 from bson import ObjectId
 import json  # <-- Import for the encoder
@@ -13,7 +13,6 @@ mongo = PyMongo()
 # --- Custom JSON Encoder for Flask 2.3+ ---
 # This is required to handle ObjectId and datetime objects
 # from MongoDB when serializing to JSON, especially for Flask-Admin.
-
 class CustomJSONEncoder(json.JSONEncoder):
     """Custom JSON Encoder to handle ObjectId and datetime."""
 
@@ -40,7 +39,7 @@ class CustomJSONProvider(JSONProvider):
 # --- End Custom JSON Encoder ---
 
 
-def create_app(config_class=Config):
+def create_app(config_class):  # <-- MODIFIED THIS LINE
     """
     The application factory.
     """
