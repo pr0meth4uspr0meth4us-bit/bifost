@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - {{ app.app_name }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style>
+        body { background-color: #f8f8f8; }
+        .auth-panel {
+            margin-top: 10%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .panel-heading {
+            text-align: center;
+        }
+        .app-logo {
+            max-width: 100px;
+            margin-bottom: 15px;
+        }
+        .auth-options {
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="auth-panel">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                {% if app.app_logo_url %}
+                    <img src="{{ app.app_logo_url }}" alt="{{ app.app_name }} Logo" class="app-logo">
+                {% endif %}
+                <h4>Sign in to <strong>{{ app.app_name }}</strong></h4>
+            </div>
+            <div class="panel-body">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category or 'info' }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if "email" in app.allowed_auth_methods %}
+                <form action="{{ url_for('.login', client_id=app.client_id) }}" method="POST">
+                    <fieldset>
+                        <div class="form-group">
+                            <input class="form-control" placeholder="Email" name="email" type="email" autofocus>
+                        </div>
+                        <div class="form-group">
+                            <input class="form-control" placeholder="Password" name="password" type="password">
+                        </div>
+                        <button type="submit" class="btn btn-lg btn-primary btn-block">Login</button>
+                    </fieldset>
+                </form>
+                <div class="text-center" style="margin-top: 10px;">
+                    <a href="{{ url_for('.forgot_password', client_id=app.client_id) }}">Forgot Password?</a>
+                </div>
+                {% endif %}
+
+                <div class="auth-options">
+                    {% if "google" in app.allowed_auth_methods %}
+                        <a href="#" class="btn btn-danger btn-block disabled">Login with Google (Not Implemented)</a>
+                    {% endif %}
+                    {% if "telegram" in app.allowed_auth_methods %}
+                         <a href="#" class="btn btn-info btn-block disabled">Login with Telegram (Not Implemented)</a>
+                    {% endif %}
+                </div>
+
+            </div>
+            <div class="panel-footer text-center">
+                New user? <a href="{{ url_for('.register', client_id=app.client_id) }}">Create an account</a>
+            </div>
+        </div>
+        <p class="text-center text-muted">Powered by Bifrost</p>
+    </div>
+</div>
+
+</body>
+</html>
