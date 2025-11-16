@@ -32,4 +32,4 @@ EXPOSE 5000
 # -w 4: Use 4 worker processes
 # -b 0.0.0.0:5000: Bind to all network interfaces on port 5000
 # run:app: Look in the 'run.py' file for the 'app' variable
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "run:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "run:app"]
