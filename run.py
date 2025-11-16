@@ -5,5 +5,4 @@ from config import Config  # <-- ADD THIS IMPORT
 app = create_app(Config)
 
 if __name__ == '__main__':
-    # Setting debug=True enables auto-reload
     app.run(debug=True)
