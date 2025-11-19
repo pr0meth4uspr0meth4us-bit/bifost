@@ -17,12 +17,13 @@ class Config:
     # Database settings
     # This key is required. The app will fail to start if it's not set.
     MONGO_URI = os.environ.get('MONGO_URI')
+    DB_NAME = os.environ.get('DB_NAME')
 
     # JWT settings
     # This key is required. The app will fail to start if it's not set.
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
 
-    if not SECRET_KEY or not MONGO_URI or not JWT_SECRET_KEY:
+    if not SECRET_KEY or not MONGO_URI or not JWT_SECRET_KEY or not DB_NAME:
         raise RuntimeError(
             "CRITICAL ERROR: .env file is missing or incomplete. "
             "Please set SECRET_KEY, MONGO_URI, and JWT_SECRET_KEY."
