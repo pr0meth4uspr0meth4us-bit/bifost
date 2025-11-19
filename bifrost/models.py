@@ -1,80 +1,154 @@
+from pymongo import ASCENDING, DESCENDING
 from werkzeug.security import generate_password_hash, check_password_hash
-import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from bson import ObjectId
+import logging
+
+log = logging.getLogger(__name__)
+UTC = ZoneInfo("UTC")
 
 
-# --- Hashing Utilities ---
-
-def hash_password(password):
-    """Generates a secure hash for a password."""
-    return generate_password_hash(password)
-
-
-def check_password(password_hash, password):
-    """Checks a password against a stored hash."""
-    return check_password_hash(password_hash, password)
-
-
-def hash_client_secret(secret):
+class BifrostDB:
     """
-    Generates a secure hash for a client_secret.
-    We re-use the password hashing for robustness.
-    """
-    return generate_password_hash(secret)
-
-
-def check_client_secret(secret_hash, secret):
-    """Checks a client_secret against a stored hash."""
-    return check_password_hash(secret_hash, secret)
-
-
-# --- ID & Secret Generators ---
-
-def generate_client_id():
-    """Generates a simple, unique client_id."""
-    return f"bifrost_client_{uuid.uuid4().hex[:16]}"
-
-
-def generate_client_secret():
-    """
-    Generates a secure, random client_secret.
-    This is the raw secret shown to the admin once.
-    """
-    # Returns a 64-character hex string
-    return uuid.uuid4().hex + uuid.uuid4().hex
-
-
-# --- Collection Definitions & Indexes ---
-
-def create_indexes(mongo_cx):
-    """
-    Applies all necessary indexes to the MongoDB collections.
-    This is idempotent (safe to run multiple times).
+    Central Database Manager for Bifrost.
+    Handles Schema enforcement via Indexes and Data Access Objects (DAOs).
     """
 
-    try:
-        # --- accounts collection ---
-        # Create unique indexes for each login method.
-        # 'sparse=True' means the index only applies to documents
-        # that have this field, allowing nulls (e.g., users without 'google_id').
-        mongo_cx.db.accounts.create_index("email", unique=True, sparse=True)
-        mongo_cx.db.accounts.create_index("phone_number", unique=True, sparse=True)
-        mongo_cx.db.accounts.create_index("google_id", unique=True, sparse=True)
-        mongo_cx.db.accounts.create_index("telegram_id", unique=True, sparse=True)
+    def __init__(self, mongo_client, db_name):
+        self.db = mongo_client[db_name]
+        self.init_indexes()
 
-        # --- applications collection ---
-        mongo_cx.db.applications.create_index("client_id", unique=True)
+    def init_indexes(self):
+        """
+        Creates unique indexes to enforce data integrity at the DB level.
+        Run this on app startup.
+        """
+        log.info("Ensuring Database Indexes...")
 
-        # --- app_links collection ---
-        # Compound index to ensure an account is linked to an app only once.
-        mongo_cx.db.app_links.create_index([("account_id", 1), ("app_id", 1)], unique=True)
-        # Standard indexes for fast lookups
-        mongo_cx.db.app_links.create_index("account_id")
-        mongo_cx.db.app_links.create_index("app_id")
+        # 1. Accounts Collection
+        # Emails must be unique. Telegram IDs must be unique (sparse allows nulls).
+        self.db.accounts.create_index([("email", ASCENDING)], unique=True, sparse=True)
+        self.db.accounts.create_index([("telegram_id", ASCENDING)], unique=True, sparse=True)
+        self.db.accounts.create_index([("google_id", ASCENDING)], unique=True, sparse=True)
 
-        # --- admins collection ---
-        mongo_cx.db.admins.create_index("email", unique=True)
+        # 2. Applications Collection
+        # Client IDs must be globally unique.
+        self.db.applications.create_index([("client_id", ASCENDING)], unique=True)
 
-        print("MongoDB indexes applied successfully.")
+        # 3. App Links Collection
+        # A user cannot be linked to the same app twice.
+        self.db.app_links.create_index(
+            [("account_id", ASCENDING), ("app_id", ASCENDING)],
+            unique=True
+        )
 
-    except Exception as e:
-        print(f"Error applying indexes: {e}")
+        # 4. Admins Collection
+        self.db.admins.create_index([("email", ASCENDING)], unique=True)
+
+        log.info("Indexes verified.")
+
+    # --- User Account Management ---
+
+    def create_account(self, data):
+        """
+        Creates a new user account.
+        """
+        account = {
+            "email": data.get("email"),
+            "password_hash": generate_password_hash(data["password"]) if data.get("password") else None,
+            "telegram_id": data.get("telegram_id"),
+            "google_id": data.get("google_id"),
+            "display_name": data.get("display_name", "Unknown User"),
+            "phone_number": data.get("phone_number"),
+            "is_active": True,
+            "created_at": datetime.now(UTC),
+            "auth_providers": data.get("auth_providers", [])  # e.g. ['email', 'telegram']
+        }
+        return self.db.accounts.insert_one(account).inserted_id
+
+    def find_account_by_email(self, email):
+        return self.db.accounts.find_one({"email": email})
+
+    def find_account_by_telegram(self, telegram_id):
+        return self.db.accounts.find_one({"telegram_id": str(telegram_id)})
+
+    # --- Application (Client) Management ---
+
+    def register_application(self, app_name, callback_url, allowed_methods=None):
+        """
+        Registers a new Client Application (like FinanceBot).
+        Generates a secure client_id and client_secret.
+        """
+        import secrets
+
+        client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
+        client_secret = secrets.token_urlsafe(32)
+
+        app_doc = {
+            "app_name": app_name,
+            "client_id": client_id,
+            # Store hashed secret for security, show raw ONLY once to admin
+            "client_secret_hash": generate_password_hash(client_secret),
+            "app_logo_url": "/static/default_logo.png",
+            "app_callback_url": callback_url,
+            "allowed_auth_methods": allowed_methods or ["email"],  # ['email', 'telegram', 'google']
+            "telegram_bot_token": None,  # Filled later by Admin
+            "created_at": datetime.now(UTC)
+        }
+
+        self.db.applications.insert_one(app_doc)
+        return client_id, client_secret
+
+    def get_app_by_client_id(self, client_id):
+        return self.db.applications.find_one({"client_id": client_id})
+
+    def verify_client_secret(self, client_id, provided_secret):
+        app = self.get_app_by_client_id(client_id)
+        if not app:
+            return False
+        return check_password_hash(app["client_secret_hash"], provided_secret)
+
+    # --- App Linking (Authorization) ---
+
+    def link_user_to_app(self, account_id, app_id, role="user"):
+        """
+        Links a user to an application. Safe to call multiple times (upsert).
+        """
+        # We use update_one with upsert=True to ensure we don't crash on duplicates
+        # but update the last_login time.
+        self.db.app_links.update_one(
+            {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
+            {
+                "$set": {
+                    "role": role,
+                    "last_login": datetime.now(UTC)
+                },
+                "$setOnInsert": {
+                    "linked_at": datetime.now(UTC)
+                }
+            },
+            upsert=True
+        )
+
+    def get_user_role_for_app(self, account_id, app_id):
+        link = self.db.app_links.find_one(
+            {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)}
+        )
+        return link['role'] if link else None
+
+    # --- Admin Management ---
+
+    def create_super_admin(self, email, password):
+        admin = {
+            "email": email,
+            "password_hash": generate_password_hash(password),
+            "role": "super_admin",
+            "created_at": datetime.now(UTC)
+        }
+        try:
+            self.db.admins.insert_one(admin)
+            return True
+        except Exception as e:
+            log.error(f"Could not create admin: {e}")
+            return False

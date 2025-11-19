@@ -1,87 +1,69 @@
 from flask import Flask, jsonify
 from flask_pymongo import PyMongo
-# [cite_start]from config import Config  <-- REMOVE THIS LINE [cite: 948]
+from .models import BifrostDB
+from flask.json.provider import JSONProvider
+import json
 import datetime
 from bson import ObjectId
-import json  # <-- Import for the encoder
-from flask.json.provider import JSONProvider  # <-- Import for modern Flask
 
 # Globally accessible PyMongo instance
 mongo = PyMongo()
 
-
-# --- Custom JSON Encoder for Flask 2.3+ ---
-# This is required to handle ObjectId and datetime objects
-# from MongoDB when serializing to JSON, especially for Flask-Admin.
+# --- Custom JSON Encoder ---
 class CustomJSONEncoder(json.JSONEncoder):
-    """Custom JSON Encoder to handle ObjectId and datetime."""
-
     def default(self, o):
         if isinstance(o, datetime.datetime):
             return o.isoformat()
         if isinstance(o, ObjectId):
             return str(o)
-        # Let the base class default method raise the TypeError
         return super().default(o)
 
-
 class CustomJSONProvider(JSONProvider):
-    """Custom JSON Provider that uses our encoder."""
-
     def dumps(self, obj, **kwargs):
-        # Pass our custom encoder to json.dumps
         return json.dumps(obj, **kwargs, cls=CustomJSONEncoder)
-
     def loads(self, s, **kwargs):
         return json.loads(s, **kwargs)
 
-
-# --- End Custom JSON Encoder ---
-
-
-def create_app(config_class):  # <-- MODIFIED THIS LINE
-    """
-    The application factory.
-    """
+def create_app(config_class):
+    """The application factory."""
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # --- Apply the Custom JSON Provider ---
-    # This replaces the old, removed app.json_encoder
+    # Apply Custom JSON Provider
     app.json_provider_class = CustomJSONProvider
     app.json = app.json_provider_class(app)
-    # ---------------------------------------
 
-    # Initialize extensions
+    # Initialize Mongo
     mongo.init_app(app)
 
-    # --- Create database indexes ---
+    # --- Fix: Initialize Database Indexes Correctly ---
+    # We instantiate the BifrostDB class to trigger index creation
     with app.app_context():
-        from . import models
-        models.create_indexes(mongo)
+        # Ensure we pass the client and db_name correctly
+        db_name = app.config.get('DB_NAME', 'bifrost_db')
+        BifrostDB(mongo.cx, db_name)
 
-    # --- Register Blueprints ---
-    from .auth_ui import auth_ui_bp
-    app.register_blueprint(auth_ui_bp, url_prefix='/auth/ui')
+    # --- Fix: Register Blueprints Correctly ---
+    from .auth.ui import auth_ui_bp
+    app.register_blueprint(auth_ui_bp) # URL prefix is defined in the blueprint
 
-    from .auth_api import auth_api_bp
-    app.register_blueprint(auth_api_bp, url_prefix='/auth/api')
+    from .auth.api import auth_api_bp
+    app.register_blueprint(auth_api_bp)
 
-    from .internal_api import internal_api_bp
-    app.register_blueprint(internal_api_bp, url_prefix='/internal')
+    from .internal.routes import internal_bp
+    app.register_blueprint(internal_bp)
 
-    # --- Initialize Flask-Admin ---
-    from .admin import init_admin
-    init_admin(app)
+    # --- Fix: Initialize Admin Correctly ---
+    # Ensure you have created bifrost/admin_panel.py (Code provided in Fix 3 below)
+    from .admin_panel import init_admin
+    init_admin(app, mongo)
 
-    # --- Health Check Endpoint ---
     @app.route('/health')
     def health():
-        """A simple health check endpoint."""
         try:
-            mongo.db.command('ping')
+            mongo.cx.admin.command('ping')
             return jsonify(status="ok", message="Bifrost IdP is operational.")
         except Exception as e:
-            return jsonify(status="error", message=f"Database connection failed: {e}"), 500
+            return jsonify(status="error", message=f"Database error: {e}"), 500
 
     return app
