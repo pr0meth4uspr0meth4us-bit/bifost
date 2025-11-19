@@ -1,0 +1,153 @@
+from flask import session, redirect, url_for, request, flash
+from flask_admin import Admin, AdminIndexView, expose
+from flask_admin.contrib.pymongo import ModelView
+from werkzeug.security import check_password_hash, generate_password_hash
+from wtforms import form, fields, validators
+import secrets
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+UTC = ZoneInfo("UTC")
+
+
+# --- Forms ---
+class AdminLoginForm(form.Form):
+    email = fields.StringField('Email', [validators.DataRequired()])
+    password = fields.PasswordField('Password', [validators.DataRequired()])
+
+
+class ApplicationForm(form.Form):
+    app_name = fields.StringField('App Name', [validators.DataRequired()])
+    app_callback_url = fields.StringField('Callback URL', [validators.DataRequired()])
+    allowed_auth_methods = fields.StringField('Auth Methods (csv)', default="email,telegram")
+    telegram_bot_token = fields.StringField('Telegram Bot Token (Optional)')
+
+
+class AccountForm(form.Form):
+    email = fields.StringField('Email', [validators.DataRequired(), validators.Email()])
+    display_name = fields.StringField('Display Name')
+    telegram_id = fields.StringField('Telegram ID')
+    is_active = fields.BooleanField('Is Active', default=True)
+
+
+class AppLinkForm(form.Form):
+    account_id = fields.StringField('Account ID', [validators.DataRequired()])
+    client_id = fields.StringField('Client ID', [validators.DataRequired()])
+    linked_at = fields.DateTimeField('Linked At')
+
+
+class SuperAdminForm(form.Form):
+    email = fields.StringField('Email', [validators.DataRequired(), validators.Email()])
+    password = fields.PasswordField('Password')
+    created_at = fields.DateTimeField('Created At')
+
+
+# --- Views ---
+class BifrostAdminIndexView(AdminIndexView):
+    @expose('/')
+    def index(self):
+        if not session.get('is_admin'):
+            return redirect(url_for('.login_view'))
+        return super(BifrostAdminIndexView, self).index()
+
+    @expose('/login', methods=('GET', 'POST'))
+    def login_view(self):
+        form = AdminLoginForm(request.form)
+        if request.method == 'POST' and form.validate():
+            # Access mongo via the app instance attached to admin
+            mongo = self.admin.app.mongo_client
+            db_name = self.admin.app.config.get('DB_NAME', 'bifrost_db')
+
+            # Manual DB lookup
+            admin = mongo[db_name].admins.find_one({"email": form.email.data})
+
+            if admin and check_password_hash(admin['password_hash'], form.password.data):
+                session['is_admin'] = True
+                return redirect(url_for('.index'))
+
+            flash('Invalid Credentials', 'error')
+
+        self._template_args['form'] = form
+        return self.render('admin/login.html')
+
+    @expose('/logout')
+    def logout_view(self):
+        session.pop('is_admin', None)
+        return redirect(url_for('.index'))
+
+
+class SecureModelView(ModelView):
+    def is_accessible(self):
+        return session.get('is_admin')
+
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('admin.login_view'))
+
+
+class ApplicationsView(SecureModelView):
+    column_list = ('app_name', 'client_id', 'app_callback_url', 'created_at')
+    form = ApplicationForm
+
+    def on_model_change(self, form, model, is_created):
+        if is_created:
+            safe_name = form.app_name.data.lower().replace(' ', '_')
+            model['client_id'] = f"{safe_name}_{secrets.token_hex(4)}"
+
+            raw_secret = secrets.token_urlsafe(32)
+            model['client_secret_hash'] = generate_password_hash(raw_secret)
+            model['created_at'] = datetime.now(UTC)
+
+            methods = form.allowed_auth_methods.data.split(',')
+            model['allowed_auth_methods'] = [m.strip() for m in methods]
+
+            flash(f"⚠️ NEW APP REGISTERED! COPY THIS SECRET NOW: {raw_secret}", "warning")
+
+
+class AccountsView(SecureModelView):
+    column_list = ('email', 'display_name', 'telegram_id', 'is_active', 'created_at')
+    form = AccountForm
+    can_create = False
+    can_edit = True
+    can_delete = True
+
+
+class AppLinksView(SecureModelView):
+    column_list = ('account_id', 'client_id', 'linked_at')
+    form = AppLinkForm
+    can_create = False
+    can_edit = False
+    can_delete = True
+
+
+class SuperAdminsView(SecureModelView):
+    column_list = ('email', 'created_at')
+    form = SuperAdminForm
+    can_create = True
+    can_edit = False
+    can_delete = True
+
+    def on_model_change(self, form, model, is_created):
+        if is_created:
+            if form.password.data:
+                model['password_hash'] = generate_password_hash(form.password.data)
+            model['created_at'] = datetime.now(UTC)
+
+
+def init_admin(app, mongo):
+    """Registers the Admin views."""
+    admin = Admin(
+        app,
+        name='Bifrost IdP',
+        index_view=BifrostAdminIndexView()
+    )
+
+    # Attach client for login view
+    app.mongo_client = mongo.cx
+
+    # We need to point to the specific DB for the views
+    db = mongo.cx[app.config.get('DB_NAME', 'bifrost_db')]
+
+    admin.add_view(ApplicationsView(db.applications, 'Applications'))
+    admin.add_view(AccountsView(db.accounts, 'User Accounts'))
+    admin.add_view(AppLinksView(db.app_links, 'App Links'))
+    admin.add_view(SuperAdminsView(db.admins, 'Super Admins'))
