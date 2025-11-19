@@ -13,8 +13,8 @@ internal_bp = Blueprint('internal', __name__, url_prefix='/internal')
 
 def require_service_auth(f):
     """
-    Middleware: Ensures the request comes from a valid internal service
-    (like FinanceBot) using Client Credentials (Basic Auth).
+    Middleware: Ensures the request comes from a valid internal
+    service (like FinanceBot) using Client Credentials (Basic Auth).
     """
 
     @wraps(f)
@@ -27,7 +27,8 @@ def require_service_auth(f):
         client_secret = auth.password
 
         # Verify the service credentials against the DB
-        db = BifrostDB(mongo, current_app.config['DB_NAME'])
+        # FIX: Use mongo.cx to get the raw MongoClient, not the PyMongo wrapper
+        db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
         if not db.verify_client_secret(client_id, client_secret):
             return jsonify({"error": "Invalid client_id or secret"}), 401
 
@@ -41,7 +42,6 @@ def require_service_auth(f):
 def validate_token():
     """
     Validates a User JWT provided by a Client App.
-
     Payload: { "jwt": "..." }
     Response: { "is_valid": true, "account_id": "...", "role": "user" }
     """
