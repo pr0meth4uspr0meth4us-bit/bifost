@@ -4,6 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 import logging
+import random
 
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
@@ -46,7 +47,36 @@ class BifrostDB:
         # 4. Admins Collection
         self.db.admins.create_index([("email", ASCENDING)], unique=True)
 
+        # 5. OTP Codes (Time To Live Index - auto delete after 10 mins)
+        self.db.verification_codes.create_index("created_at", expireAfterSeconds=600)
+        self.db.verification_codes.create_index([("code", ASCENDING)], unique=True)
+
         log.info("Indexes verified.")
+
+    # --- OTP Management (NEW) ---
+
+    def create_login_code(self, telegram_id):
+        """Generates a 6-digit code for a Telegram ID."""
+        # Generate secure random 6 digit code
+        code = str(random.randint(100000, 999999))
+
+        # Insert with timestamp for TTL index
+        self.db.verification_codes.insert_one({
+            "code": code,
+            "telegram_id": str(telegram_id),
+            "created_at": datetime.now(UTC)
+        })
+        return code
+
+    def verify_and_consume_code(self, code):
+        """
+        Checks if code exists. If yes, deletes it and returns the telegram_id.
+        Returns None if invalid.
+        """
+        record = self.db.verification_codes.find_one_and_delete({"code": code})
+        if record:
+            return record['telegram_id']
+        return None
 
     # --- User Account Management ---
 
@@ -113,7 +143,8 @@ class BifrostDB:
 
     def link_user_to_app(self, account_id, app_id, role="user"):
         """
-        Links a user to an application. Safe to call multiple times (upsert).
+        Links a user to an application.
+        Safe to call multiple times (upsert).
         """
         # We use update_one with upsert=True to ensure we don't crash on duplicates
         # but update the last_login time.

@@ -1,8 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
-from datetime import datetime
 import jwt
-from zoneinfo import ZoneInfo
 
 # Import the DB helper from the main app package
 from .. import mongo
@@ -60,9 +58,6 @@ def validate_token():
             audience=request.authorization.username  # The token must be FOR this client
         )
 
-        # 2. Check Database (Optional but recommended for banning users)
-        # You might check if user['is_active'] is True here.
-
         return jsonify({
             "is_valid": True,
             "account_id": payload['sub'],
@@ -73,3 +68,26 @@ def validate_token():
         return jsonify({"is_valid": False, "error": "Token expired"}), 401
     except jwt.InvalidTokenError as e:
         return jsonify({"is_valid": False, "error": str(e)}), 401
+
+
+@internal_bp.route('/generate-otp', methods=['POST'])
+@require_service_auth
+def generate_otp():
+    """
+    Generates a login code for a specific Telegram ID.
+    Called by the Telegram Bot.
+    Payload: { "telegram_id": "12345" }
+    """
+    data = request.json
+    telegram_id = data.get('telegram_id')
+
+    if not telegram_id:
+        return jsonify({"error": "Missing telegram_id"}), 400
+
+    # Ensure DB connection
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # Generate Code
+    code = db.create_login_code(telegram_id)
+
+    return jsonify({"code": code, "expires_in": "10 minutes"})
