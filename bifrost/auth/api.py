@@ -5,6 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import jwt
 from werkzeug.security import check_password_hash
+import logging
 
 # Use Relative Imports
 from .. import mongo
@@ -13,7 +14,98 @@ from ..utils.telegram import verify_telegram_data
 
 auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/auth/api')
 UTC_TZ = ZoneInfo("UTC")
+log = logging.getLogger(__name__)
 
+# --- Email OTP Endpoints ---
+
+@auth_api_bp.route('/request-email-otp', methods=['POST'])
+def request_email_otp():
+    """
+    Generates an OTP for an email address.
+    Payload: { "email": "user@example.com", "client_id": "..." }
+    """
+    data = request.json
+    email = data.get('email')
+    client_id = data.get('client_id')
+
+    if not email or not client_id:
+        return jsonify({"error": "Missing email or client_id"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # Optional: Check if client exists
+    app_config = db.get_app_by_client_id(client_id)
+    if not app_config:
+        return jsonify({"error": "Invalid client_id"}), 401
+
+    # Generate Code
+    code, verification_id = db.create_otp(email, channel="email")
+
+    # TODO: Integrate real Email Service (SendGrid/AWS SES)
+    # For now, we log it so you can test via console
+    log.warning(f"========================================")
+    log.warning(f" [EMAIL MOCK] To: {email} | Code: {code} ")
+    log.warning(f"========================================")
+
+    return jsonify({
+        "message": "OTP sent",
+        "verification_id": verification_id
+    })
+
+
+@auth_api_bp.route('/verify-email-otp', methods=['POST'])
+def verify_email_otp():
+    """
+    Verifies the code and returns a 'Proof Token'.
+    Payload: { "verification_id": "...", "code": "123456" }
+    """
+    data = request.json
+    verification_id = data.get('verification_id')
+    code = data.get('code')
+
+    if not verification_id or not code:
+        return jsonify({"error": "Missing verification_id or code"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # Find the record BEFORE verifying (consuming) it, so we can get the email
+    # or rely on verify_otp returning the identifier if we query carefully.
+    # Our DB model: verify_otp consumes it.
+
+    # We first fetch it to get the email address (to put in the token)
+    otp_record = mongo.db.verification_codes.find_one({"_id": db.ObjectId(verification_id)})
+
+    if not otp_record:
+        return jsonify({"error": "Invalid or expired verification session"}), 400
+
+    email = otp_record['identifier']
+
+    # Now verify and consume
+    if not db.verify_otp(verification_id=verification_id, code=code):
+        return jsonify({"error": "Invalid code"}), 401
+
+    # Issue Proof Token (Short lived, scope restricted)
+    proof_payload = {
+        "email": email,
+        "scope": "credential_reset",
+        "verified": True,
+        "iss": "bifrost",
+        "exp": datetime.now(UTC_TZ).timestamp() + 300 # 5 minutes
+    }
+
+    proof_token = jwt.encode(
+        proof_payload,
+        current_app.config['JWT_SECRET_KEY'],
+        algorithm="HS256"
+    )
+
+    return jsonify({
+        "success": True,
+        "proof_token": proof_token
+    })
+
+
+# --- Existing Login Endpoints ---
 
 @auth_api_bp.route('/verify-otp', methods=['POST'])
 def verify_otp_login():
@@ -51,7 +143,7 @@ def verify_otp_login():
         # Create new Telegram-first user
         user_id = db.create_account({
             "telegram_id": telegram_id,
-            "display_name": "Telegram User",  # Placeholder, they can update later
+            "display_name": "Telegram User",
             "auth_providers": ["telegram"]
         })
     else:

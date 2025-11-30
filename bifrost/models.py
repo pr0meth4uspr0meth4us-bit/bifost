@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from bson import ObjectId
 import logging
 import random
+import secrets
 
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
@@ -28,17 +29,14 @@ class BifrostDB:
         log.info("Ensuring Database Indexes...")
 
         # 1. Accounts Collection
-        # Emails must be unique. Telegram IDs must be unique (sparse allows nulls).
         self.db.accounts.create_index([("email", ASCENDING)], unique=True, sparse=True)
         self.db.accounts.create_index([("telegram_id", ASCENDING)], unique=True, sparse=True)
         self.db.accounts.create_index([("google_id", ASCENDING)], unique=True, sparse=True)
 
         # 2. Applications Collection
-        # Client IDs must be globally unique.
         self.db.applications.create_index([("client_id", ASCENDING)], unique=True)
 
         # 3. App Links Collection
-        # A user cannot be linked to the same app twice.
         self.db.app_links.create_index(
             [("account_id", ASCENDING), ("app_id", ASCENDING)],
             unique=True
@@ -49,33 +47,64 @@ class BifrostDB:
 
         # 5. OTP Codes (Time To Live Index - auto delete after 10 mins)
         self.db.verification_codes.create_index("created_at", expireAfterSeconds=600)
-        self.db.verification_codes.create_index([("code", ASCENDING)], unique=True)
+        # We index 'verification_id' for fast lookups if provided
+        self.db.verification_codes.create_index([("identifier", ASCENDING)])
 
         log.info("Indexes verified.")
 
-    # --- OTP Management (NEW) ---
+    # --- OTP Management (Generic) ---
 
-    def create_login_code(self, telegram_id):
-        """Generates a 6-digit code for a Telegram ID."""
-        # Generate secure random 6 digit code
+    def create_otp(self, identifier, channel="email"):
+        """
+        Generates a 6-digit code for a generic identifier (email or telegram_id).
+        Returns the code and the internal verification_id (ObjectId).
+        """
         code = str(random.randint(100000, 999999))
 
-        # Insert with timestamp for TTL index
-        self.db.verification_codes.insert_one({
+        result = self.db.verification_codes.insert_one({
             "code": code,
-            "telegram_id": str(telegram_id),
+            "identifier": str(identifier), # email or telegram_id
+            "channel": channel,
             "created_at": datetime.now(UTC)
         })
+
+        return code, str(result.inserted_id)
+
+    # Legacy wrapper for Telegram Bot compatibility
+    def create_login_code(self, telegram_id):
+        code, _ = self.create_otp(telegram_id, channel="telegram")
         return code
 
-    def verify_and_consume_code(self, code):
+    def verify_otp(self, identifier=None, code=None, verification_id=None):
         """
-        Checks if code exists. If yes, deletes it and returns the telegram_id.
-        Returns None if invalid.
+        Checks if code exists.
+        Can verify by (identifier + code) OR (verification_id + code).
+        If valid, deletes the code and returns True.
         """
-        record = self.db.verification_codes.find_one_and_delete({"code": code})
+        query = {"code": code}
+
+        if verification_id:
+            try:
+                query["_id"] = ObjectId(verification_id)
+            except:
+                return False
+        elif identifier:
+            query["identifier"] = str(identifier)
+        else:
+            return False
+
+        record = self.db.verification_codes.find_one_and_delete(query)
+
         if record:
-            return record['telegram_id']
+            return record['identifier'] if not identifier else True
+        return False
+
+    # Legacy wrapper for Telegram Bot compatibility
+    def verify_and_consume_code(self, code):
+        # We find purely by code for the legacy generic bot flow
+        record = self.db.verification_codes.find_one_and_delete({"code": code, "channel": "telegram"})
+        if record:
+            return record['identifier']
         return None
 
     # --- User Account Management ---
@@ -93,9 +122,18 @@ class BifrostDB:
             "phone_number": data.get("phone_number"),
             "is_active": True,
             "created_at": datetime.now(UTC),
-            "auth_providers": data.get("auth_providers", [])  # e.g. ['email', 'telegram']
+            "auth_providers": data.get("auth_providers", [])
         }
         return self.db.accounts.insert_one(account).inserted_id
+
+    def update_password(self, email, new_password):
+        """
+        Updates the password for a user.
+        """
+        self.db.accounts.update_one(
+            {"email": email},
+            {"$set": {"password_hash": generate_password_hash(new_password)}}
+        )
 
     def find_account_by_email(self, email):
         return self.db.accounts.find_one({"email": email})
@@ -108,22 +146,18 @@ class BifrostDB:
     def register_application(self, app_name, callback_url, allowed_methods=None):
         """
         Registers a new Client Application (like FinanceBot).
-        Generates a secure client_id and client_secret.
         """
-        import secrets
-
         client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
         client_secret = secrets.token_urlsafe(32)
 
         app_doc = {
             "app_name": app_name,
             "client_id": client_id,
-            # Store hashed secret for security, show raw ONLY once to admin
             "client_secret_hash": generate_password_hash(client_secret),
             "app_logo_url": "/static/default_logo.png",
             "app_callback_url": callback_url,
-            "allowed_auth_methods": allowed_methods or ["email"],  # ['email', 'telegram', 'google']
-            "telegram_bot_token": None,  # Filled later by Admin
+            "allowed_auth_methods": allowed_methods or ["email"],
+            "telegram_bot_token": None,
             "created_at": datetime.now(UTC)
         }
 
@@ -143,11 +177,8 @@ class BifrostDB:
 
     def link_user_to_app(self, account_id, app_id, role="user"):
         """
-        Links a user to an application.
-        Safe to call multiple times (upsert).
+        Links a user to an application. Safe to call multiple times (upsert).
         """
-        # We use update_one with upsert=True to ensure we don't crash on duplicates
-        # but update the last_login time.
         self.db.app_links.update_one(
             {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
             {

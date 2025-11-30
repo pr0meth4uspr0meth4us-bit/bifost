@@ -87,7 +87,65 @@ def generate_otp():
     # Ensure DB connection
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    # Generate Code
+    # Generate Code (Using legacy wrapper for now)
     code = db.create_login_code(telegram_id)
 
     return jsonify({"code": code, "expires_in": "10 minutes"})
+
+
+@internal_bp.route('/set-credentials', methods=['POST'])
+@require_service_auth
+def set_credentials():
+    """
+    Sets the password for an email account.
+    Requires a valid 'Proof Token' obtained via verify-email-otp.
+    Payload: { 
+        "email": "...", 
+        "password": "...", 
+        "proof_token": "..." 
+    }
+    """
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    proof_token = data.get('proof_token')
+
+    if not email or not password or not proof_token:
+        return jsonify({"error": "Missing email, password, or proof_token"}), 400
+
+    # 1. Verify Proof Token
+    try:
+        payload = jwt.decode(
+            proof_token,
+            current_app.config['JWT_SECRET_KEY'],
+            algorithms=["HS256"]
+        )
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid proof_token"}), 403
+
+    # 2. Validate Token Claims
+    if payload.get('scope') != 'credential_reset':
+        return jsonify({"error": "Invalid token scope"}), 403
+
+    if payload.get('email') != email:
+        return jsonify({"error": "Token does not match provided email"}), 403
+
+    if not payload.get('verified'):
+        return jsonify({"error": "Token not verified"}), 403
+
+    # 3. Update Database
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # Check if user exists, if not, create placeholder
+    user = db.find_account_by_email(email)
+    if not user:
+        db.create_account({
+            "email": email,
+            "password": password,
+            "display_name": "New User",
+            "auth_providers": ["email"]
+        })
+    else:
+        db.update_password(email, password)
+
+    return jsonify({"success": True, "message": "Credentials updated"})
