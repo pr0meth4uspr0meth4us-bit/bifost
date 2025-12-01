@@ -1,30 +1,19 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 class Config:
-    """
-    Application configuration settings.
-    Loads all settings from environment variables.
-    """
-
-    # Flask settings
-    # This key is required. The app will fail to start if it's not set.
     SECRET_KEY = os.environ.get('SECRET_KEY')
-
-    # Database settings
-    # This key is required. The app will fail to start if it's not set.
     MONGO_URI = os.environ.get('MONGO_URI')
-    DB_NAME = os.environ.get('DB_NAME')
-
-    # JWT settings
-    # This key is required. The app will fail to start if it's not set.
+    DB_NAME = os.environ.get('DB_NAME', 'bifrost_db')
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
 
-    if not SECRET_KEY or not MONGO_URI or not JWT_SECRET_KEY or not DB_NAME:
-        raise RuntimeError(
-            "CRITICAL ERROR: .env file is missing or incomplete. "
-            "Please set SECRET_KEY, MONGO_URI, and JWT_SECRET_KEY."
-        )
+    # --- EMAIL SETTINGS (NEW) ---
+    EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
+    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'auppecampus@icloud.com')
+
+    if not SECRET_KEY or not MONGO_URI or not JWT_SECRET_KEY or not EMAIL_PASSWORD:
+        raise RuntimeError("CRITICAL: Missing .env keys (EMAIL_PASSWORD, SECRET_KEY, etc.)")

@@ -1,5 +1,3 @@
-# bifrost/auth/api.py
-
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -11,17 +9,21 @@ import logging
 from .. import mongo
 from ..models import BifrostDB
 from ..utils.telegram import verify_telegram_data
+from ..services.email_service import send_otp_email
 
 auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/auth/api')
 UTC_TZ = ZoneInfo("UTC")
 log = logging.getLogger(__name__)
 
-# --- Email OTP Endpoints ---
+
+# =========================================================
+#  SECTION 1: EMAIL OTP ENDPOINTS (NEW)
+# =========================================================
 
 @auth_api_bp.route('/request-email-otp', methods=['POST'])
 def request_email_otp():
     """
-    Generates an OTP for an email address.
+    Generates an OTP for an email address and sends it via SMTP.
     Payload: { "email": "user@example.com", "client_id": "..." }
     """
     data = request.json
@@ -33,24 +35,25 @@ def request_email_otp():
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    # Optional: Check if client exists
+    # 1. Validate Client & Get App Name for Branding
     app_config = db.get_app_by_client_id(client_id)
     if not app_config:
         return jsonify({"error": "Invalid client_id"}), 401
 
-    # Generate Code
+    # Default to 'Bifrost Identity' if app_name isn't set
+    app_name = app_config.get('app_name', 'Bifrost Identity')
+
+    # 2. Generate Code
     code, verification_id = db.create_otp(email, channel="email")
 
-    # TODO: Integrate real Email Service (SendGrid/AWS SES)
-    # For now, we log it so you can test via console
-    log.warning(f"========================================")
-    log.warning(f" [EMAIL MOCK] To: {email} | Code: {code} ")
-    log.warning(f"========================================")
-
-    return jsonify({
-        "message": "OTP sent",
-        "verification_id": verification_id
-    })
+    # 3. Send Email with Dynamic Branding
+    if send_otp_email(to_email=email, otp=code, app_name=app_name):
+        return jsonify({
+            "message": "OTP sent successfully",
+            "verification_id": verification_id
+        })
+    else:
+        return jsonify({"error": "Failed to send email. Check server logs."}), 500
 
 
 @auth_api_bp.route('/verify-email-otp', methods=['POST'])
@@ -68,29 +71,31 @@ def verify_email_otp():
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    # Find the record BEFORE verifying (consuming) it, so we can get the email
-    # or rely on verify_otp returning the identifier if we query carefully.
-    # Our DB model: verify_otp consumes it.
-
-    # We first fetch it to get the email address (to put in the token)
-    otp_record = mongo.db.verification_codes.find_one({"_id": db.ObjectId(verification_id)})
+    # 1. Fetch the record first to get the email (identifier)
+    # We access the raw collection to peek at the data before consuming it
+    try:
+        # Convert string ID to ObjectId for lookup
+        oid = db.db.verification_codes.find_one({"_id": db.db.bson.ObjectId(verification_id)})
+        otp_record = mongo.db.verification_codes.find_one({"_id": oid['_id']}) if oid else None
+    except Exception:
+        return jsonify({"error": "Invalid verification ID format"}), 400
 
     if not otp_record:
         return jsonify({"error": "Invalid or expired verification session"}), 400
 
     email = otp_record['identifier']
 
-    # Now verify and consume
+    # 2. Verify and Consume (Delete) the OTP
     if not db.verify_otp(verification_id=verification_id, code=code):
         return jsonify({"error": "Invalid code"}), 401
 
-    # Issue Proof Token (Short lived, scope restricted)
+    # 3. Issue Proof Token (Short lived 5-min token for setting credentials)
     proof_payload = {
         "email": email,
         "scope": "credential_reset",
         "verified": True,
         "iss": "bifrost",
-        "exp": datetime.now(UTC_TZ).timestamp() + 300 # 5 minutes
+        "exp": datetime.now(UTC_TZ).timestamp() + 300
     }
 
     proof_token = jwt.encode(
@@ -105,7 +110,9 @@ def verify_email_otp():
     })
 
 
-# --- Existing Login Endpoints ---
+# =========================================================
+#  SECTION 2: EXISTING LOGIN ENDPOINTS
+# =========================================================
 
 @auth_api_bp.route('/verify-otp', methods=['POST'])
 def verify_otp_login():
@@ -120,7 +127,6 @@ def verify_otp_login():
     if not client_id or not code:
         return jsonify({"error": "Missing client_id or code"}), 400
 
-    # 1. Validate Client
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
     app_config = db.get_app_by_client_id(client_id)
 
@@ -130,17 +136,16 @@ def verify_otp_login():
     if "telegram" not in app_config.get("allowed_auth_methods", []):
         return jsonify({"error": "Telegram auth not enabled for this application"}), 403
 
-    # 2. Verify Code
+    # Verify Code
     telegram_id = db.verify_and_consume_code(code)
 
     if not telegram_id:
         return jsonify({"error": "Invalid or expired code"}), 401
 
-    # 3. Find or Create Account
+    # Find or Create Account
     user = db.find_account_by_telegram(telegram_id)
 
     if not user:
-        # Create new Telegram-first user
         user_id = db.create_account({
             "telegram_id": telegram_id,
             "display_name": "Telegram User",
@@ -149,16 +154,16 @@ def verify_otp_login():
     else:
         user_id = user['_id']
 
-    # 4. Link User to App
+    # Link User to App
     db.link_user_to_app(user_id, app_config['_id'])
 
-    # 5. Issue JWT
+    # Issue JWT
     token_payload = {
         "sub": str(user_id),
         "iss": "bifrost",
         "aud": client_id,
         "iat": datetime.now(UTC_TZ),
-        "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7  # 7 days
+        "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7
     }
 
     encoded_jwt = jwt.encode(
@@ -178,7 +183,6 @@ def verify_otp_login():
 def telegram_login():
     """
     Legacy/Widget Telegram Login.
-    Kept for backward compatibility if needed, but OTP is preferred.
     """
     data = request.json
     client_id = data.get('client_id')
