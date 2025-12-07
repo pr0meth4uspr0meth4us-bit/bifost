@@ -11,7 +11,7 @@ class Config:
 
     # --- EMAIL SETTINGS (NEW) ---
     EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
-    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.mail.me.com')
     SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
     SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'bifrost.heml@icloud.com')
 
