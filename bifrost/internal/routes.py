@@ -41,10 +41,11 @@ def validate_token():
     """
     Validates a User JWT provided by a Client App.
     Payload: { "jwt": "..." }
-    Response: { "is_valid": true, "account_id": "...", "role": "user" }
+    Response: { "is_valid": true, "account_id": "...", "app_specific_role": "premium_user" }
     """
     data = request.json
     token = data.get('jwt')
+    client_id = request.authorization.username  # Authenticated Client ID
 
     if not token:
         return jsonify({"is_valid": False, "error": "Missing token"}), 400
@@ -55,13 +56,32 @@ def validate_token():
             token,
             current_app.config['JWT_SECRET_KEY'],
             algorithms=["HS256"],
-            audience=request.authorization.username  # The token must be FOR this client
+            audience=client_id  # The token must be FOR this client
         )
+
+        account_id = payload['sub']
+
+        # 2. Fetch Actual Role from Database
+        db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+        # Get App ID from Client ID
+        app_doc = db.get_app_by_client_id(client_id)
+        if not app_doc:
+            # Should not happen if require_service_auth passed, but safety check
+            return jsonify({"is_valid": False, "error": "App not found"}), 500
+
+        # Get Role from App Link
+        role = db.get_user_role_for_app(account_id, app_doc['_id'])
+
+        # Default to 'user' if link is missing (e.g. orphan token)
+        final_role = role if role else "user"
 
         return jsonify({
             "is_valid": True,
-            "account_id": payload['sub'],
-            "role": "user"  # You could fetch app-specific role from DB here
+            "account_id": account_id,
+            "app_specific_role": final_role,
+            # We can also pass the email if needed by the client app
+            "email": db.find_account_by_id(account_id).get('email') if hasattr(db, 'find_account_by_id') else None
         })
 
     except jwt.ExpiredSignatureError:
