@@ -13,7 +13,7 @@ class Config:
     EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
     SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-    SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'auppecampus@icloud.com')
+    SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'bifrost.heml@icloud.com')
 
     if not SECRET_KEY or not MONGO_URI or not JWT_SECRET_KEY or not EMAIL_PASSWORD:
         raise RuntimeError("CRITICAL: Missing .env keys (EMAIL_PASSWORD, SECRET_KEY, etc.)")
