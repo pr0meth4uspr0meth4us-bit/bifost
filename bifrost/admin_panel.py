@@ -31,9 +31,10 @@ class AccountForm(form.Form):
 
 
 class AppLinkForm(form.Form):
-    account_id = fields.StringField('Account ID', [validators.DataRequired()])
-    client_id = fields.StringField('Client ID', [validators.DataRequired()])
-    linked_at = fields.DateTimeField('Linked At')
+    account_id = fields.StringField('Account ID (ObjectId)', [validators.DataRequired()])
+    # Removed client_id from edit form as it's hard to read/edit manually, usually we just edit Role
+    # But kept in view for reference
+    role = fields.SelectField('Role', choices=[('user', 'User'), ('premium_user', 'Premium User'), ('admin', 'Admin')])
 
 
 class SuperAdminForm(form.Form):
@@ -112,10 +113,10 @@ class AccountsView(SecureModelView):
 
 
 class AppLinksView(SecureModelView):
-    column_list = ('account_id', 'client_id', 'linked_at')
+    column_list = ('account_id', 'app_id', 'role', 'linked_at')
     form = AppLinkForm
     can_create = False
-    can_edit = False
+    can_edit = True  # ENABLED EDITING
     can_delete = True
 
 

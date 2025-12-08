@@ -224,16 +224,18 @@ class BifrostDB:
     def link_user_to_app(self, account_id, app_id, role="user"):
         """
         Links a user to an application.
-        Safe to call multiple times (upsert).
+        Logic updated to PREVENT overwriting existing roles.
         """
         self.db.app_links.update_one(
             {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
             {
+                # Update last_login every time
                 "$set": {
-                    "role": role,
                     "last_login": datetime.now(UTC)
                 },
+                # Only set role and linked_at if this is a NEW insertion
                 "$setOnInsert": {
+                    "role": role,
                     "linked_at": datetime.now(UTC)
                 }
             },
