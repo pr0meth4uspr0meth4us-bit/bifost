@@ -54,19 +54,30 @@ class BifrostDB:
 
     # --- OTP Management (Generic) ---
 
-    def create_otp(self, identifier, channel="email"):
+    def create_otp(self, identifier, channel="email", account_id=None):
         """
         Generates a 6-digit code for a generic identifier (email or telegram_id).
         Returns the code and the internal verification_id (ObjectId).
+
+        Args:
+            identifier: The email or telegram_id receiving the code.
+            channel: 'email' or 'telegram'.
+            account_id: (Optional) If provided, links this OTP to a specific user context.
         """
         code = str(random.randint(100000, 999999))
 
-        result = self.db.verification_codes.insert_one({
+        doc = {
             "code": code,
-            "identifier": str(identifier), # email or telegram_id
+            "identifier": str(identifier),  # email or telegram_id
             "channel": channel,
             "created_at": datetime.now(UTC)
-        })
+        }
+
+        # Context preservation for Account Linking
+        if account_id:
+            doc["account_id"] = str(account_id)
+
+        result = self.db.verification_codes.insert_one(doc)
 
         return code, str(result.inserted_id)
 
@@ -79,7 +90,7 @@ class BifrostDB:
         """
         Checks if code exists.
         Can verify by (identifier + code) OR (verification_id + code).
-        If valid, deletes the code and returns True.
+        If valid, deletes the code and returns the OTP record (dict) or False.
         """
         query = {"code": code}
 
@@ -93,10 +104,11 @@ class BifrostDB:
         else:
             return False
 
+        # Return the whole record so the API can check for 'account_id' context
         record = self.db.verification_codes.find_one_and_delete(query)
 
         if record:
-            return record['identifier'] if not identifier else True
+            return record
         return False
 
     # Legacy wrapper for Telegram Bot compatibility
@@ -135,8 +147,42 @@ class BifrostDB:
             {"$set": {"password_hash": generate_password_hash(new_password)}}
         )
 
+    def link_email_credentials(self, account_id, email, password):
+        """
+        Links an email and password to an EXISTING account (e.g., Telegram user).
+        Fails if the email is already used by a DIFFERENT account.
+        """
+        # 1. Security Check: Is this email already taken by someone else?
+        existing = self.db.accounts.find_one({"email": email, "_id": {"$ne": ObjectId(account_id)}})
+        if existing:
+            return False, "Email is already associated with another account."
+
+        # 2. Update the specific account
+        result = self.db.accounts.update_one(
+            {"_id": ObjectId(account_id)},
+            {
+                "$set": {
+                    "email": email,
+                    "password_hash": generate_password_hash(password)
+                },
+                "$addToSet": {
+                    "auth_providers": "email"
+                }
+            }
+        )
+
+        if result.modified_count > 0:
+            return True, "Account linked successfully."
+        return False, "Account not found."
+
     def find_account_by_email(self, email):
         return self.db.accounts.find_one({"email": email})
+
+    def find_account_by_id(self, account_id):
+        try:
+            return self.db.accounts.find_one({"_id": ObjectId(account_id)})
+        except:
+            return None
 
     def find_account_by_telegram(self, telegram_id):
         return self.db.accounts.find_one({"telegram_id": str(telegram_id)})
@@ -177,7 +223,8 @@ class BifrostDB:
 
     def link_user_to_app(self, account_id, app_id, role="user"):
         """
-        Links a user to an application. Safe to call multiple times (upsert).
+        Links a user to an application.
+        Safe to call multiple times (upsert).
         """
         self.db.app_links.update_one(
             {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},

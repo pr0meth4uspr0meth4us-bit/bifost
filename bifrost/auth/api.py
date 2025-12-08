@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 import jwt
 from werkzeug.security import check_password_hash
 import logging
-from bson import ObjectId  # <--- FIX: Import ObjectId directly
+from bson import ObjectId
 
 # Use Relative Imports
 from .. import mongo
@@ -25,12 +25,16 @@ log = logging.getLogger(__name__)
 def request_email_otp():
     """
     Generates an OTP for an email address and sends it via SMTP.
-    Payload: { "email": "user@example.com", "client_id": "..." }
+    Payload: {
+        "email": "user@example.com",
+        "client_id": "...",
+        "account_id": "..." (Optional: For linking flows)
+    }
     """
     data = request.json
     email = data.get('email')
-    # Default to the finance bot client ID if none provided (simplifies frontend dev)
     client_id = data.get('client_id')
+    account_id = data.get('account_id')  # Context from existing session (e.g., Telegram)
 
     if not email:
         return jsonify({"error": "Missing email"}), 400
@@ -44,8 +48,8 @@ def request_email_otp():
         if app_config:
             app_name = app_config.get('app_name', 'Savvify')
 
-    # 2. Generate Code
-    code, verification_id = db.create_otp(email, channel="email")
+    # 2. Generate Code (Passing account_id context if present)
+    code, verification_id = db.create_otp(email, channel="email", account_id=account_id)
 
     # 3. Send Email with Dynamic Branding
     if send_otp_email(to_email=email, otp=code, app_name=app_name):
@@ -72,33 +76,26 @@ def verify_email_otp():
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    # 1. Fetch the record first to get the email (identifier)
-    try:
-        # FIX: Use the imported ObjectId class correctly
-        oid = ObjectId(verification_id)
-        # Access the collection directly via pymongo to avoid the wrapper logic hiding data
-        otp_record = mongo.db.verification_codes.find_one({"_id": oid})
-    except Exception as e:
-        log.error(f"OTP Lookup Error: {e}")
-        return jsonify({"error": "Invalid verification ID format"}), 400
+    # 1. Verify and Consume (Delete) the OTP
+    # This returns the full OTP record (dict) if valid, or False
+    otp_record = db.verify_otp(verification_id=verification_id, code=code)
 
     if not otp_record:
-        return jsonify({"error": "Invalid or expired verification session"}), 400
+        return jsonify({"error": "Invalid code or expired session"}), 401
 
     email = otp_record['identifier']
 
-    # 2. Verify and Consume (Delete) the OTP
-    # Note: verify_otp expects string ID if using verification_id param logic in models.py
-    # or we can pass the identifier found above.
-    if not db.verify_otp(verification_id=verification_id, code=code):
-        return jsonify({"error": "Invalid code"}), 401
+    # Retrieve the linking context if it was saved during creation
+    context_account_id = otp_record.get('account_id')
 
-    # 3. Issue Proof Token (Short lived 5-min token for setting credentials)
+    # 2. Issue Proof Token (Short lived 5-min token for setting credentials)
+    # We bake the 'account_id' into this token to securely pass the intent to the next step.
     proof_payload = {
         "email": email,
         "scope": "credential_reset",
         "verified": True,
         "iss": "bifrost",
+        "account_id": context_account_id,  # Can be None if this is a fresh signup
         "exp": datetime.now(UTC_TZ).timestamp() + 300
     }
 

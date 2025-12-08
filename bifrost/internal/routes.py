@@ -73,7 +73,7 @@ def validate_token():
         # Get Role from App Link
         role = db.get_user_role_for_app(account_id, app_doc['_id'])
 
-        # Default to 'user' if link is missing (e.g. orphan token)
+        # Default to 'user' ONLY if no specific role is assigned
         final_role = role if role else "user"
 
         return jsonify({
@@ -119,10 +119,10 @@ def set_credentials():
     """
     Sets the password for an email account.
     Requires a valid 'Proof Token' obtained via verify-email-otp.
-    Payload: { 
-        "email": "...", 
-        "password": "...", 
-        "proof_token": "..." 
+    Payload: {
+        "email": "...",
+        "password": "...",
+        "proof_token": "..."
     }
     """
     data = request.json
@@ -153,19 +153,34 @@ def set_credentials():
     if not payload.get('verified'):
         return jsonify({"error": "Token not verified"}), 403
 
-    # 3. Update Database
+    # 3. Update Database with Context Awareness
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    # Check if user exists, if not, create placeholder
-    user = db.find_account_by_email(email)
-    if not user:
-        db.create_account({
-            "email": email,
-            "password": password,
-            "display_name": "New User",
-            "auth_providers": ["email"]
-        })
-    else:
-        db.update_password(email, password)
+    # Retrieve 'account_id' from the proof token if it exists (the "Context Baton")
+    context_account_id = payload.get('account_id')
 
-    return jsonify({"success": True, "message": "Credentials updated"})
+    # SCENARIO A: Linking to an existing account (e.g., Telegram User adding Email)
+    if context_account_id:
+        success, message = db.link_email_credentials(context_account_id, email, password)
+        if success:
+            return jsonify({"success": True, "message": "Account linked successfully", "mode": "linked"})
+        else:
+            return jsonify({"error": message}), 409  # Conflict
+
+    # SCENARIO B: Fresh Sign Up or Forgot Password
+    else:
+        # Check if user exists
+        user = db.find_account_by_email(email)
+        if not user:
+            # Create new
+            db.create_account({
+                "email": email,
+                "password": password,
+                "display_name": "New User",
+                "auth_providers": ["email"]
+            })
+            return jsonify({"success": True, "message": "Account created", "mode": "created"})
+        else:
+            # Update password
+            db.update_password(email, password)
+            return jsonify({"success": True, "message": "Credentials updated", "mode": "updated"})
