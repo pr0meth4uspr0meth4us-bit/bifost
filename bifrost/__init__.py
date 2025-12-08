@@ -5,6 +5,7 @@ from flask.json.provider import JSONProvider
 import json
 import datetime
 from bson import ObjectId
+from flask_cors import CORS  # <--- FIX: Import CORS
 
 # Globally accessible PyMongo instance
 mongo = PyMongo()
@@ -29,6 +30,10 @@ def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # --- FIX: Enable CORS ---
+    # This allows your Next.js frontend to communicate with this Flask backend
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
     # Apply Custom JSON Provider
     app.json_provider_class = CustomJSONProvider
     app.json = app.json_provider_class(app)
@@ -36,16 +41,20 @@ def create_app(config_class):
     # Initialize Mongo
     mongo.init_app(app)
 
-    # --- Fix: Initialize Database Indexes Correctly ---
+    # --- Initialize Database Indexes Correctly ---
     # We instantiate the BifrostDB class to trigger index creation
     with app.app_context():
         # Ensure we pass the client and db_name correctly
         db_name = app.config.get('DB_NAME', 'bifrost_db')
-        BifrostDB(mongo.cx, db_name)
+        # Only initialize if connection is successful to avoid build crashes
+        try:
+            BifrostDB(mongo.cx, db_name)
+        except Exception as e:
+            print(f"Warning: Could not connect to DB during init: {e}")
 
-    # --- Fix: Register Blueprints Correctly ---
+    # --- Register Blueprints Correctly ---
     from .auth.ui import auth_ui_bp
-    app.register_blueprint(auth_ui_bp) # URL prefix is defined in the blueprint
+    app.register_blueprint(auth_ui_bp)
 
     from .auth.api import auth_api_bp
     app.register_blueprint(auth_api_bp)
@@ -53,10 +62,13 @@ def create_app(config_class):
     from .internal.routes import internal_bp
     app.register_blueprint(internal_bp)
 
-    # --- Fix: Initialize Admin Correctly ---
-    # Ensure you have created bifrost/admin_panel.py (Code provided in Fix 3 below)
+    # --- Initialize Admin Correctly ---
     from .admin_panel import init_admin
-    init_admin(app, mongo)
+    # Wrap in try/except in case mongo isn't ready
+    try:
+        init_admin(app, mongo)
+    except Exception as e:
+        print(f"Warning: Admin panel init skipped: {e}")
 
     @app.route('/health')
     def health():

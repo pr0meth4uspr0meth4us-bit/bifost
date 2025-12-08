@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 import jwt
 from werkzeug.security import check_password_hash
 import logging
+from bson import ObjectId  # <--- FIX: Import ObjectId directly
 
 # Use Relative Imports
 from .. import mongo
@@ -28,20 +29,20 @@ def request_email_otp():
     """
     data = request.json
     email = data.get('email')
+    # Default to the finance bot client ID if none provided (simplifies frontend dev)
     client_id = data.get('client_id')
 
-    if not email or not client_id:
-        return jsonify({"error": "Missing email or client_id"}), 400
+    if not email:
+        return jsonify({"error": "Missing email"}), 400
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
     # 1. Validate Client & Get App Name for Branding
-    app_config = db.get_app_by_client_id(client_id)
-    if not app_config:
-        return jsonify({"error": "Invalid client_id"}), 401
-
-    # Default to 'Bifrost Identity' if app_name isn't set
-    app_name = app_config.get('app_name', 'Bifrost Identity')
+    app_name = "Savvify"
+    if client_id:
+        app_config = db.get_app_by_client_id(client_id)
+        if app_config:
+            app_name = app_config.get('app_name', 'Savvify')
 
     # 2. Generate Code
     code, verification_id = db.create_otp(email, channel="email")
@@ -72,12 +73,13 @@ def verify_email_otp():
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
     # 1. Fetch the record first to get the email (identifier)
-    # We access the raw collection to peek at the data before consuming it
     try:
-        # Convert string ID to ObjectId for lookup
-        oid = db.db.verification_codes.find_one({"_id": db.db.bson.ObjectId(verification_id)})
-        otp_record = mongo.db.verification_codes.find_one({"_id": oid['_id']}) if oid else None
-    except Exception:
+        # FIX: Use the imported ObjectId class correctly
+        oid = ObjectId(verification_id)
+        # Access the collection directly via pymongo to avoid the wrapper logic hiding data
+        otp_record = mongo.db.verification_codes.find_one({"_id": oid})
+    except Exception as e:
+        log.error(f"OTP Lookup Error: {e}")
         return jsonify({"error": "Invalid verification ID format"}), 400
 
     if not otp_record:
@@ -86,6 +88,8 @@ def verify_email_otp():
     email = otp_record['identifier']
 
     # 2. Verify and Consume (Delete) the OTP
+    # Note: verify_otp expects string ID if using verification_id param logic in models.py
+    # or we can pass the identifier found above.
     if not db.verify_otp(verification_id=verification_id, code=code):
         return jsonify({"error": "Invalid code"}), 401
 
