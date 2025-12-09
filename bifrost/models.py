@@ -250,11 +250,22 @@ class BifrostDB:
 
     # --- Payment / Transaction Management (THE MISSING PART) ---
 
+    # In bifrost/models.py, update the create_transaction method:
+
     def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None):
         """
         Creates a 'pending' transaction record.
+
+        IMPORTANT: ABA PayWay requires transaction IDs to only contain:
+        - Letters (a-z, A-Z)
+        - Numbers (0-9)
+        - Hyphens (-)
+
+        Underscores (_) are NOT allowed!
         """
-        transaction_id = f"tx_{secrets.token_hex(12)}"
+        # Generate transaction ID without underscores
+        # Use hyphen instead of underscore
+        transaction_id = f"tx-{secrets.token_hex(12)}"  # Changed from tx_ to tx-
 
         doc = {
             "transaction_id": transaction_id,
