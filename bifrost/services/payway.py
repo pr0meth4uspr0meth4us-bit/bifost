@@ -38,47 +38,36 @@ class PayWayService:
         # 2. Base64 Encode the binary data
         return base64.b64encode(signature).decode('utf-8')
 
+    # In bifrost/services/payway.py
+    # Replace the entire create_transaction method with this:
+
     def create_transaction(self, transaction_id, amount, items, firstname, lastname, email, phone):
         """
         Calls ABA API to generate a KHQR code (Server-to-Server).
         Uses the /generate-qr endpoint which returns JSON with QR data.
-        The /purchase endpoint is for web checkout (returns HTML).
         """
-        # 1. Strict Formatting (CRITICAL FOR HASHING)
-        # Amount must be 2 decimal places (e.g., "5.00")
+        # 1. Format data
         formatted_amount = "{:.2f}".format(float(amount))
 
-        # Items JSON must be compact (no spaces) and base64 encoded
+        # Items: compact JSON, base64 encoded
         items_json = json.dumps(items, separators=(',', ':'))
         items_base64 = base64.b64encode(items_json.encode('utf-8')).decode('utf-8')
 
-        # Request Time (YYYYmmddHHMMSS format)
+        # Timestamp: YYYYMMDDHHmmss
         req_time = datetime.now().strftime('%Y%m%d%H%M%S')
 
-        # Callback URL (Base64 encoded)
+        # Callback URL: base64 encoded
         callback_url = f"{self.public_url}/internal/payments/callback"
         callback_url_b64 = base64.b64encode(callback_url.encode('utf-8')).decode('utf-8')
 
-        # For generate-qr endpoint, we use different parameter names
-        payment_option = "abapay_khqr"  # For QR generation
+        # Required fields
+        payment_option = "abapay_khqr"
         purchase_type = "purchase"
         currency = "USD"
+        lifetime = 60
+        qr_image_template = "template3_color"
 
-        # Optional parameters (can be null for generate-qr)
-        return_deeplink = None
-        custom_fields = None
-        return_params = None
-        payout = None
-        lifetime = 60  # QR expires in 60 minutes
-        qr_image_template = "template3_color"  # QR style template
-
-        # 2. Generate Hash
-        # For generate-qr, the hash order is:
-        # req_time + merchant_id + tran_id + first_name + last_name +
-        # email + phone + amount + purchase_type + payment_option +
-        # items + currency + callback_url + return_deeplink +
-        # custom_fields + return_params + payout + lifetime + qr_image_template
-
+        # 2. Generate hash (ONLY include fields we're sending)
         hash_str = (
             f"{req_time}"
             f"{self.merchant_id}"
@@ -93,10 +82,6 @@ class PayWayService:
             f"{items_base64}"
             f"{currency}"
             f"{callback_url_b64}"
-            f"{return_deeplink if return_deeplink else ''}"
-            f"{custom_fields if custom_fields else ''}"
-            f"{return_params if return_params else ''}"
-            f"{payout if payout else ''}"
             f"{lifetime}"
             f"{qr_image_template}"
         )
@@ -107,8 +92,7 @@ class PayWayService:
             log.error("Failed to generate hash signature")
             return None
 
-        # 3. Build JSON Payload
-        # For generate-qr, we use JSON (not form-data)
+        # 3. Build payload - ONLY required fields, NO optional fields
         payload = {
             "req_time": req_time,
             "merchant_id": self.merchant_id,
@@ -123,16 +107,12 @@ class PayWayService:
             "items": items_base64,
             "currency": currency,
             "callback_url": callback_url_b64,
-            "return_deeplink": return_deeplink,
-            "custom_fields": custom_fields,
-            "return_params": return_params,
-            "payout": payout,
             "lifetime": lifetime,
             "qr_image_template": qr_image_template,
             "hash": signature
         }
 
-        # 4. Execute Request
+        # 4. Execute request
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -140,9 +120,8 @@ class PayWayService:
         }
 
         try:
-            log.info(f"Sending QR Generation Request to ABA: {self.api_url}")
+            log.info(f"Sending QR Request to ABA: {self.api_url}")
             log.info(f"Transaction ID: {transaction_id} | Amount: {formatted_amount} {currency}")
-            log.debug(f"Hash String (for debugging): {hash_str[:150]}...")
 
             response = requests.post(
                 self.api_url,
@@ -151,38 +130,35 @@ class PayWayService:
                 timeout=30
             )
 
-            # Log response for debugging
             log.info(f"ABA Response Status: {response.status_code}")
-            log.debug(f"ABA Response Body: {response.text[:500]}")
 
-            # 5. Handle Response
+            # 5. Handle response
             try:
                 data = response.json()
             except json.JSONDecodeError:
-                log.error(f"ABA returned non-JSON response: {response.text[:200]}")
+                log.error(f"ABA returned non-JSON: {response.text[:200]}")
                 return None
 
-            # Check status in response
             status = data.get('status', {})
-            status_code = status.get('code')
+            status_code = str(status.get('code', ''))
 
-            if status_code == '0' or status_code == 0:  # Success
+            if status_code == '0':  # Success
                 return {
                     "qr_string": data.get('qrString'),
                     "deeplink": data.get('abapay_deeplink'),
                     "description": status.get('message', 'Success')
                 }
             else:
-                error_message = status.get('message', 'Unknown error')
-                log.error(f"ABA API Error: {error_message} (Code: {status_code})")
-                log.error(f"Full error response: {json.dumps(data, indent=2)}")
+                error_msg = status.get('message', 'Unknown error')
+                log.error(f"ABA API Error: {error_msg} (Code: {status_code})")
+                log.error(f"Full response: {json.dumps(data, indent=2)}")
                 return None
 
         except requests.exceptions.RequestException as e:
             log.error(f"ABA Request Failed: {e}")
             return None
         except Exception as e:
-            log.error(f"Unexpected error in ABA transaction: {e}")
+            log.error(f"Unexpected error: {e}")
             return None
 
     def verify_webhook(self, request_data):
