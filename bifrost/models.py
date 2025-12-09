@@ -50,6 +50,11 @@ class BifrostDB:
         # We index 'verification_id' for fast lookups if provided
         self.db.verification_codes.create_index([("identifier", ASCENDING)])
 
+        # 6. Transactions (Payments) - NEW
+        self.db.transactions.create_index([("transaction_id", ASCENDING)], unique=True)
+        self.db.transactions.create_index([("account_id", ASCENDING)])
+        self.db.transactions.create_index([("app_id", ASCENDING)])
+
         log.info("Indexes verified.")
 
     # --- OTP Management (Generic) ---
@@ -58,11 +63,6 @@ class BifrostDB:
         """
         Generates a 6-digit code for a generic identifier (email or telegram_id).
         Returns the code and the internal verification_id (ObjectId).
-
-        Args:
-            identifier: The email or telegram_id receiving the code.
-            channel: 'email' or 'telegram'.
-            account_id: (Optional) If provided, links this OTP to a specific user context.
         """
         code = str(random.randint(100000, 999999))
 
@@ -247,6 +247,71 @@ class BifrostDB:
             {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)}
         )
         return link['role'] if link else None
+
+    # --- Payment / Transaction Management (THE MISSING PART) ---
+
+    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None):
+        """
+        Creates a 'pending' transaction record.
+        """
+        transaction_id = f"tx_{secrets.token_hex(12)}"
+
+        doc = {
+            "transaction_id": transaction_id,
+            "account_id": ObjectId(account_id),
+            "app_id": ObjectId(app_id),
+            "amount": amount,
+            "currency": currency,
+            "description": description,
+            "status": "pending",
+            "target_role": target_role,
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
+            "provider_ref": None
+        }
+
+        self.db.transactions.insert_one(doc)
+        return transaction_id
+
+    def complete_transaction(self, transaction_id, provider_ref=None):
+        """
+        Marks a transaction as successful and EXECUTES the role upgrade.
+        Returns: (success, message)
+        """
+        tx = self.db.transactions.find_one({"transaction_id": transaction_id})
+        if not tx:
+            return False, "Transaction not found"
+
+        if tx['status'] == 'completed':
+            return True, "Already completed"
+
+        # 1. Update Transaction Status
+        self.db.transactions.update_one(
+            {"_id": tx['_id']},
+            {
+                "$set": {
+                    "status": "completed",
+                    "provider_ref": provider_ref,
+                    "updated_at": datetime.now(UTC)
+                }
+            }
+        )
+
+        # 2. Upgrade User Role (if applicable)
+        if tx.get('target_role'):
+            self.db.app_links.update_one(
+                {"account_id": tx['account_id'], "app_id": tx['app_id']},
+                {
+                    "$set": {
+                        "role": tx['target_role'],
+                        "updated_at": datetime.now(UTC)
+                    }
+                },
+                upsert=True
+            )
+            log.info(f"💰 Transaction {transaction_id} successful. Role upgraded to {tx['target_role']}")
+
+        return True, "Transaction completed and role updated"
 
     # --- Admin Management ---
 
