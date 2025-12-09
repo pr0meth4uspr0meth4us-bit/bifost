@@ -20,7 +20,10 @@ class Config:
     BIFROST_PUBLIC_URL = os.environ.get('BIFROST_PUBLIC_URL', 'http://localhost:5000')
 
     # --- ABA PAYWAY (Local) ---
-    PAYWAY_API_URL = os.environ.get('PAYWAY_API_URL', 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase')
+    PAYWAY_API_URL = os.environ.get(
+        'PAYWAY_API_URL',
+        'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/generate-qr'
+    )
     PAYWAY_MERCHANT_ID = os.environ.get('PAYWAY_MERCHANT_ID', 'ec462892')
     PAYWAY_API_KEY = os.environ.get('PAYWAY_API_KEY', '8f43f99f4b8bfb7b050f55f0c2b79858cc237dcb')
 

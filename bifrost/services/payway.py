@@ -33,7 +33,8 @@ class PayWayService:
     def create_transaction(self, transaction_id, amount, items, firstname, lastname, email, phone):
         """
         Calls ABA API to generate a KHQR code (Server-to-Server).
-        Uses multipart/form-data as per official PayWay documentation.
+        Uses the /generate-qr endpoint which returns JSON with QR data.
+        The /purchase endpoint is for web checkout (returns HTML).
         """
         # 1. Strict Formatting (CRITICAL FOR HASHING)
         # Amount must be 2 decimal places (e.g., "5.00")
@@ -43,54 +44,53 @@ class PayWayService:
         items_json = json.dumps(items, separators=(',', ':'))
         items_base64 = base64.b64encode(items_json.encode('utf-8')).decode('utf-8')
 
-        # Request Time (YYYYmmddHHMMSS format - notice the lowercase 'm' for month)
+        # Request Time (YYYYmmddHHMMSS format)
         req_time = datetime.now().strftime('%Y%m%d%H%M%S')
 
         # Callback URL (Base64 encoded)
         callback_url = f"{self.public_url}/internal/payments/callback"
-        return_url = base64.b64encode(callback_url.encode('utf-8')).decode('utf-8')
+        callback_url_b64 = base64.b64encode(callback_url.encode('utf-8')).decode('utf-8')
 
-        # Static/Optional Fields - MUST be empty strings, not None
-        shipping = ""
-        ctid = ""  # Consumer Token ID (for saved accounts)
-        pwt = ""  # PayWay Token (for saved accounts)
-        type_ = "purchase"
-        payment_option = "abapay"  # Changed from abapay_khqr to just abapay
-        continue_success_url = ""
-        return_deeplink = ""
-        currency = "USD"  # or "KHR"
-        custom_fields = ""
-        return_params = ""
+        # For generate-qr endpoint, we use different parameter names
+        payment_option = "abapay_khqr"  # For QR generation
+        purchase_type = "purchase"
+        currency = "USD"
+
+        # Optional parameters (can be null for generate-qr)
+        return_deeplink = None
+        custom_fields = None
+        return_params = None
+        payout = None
+        lifetime = 60  # QR expires in 60 minutes
+        qr_image_template = "template3_color"  # QR style template
 
         # 2. Generate Hash
-        # CRITICAL: The order MUST match the official documentation EXACTLY
-        # Order from docs: req_time + merchant_id + tran_id + amount + items + shipping +
-        # ctid + pwt + firstname + lastname + email + phone + type + payment_option +
-        # return_url + cancel_url + continue_success_url + return_deeplink + currency +
-        # custom_fields + return_params
+        # For generate-qr, the hash order is:
+        # req_time + merchant_id + tran_id + first_name + last_name +
+        # email + phone + amount + purchase_type + payment_option +
+        # items + currency + callback_url + return_deeplink +
+        # custom_fields + return_params + payout + lifetime + qr_image_template
 
         hash_str = (
             f"{req_time}"
             f"{self.merchant_id}"
             f"{transaction_id}"
-            f"{formatted_amount}"
-            f"{items_base64}"
-            f"{shipping}"
-            f"{ctid}"
-            f"{pwt}"
             f"{firstname}"
             f"{lastname}"
             f"{email}"
             f"{phone}"
-            f"{type_}"
+            f"{formatted_amount}"
+            f"{purchase_type}"
             f"{payment_option}"
-            f"{return_url}"
-            f""  # cancel_url (empty)
-            f"{continue_success_url}"
-            f"{return_deeplink}"
+            f"{items_base64}"
             f"{currency}"
-            f"{custom_fields}"
-            f"{return_params}"
+            f"{callback_url_b64}"
+            f"{return_deeplink if return_deeplink else ''}"
+            f"{custom_fields if custom_fields else ''}"
+            f"{return_params if return_params else ''}"
+            f"{payout if payout else ''}"
+            f"{lifetime}"
+            f"{qr_image_template}"
         )
 
         signature = self._generate_hash(hash_str)
@@ -99,42 +99,46 @@ class PayWayService:
             log.error("Failed to generate hash signature")
             return None
 
-        # 3. Build Form Data Payload
-        # CRITICAL: Must use multipart/form-data, NOT JSON
+        # 3. Build JSON Payload
+        # For generate-qr, we use JSON (not form-data)
         payload = {
             "req_time": req_time,
             "merchant_id": self.merchant_id,
             "tran_id": transaction_id,
-            "amount": formatted_amount,
-            "items": items_base64,
-            "shipping": shipping,
-            "firstname": firstname,
-            "lastname": lastname,
+            "first_name": firstname,
+            "last_name": lastname,
             "email": email,
             "phone": phone,
-            "type": type_,
+            "amount": float(formatted_amount),
+            "purchase_type": purchase_type,
             "payment_option": payment_option,
-            "return_url": return_url,
-            "continue_success_url": continue_success_url,
+            "items": items_base64,
             "currency": currency,
+            "callback_url": callback_url_b64,
+            "return_deeplink": return_deeplink,
+            "custom_fields": custom_fields,
+            "return_params": return_params,
+            "payout": payout,
+            "lifetime": lifetime,
+            "qr_image_template": qr_image_template,
             "hash": signature
         }
 
         # 4. Execute Request
-        # No Content-Type header - requests will set it automatically for form-data
         headers = {
+            'Content-Type': 'application/json',
             'Accept': 'application/json',
             'User-Agent': 'Bifrost/1.0'
         }
 
         try:
-            log.info(f"Sending Payment Request to ABA: {self.api_url}")
+            log.info(f"Sending QR Generation Request to ABA: {self.api_url}")
             log.info(f"Transaction ID: {transaction_id} | Amount: {formatted_amount} {currency}")
-            log.debug(f"Hash String (for debugging): {hash_str[:100]}...")
+            log.debug(f"Hash String (for debugging): {hash_str[:150]}...")
 
             response = requests.post(
                 self.api_url,
-                data=payload,  # Changed from json= to data= for form-data
+                json=payload,
                 headers=headers,
                 timeout=30
             )
@@ -150,16 +154,18 @@ class PayWayService:
                 log.error(f"ABA returned non-JSON response: {response.text[:200]}")
                 return None
 
-            status_code = data.get('status', {}).get('code')
+            # Check status in response
+            status = data.get('status', {})
+            status_code = status.get('code')
 
-            if status_code == '00':
+            if status_code == '0' or status_code == 0:  # Success
                 return {
-                    "qr_string": data.get('qr_string'),
+                    "qr_string": data.get('qrString'),
                     "deeplink": data.get('abapay_deeplink'),
-                    "description": data.get('description')
+                    "description": status.get('message', 'Success')
                 }
             else:
-                error_message = data.get('status', {}).get('message', 'Unknown error')
+                error_message = status.get('message', 'Unknown error')
                 log.error(f"ABA API Error: {error_message} (Code: {status_code})")
                 log.error(f"Full error response: {json.dumps(data, indent=2)}")
                 return None
