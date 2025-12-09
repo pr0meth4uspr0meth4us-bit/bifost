@@ -33,31 +33,42 @@ class PayWayService:
     def create_transaction(self, transaction_id, amount, items, firstname, lastname, email, phone):
         """
         Calls ABA API to generate a KHQR code (Server-to-Server).
+        Uses multipart/form-data as per official PayWay documentation.
         """
         # 1. Strict Formatting (CRITICAL FOR HASHING)
         # Amount must be 2 decimal places (e.g., "5.00")
         formatted_amount = "{:.2f}".format(float(amount))
 
-        # Items JSON must be compact (no spaces)
+        # Items JSON must be compact (no spaces) and base64 encoded
         items_json = json.dumps(items, separators=(',', ':'))
         items_base64 = base64.b64encode(items_json.encode('utf-8')).decode('utf-8')
 
-        # Request Time (YYYYMMDDHHmmSS)
+        # Request Time (YYYYmmddHHMMSS format - notice the lowercase 'm' for month)
         req_time = datetime.now().strftime('%Y%m%d%H%M%S')
 
         # Callback URL (Base64 encoded)
         callback_url = f"{self.public_url}/internal/payments/callback"
         return_url = base64.b64encode(callback_url.encode('utf-8')).decode('utf-8')
 
-        # Static/Optional Fields
+        # Static/Optional Fields - MUST be empty strings, not None
         shipping = ""
+        ctid = ""  # Consumer Token ID (for saved accounts)
+        pwt = ""  # PayWay Token (for saved accounts)
         type_ = "purchase"
-        payment_option = "abapay_khqr"  # Forces QR generation
-        continue_success_url = ""  # Optional redirect after success
-        return_params = ""  # Optional passthrough params
+        payment_option = "abapay"  # Changed from abapay_khqr to just abapay
+        continue_success_url = ""
+        return_deeplink = ""
+        currency = "USD"  # or "KHR"
+        custom_fields = ""
+        return_params = ""
 
         # 2. Generate Hash
-        # The order is STRICT. Do not change.
+        # CRITICAL: The order MUST match the official documentation EXACTLY
+        # Order from docs: req_time + merchant_id + tran_id + amount + items + shipping +
+        # ctid + pwt + firstname + lastname + email + phone + type + payment_option +
+        # return_url + cancel_url + continue_success_url + return_deeplink + currency +
+        # custom_fields + return_params
+
         hash_str = (
             f"{req_time}"
             f"{self.merchant_id}"
@@ -65,6 +76,8 @@ class PayWayService:
             f"{formatted_amount}"
             f"{items_base64}"
             f"{shipping}"
+            f"{ctid}"
+            f"{pwt}"
             f"{firstname}"
             f"{lastname}"
             f"{email}"
@@ -72,49 +85,63 @@ class PayWayService:
             f"{type_}"
             f"{payment_option}"
             f"{return_url}"
+            f""  # cancel_url (empty)
             f"{continue_success_url}"
+            f"{return_deeplink}"
+            f"{currency}"
+            f"{custom_fields}"
             f"{return_params}"
         )
 
         signature = self._generate_hash(hash_str)
 
-        # 3. Build JSON Payload
-        # We use JSON instead of Multipart for better reliability
+        if not signature:
+            log.error("Failed to generate hash signature")
+            return None
+
+        # 3. Build Form Data Payload
+        # CRITICAL: Must use multipart/form-data, NOT JSON
         payload = {
             "req_time": req_time,
             "merchant_id": self.merchant_id,
             "tran_id": transaction_id,
             "amount": formatted_amount,
             "items": items_base64,
-            "hash": signature,
+            "shipping": shipping,
             "firstname": firstname,
             "lastname": lastname,
             "email": email,
             "phone": phone,
-            "return_url": return_url,
-            "shipping": shipping,
             "type": type_,
             "payment_option": payment_option,
+            "return_url": return_url,
             "continue_success_url": continue_success_url,
-            "return_params": return_params
+            "currency": currency,
+            "hash": signature
         }
 
         # 4. Execute Request
+        # No Content-Type header - requests will set it automatically for form-data
         headers = {
-            'Content-Type': 'application/json',
             'Accept': 'application/json',
             'User-Agent': 'Bifrost/1.0'
         }
 
         try:
-            log.info(f"Sending Payment Request to ABA: {self.api_url} | TranID: {transaction_id}")
+            log.info(f"Sending Payment Request to ABA: {self.api_url}")
+            log.info(f"Transaction ID: {transaction_id} | Amount: {formatted_amount} {currency}")
+            log.debug(f"Hash String (for debugging): {hash_str[:100]}...")
 
             response = requests.post(
                 self.api_url,
-                json=payload,
+                data=payload,  # Changed from json= to data= for form-data
                 headers=headers,
                 timeout=30
             )
+
+            # Log response for debugging
+            log.info(f"ABA Response Status: {response.status_code}")
+            log.debug(f"ABA Response Body: {response.text[:500]}")
 
             # 5. Handle Response
             try:
@@ -132,11 +159,16 @@ class PayWayService:
                     "description": data.get('description')
                 }
             else:
-                log.error(f"ABA API Error: {data.get('status', {}).get('message')} (Code: {status_code})")
+                error_message = data.get('status', {}).get('message', 'Unknown error')
+                log.error(f"ABA API Error: {error_message} (Code: {status_code})")
+                log.error(f"Full error response: {json.dumps(data, indent=2)}")
                 return None
 
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             log.error(f"ABA Request Failed: {e}")
+            return None
+        except Exception as e:
+            log.error(f"Unexpected error in ABA transaction: {e}")
             return None
 
     def verify_webhook(self, request_data):
