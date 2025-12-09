@@ -50,7 +50,7 @@ class PayWayService:
         continue_success_url = ""
         return_params = ""
 
-        # 2. Generate Hash (Strict Order: 15 params)
+        # 2. Generate Hash (Strict Order)
         hash_str = (
             f"{req_time}{self.merchant_id}{transaction_id}{amount}{items_base64}"
             f"{shipping}{firstname}{lastname}{email}{phone}"
@@ -59,9 +59,7 @@ class PayWayService:
 
         signature = self._generate_hash(hash_str)
 
-        # 3. Build Multipart Payload (The Critical Fix)
-        # We assume 'files' usage to force multipart/form-data,
-        # but we pass (None, value) so it treats them as text fields, not file uploads.
+        # 3. Build Multipart Payload
         raw_payload = {
             'req_time': req_time,
             'merchant_id': self.merchant_id,
@@ -81,28 +79,45 @@ class PayWayService:
             'return_params': return_params
         }
 
-        # Convert dictionary to the format requests expects for multipart text fields
+        # Convert for multipart/form-data
         multipart_payload = {k: (None, str(v)) for k, v in raw_payload.items()}
 
-        # 4. Execute Request
+        # 4. Headers (THE CRITICAL MISSING PIECE)
+        headers = {
+            'Accept': 'application/json',  # Tells ABA we want JSON, not HTML
+            'User-Agent': 'Bifrost/1.0'
+        }
+
+        # 5. Execute Request
         try:
             log.info(f"Sending Payment Request to ABA: {self.api_url} | TranID: {transaction_id}")
 
-            # Use 'files' to force multipart/form-data
-            response = requests.post(self.api_url, files=multipart_payload, timeout=25)
+            response = requests.post(
+                self.api_url,
+                files=multipart_payload,
+                headers=headers,
+                timeout=25
+            )
 
-            # 5. Handle Response
+            # 6. Handle Response
             try:
                 data = response.json()
             except ValueError:
-                # If HTML, try to extract the error message title for cleaner logs
-                error_msg = "Unknown ABA Error"
-                if "<title>" in response.text:
+                # If HTML, search for the error message container
+                error_context = "Unknown Error"
+
+                # Check for common ABA error containers
+                if "class=\"alert alert-danger\"" in response.text:
+                    # Try to extract text inside the alert div
+                    parts = response.text.split("class=\"alert alert-danger\">")
+                    if len(parts) > 1:
+                        error_context = parts[1].split("</div>")[0].strip()
+                elif "<title>" in response.text:
                     start = response.text.find("<title>") + 7
                     end = response.text.find("</title>")
-                    error_msg = response.text[start:end]
+                    error_context = f"Page Title: {response.text[start:end]}"
 
-                log.error(f"ABA HTML Response: {error_msg} | Full Body: {response.text[:200]}...")
+                log.error(f"ABA HTML Error: {error_context}")
                 return None
 
             if data.get('status', {}).get('code') == '00':
