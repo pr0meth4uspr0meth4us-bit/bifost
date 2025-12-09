@@ -289,21 +289,27 @@ def gumroad_webhook():
     Gumroad sends data as application/x-www-form-urlencoded
     """
     data = request.form.to_dict()
-    log.info(f"Gumroad Webhook: {data}")
+    log.info(f"Gumroad Webhook Payload: {data}")  # Log full payload to debug
 
     gumroad = GumroadService()
+    # verify_webhook checks if 'sale_id' exists, which is standard for sales
     if not gumroad.verify_webhook(data):
         return "Invalid Product", 400
 
     # 1. Extract Transaction ID
-    # We sent it as '?transaction_id=...' so it comes back in the custom field 'transaction_id'
-    tx_id = data.get('transaction_id')
+    # Gumroad passes URL params back as 'url_params[key]' in the form data
+    tx_id = data.get('url_params[transaction_id]')
+
+    # Fallback: check top level just in case
+    if not tx_id:
+        tx_id = data.get('transaction_id')
 
     if not tx_id:
-        log.info("Gumroad ping received (no transaction_id)")
+        log.info("Gumroad ping received (no transaction_id found)")
+        # Return 200 so Gumroad doesn't keep retrying failed pings
         return "OK", 200
 
-    # 2. Extract Sale ID (Gumroad's receipt ID)
+    # 2. Extract Sale ID
     sale_id = data.get('sale_id')
 
     # 3. Complete Transaction

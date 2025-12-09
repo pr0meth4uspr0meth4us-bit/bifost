@@ -16,20 +16,16 @@ class Config:
     SENDER_EMAIL = 'bifrostbyhelm@gmail.com'
 
     # --- PUBLIC URL ---
-    # Required for Payment Webhooks (must be accessible from internet)
     BIFROST_PUBLIC_URL = os.environ.get('BIFROST_PUBLIC_URL', 'http://localhost:5000')
 
-    # --- ABA PAYWAY (Local) ---
-    PAYWAY_API_URL = os.environ.get(
-        'PAYWAY_API_URL',
-        'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/generate-qr'
-    )
+    # --- ABA PAYWAY ---
+    PAYWAY_API_URL = os.environ.get('PAYWAY_API_URL', 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase')
     PAYWAY_MERCHANT_ID = os.environ.get('PAYWAY_MERCHANT_ID', 'ec462892')
     PAYWAY_API_KEY = os.environ.get('PAYWAY_API_KEY', '8f43f99f4b8bfb7b050f55f0c2b79858cc237dcb')
 
     # --- GUMROAD (International) ---
-    # The default product slug if none is provided by the client
-    GUMROAD_PRODUCT_PERMALINK = os.environ.get('GUMROAD_PRODUCT_PERMALINK', 'savvify-premium')
+    # NO DEFAULT. Must be passed by client or set explicitly in ENV.
+    GUMROAD_PRODUCT_PERMALINK = os.environ.get('GUMROAD_PRODUCT_PERMALINK')
     GUMROAD_BASE_URL = "https://gumroad.com/l"
 
     if not SECRET_KEY or not MONGO_URI or not JWT_SECRET_KEY or not EMAIL_PASSWORD:
