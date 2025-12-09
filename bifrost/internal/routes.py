@@ -284,40 +284,38 @@ def payway_callback():
 
 @internal_bp.route('/payments/webhook/gumroad', methods=['POST'])
 def gumroad_webhook():
-    """
-    GUMROAD WEBHOOK
-    Gumroad sends data as application/x-www-form-urlencoded
-    """
-    data = request.form.to_dict()
-    log.info(f"Gumroad Webhook Payload: {data}")  # Log full payload to debug
+    # 1. LOG EVERYTHING IMMEDIATELY
+    # This proves the request hit the server
+    raw_data = request.form.to_dict()
+    print(f"🔔 HIT! Webhook received. Raw Data: {raw_data}", flush=True)
 
-    gumroad = GumroadService()
-    # verify_webhook checks if 'sale_id' exists, which is standard for sales
-    if not gumroad.verify_webhook(data):
-        return "Invalid Product", 400
-
-    # 1. Extract Transaction ID
-    # Gumroad passes URL params back as 'url_params[key]' in the form data
-    tx_id = data.get('url_params[transaction_id]')
-
-    # Fallback: check top level just in case
-    if not tx_id:
-        tx_id = data.get('transaction_id')
-
-    if not tx_id:
-        log.info("Gumroad ping received (no transaction_id found)")
-        # Return 200 so Gumroad doesn't keep retrying failed pings
+    # 2. Handle "Test Ping" from Gumroad Settings
+    # Gumroad sends a dummy sale_id like '1234' or 'dummy' for test pings
+    if raw_data.get('sale_id') == '1234' or raw_data.get('test'):
+        print("✅ Gumroad Test Ping confirmed successful.", flush=True)
         return "OK", 200
 
-    # 2. Extract Sale ID
-    sale_id = data.get('sale_id')
+    # 3. Extract IDs (Nested Check)
+    # Gumroad sends custom fields as: 'url_params[transaction_id]'
+    tx_id = raw_data.get('url_params[transaction_id]')
 
-    # 3. Complete Transaction
-    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    # Fallback for some Gumroad versions
+    if not tx_id:
+        tx_id = raw_data.get('transaction_id')
 
-    # Ensure this is a sale event
-    if data.get('resource_name') == 'sale':
+    if not tx_id:
+        print("⚠️ Warning: No transaction_id found in webhook. Ignoring.", flush=True)
+        return "OK", 200
+
+    # 4. Process Sale
+    sale_id = raw_data.get('sale_id')
+    resource = raw_data.get('resource_name')
+
+    if resource == 'sale' or resource == 'subscription':  # Handle subscriptions too
+        from ..models import BifrostDB
+        from .. import mongo
+        db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
         success, msg = db.complete_transaction(tx_id, provider_ref=sale_id)
-        log.info(f"Gumroad TX {tx_id}: {msg}")
+        print(f"💰 Processed Sale {sale_id} for TX {tx_id}: {msg}", flush=True)
 
     return "OK", 200
