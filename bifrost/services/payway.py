@@ -41,6 +41,9 @@ class PayWayService:
     # In bifrost/services/payway.py
     # Replace the entire create_transaction method with this:
 
+    # In bifrost/services/payway.py
+    # Replace the entire create_transaction method with this:
+
     def create_transaction(self, transaction_id, amount, items, firstname, lastname, email, phone):
         """
         Calls ABA API to generate a KHQR code (Server-to-Server).
@@ -67,7 +70,8 @@ class PayWayService:
         lifetime = 60
         qr_image_template = "template3_color"
 
-        # 2. Generate hash (ONLY include fields we're sending)
+        # 2. Generate hash (ONLY include NON-NULL fields)
+        # According to official docs, null fields should NOT be in the hash
         hash_str = (
             f"{req_time}"
             f"{self.merchant_id}"
@@ -92,7 +96,9 @@ class PayWayService:
             log.error("Failed to generate hash signature")
             return None
 
-        # 3. Build payload - ONLY required fields, NO optional fields
+        # 3. Build payload
+        # IMPORTANT: ABA expects null values to be actual null (None in Python),
+        # NOT empty strings or omitted fields!
         payload = {
             "req_time": req_time,
             "merchant_id": self.merchant_id,
@@ -107,6 +113,10 @@ class PayWayService:
             "items": items_base64,
             "currency": currency,
             "callback_url": callback_url_b64,
+            "return_deeplink": None,  # Send as null, not omitted
+            "custom_fields": None,  # Send as null, not omitted
+            "return_params": None,  # Send as null, not omitted
+            "payout": None,  # Send as null, not omitted
             "lifetime": lifetime,
             "qr_image_template": qr_image_template,
             "hash": signature
@@ -122,6 +132,9 @@ class PayWayService:
         try:
             log.info(f"Sending QR Request to ABA: {self.api_url}")
             log.info(f"Transaction ID: {transaction_id} | Amount: {formatted_amount} {currency}")
+
+            # Debug: print payload to see what's being sent
+            log.debug(f"Payload: {json.dumps(payload, indent=2)}")
 
             response = requests.post(
                 self.api_url,
