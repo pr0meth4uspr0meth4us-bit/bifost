@@ -18,9 +18,7 @@ class PayWayService:
         self.public_url = current_app.config['BIFROST_PUBLIC_URL']
 
     def _generate_hash(self, data_string):
-        """
-        Generates the HMAC-SHA512 hash (Base64 of Binary).
-        """
+        """Generates the HMAC-SHA512 hash (Base64 of Binary)."""
         if not self.api_key:
             log.error("Missing PAYWAY_API_KEY")
             return None
@@ -40,7 +38,6 @@ class PayWayService:
         Calls ABA API to generate a KHQR code.
         """
         # 1. Formatting Data
-        # Amount must be a string "5.00" to ensure Hash and JSON match exactly
         formatted_amount = "{:.2f}".format(float(amount))
 
         # Items: Compact JSON -> Base64
@@ -49,15 +46,17 @@ class PayWayService:
 
         req_time = datetime.now().strftime('%Y%m%d%H%M%S')
 
-        # FIX: return_url should be RAW string, NOT Base64 encoded
-        return_url = f"{self.public_url}/internal/payments/callback"
+        # FIX: Base64 Encode the return_url
+        # This prevents URL characters from breaking the hash concatenation on the server
+        raw_return_url = f"{self.public_url}/internal/payments/callback"
+        return_url_b64 = base64.b64encode(raw_return_url.encode('utf-8')).decode('utf-8')
 
         # Standard Fields
         payment_option = "abapay_khqr"
-        purchase_type = "purchase"
+        purchase_type = "purchase"  # Value for the 'type' field
         currency = "USD"
 
-        # Optional/Empty Fields (REQUIRED for Hash Position)
+        # Optional/Empty Fields (Required for Hash Order)
         gdt = ""
         shipping = ""
         ctid = ""
@@ -69,8 +68,8 @@ class PayWayService:
         custom_fields = ""
         return_params = ""
 
-        # 2. GENERATE HASH - STRICT ORDER (Report Sec 5.1)
-        # Note: 'return_url' is used here as the raw string
+        # 2. GENERATE HASH - STRICT ORDER
+        # Using return_url_b64 here
         hash_str = (
             f"{req_time}"
             f"{self.merchant_id}"
@@ -87,7 +86,7 @@ class PayWayService:
             f"{phone}"
             f"{purchase_type}"
             f"{payment_option}"
-            f"{return_url}"  # RAW URL
+            f"{return_url_b64}"  # Using Base64 version
             f"{cancel_url}"
             f"{continue_success_url}"
             f"{return_deeplink}"
@@ -104,8 +103,8 @@ class PayWayService:
             return None
 
         # 3. Build JSON Payload
-        # FIX: Key must be 'return_url' (not callback_url)
-        # FIX: Amount is sent as string to guarantee it matches the hash
+        # FIX: Changed key 'purchase_type' -> 'type'
+        # FIX: Sending 'return_url' as the Base64 string
         payload = {
             "req_time": req_time,
             "merchant_id": self.merchant_id,
@@ -114,12 +113,12 @@ class PayWayService:
             "last_name": lastname,
             "email": email,
             "phone": phone,
-            "amount": formatted_amount,  # Send as String "5.00"
-            "purchase_type": purchase_type,
+            "amount": formatted_amount,
+            "type": purchase_type,  # Correct key name is 'type'
             "payment_option": payment_option,
             "items": items_base64,
             "currency": currency,
-            "return_url": return_url,  # Send as Raw String
+            "return_url": return_url_b64,  # Send Base64 encoded URL
             "hash": signature,
             "lifetime": 60,
             "qr_image_template": "template3_color"
@@ -156,6 +155,7 @@ class PayWayService:
                 }
             else:
                 log.error(f"ABA API Error: {data.get('status', {}).get('message')} (Code: {status_code})")
+                log.debug(f"Sent Hash String: {hash_str}")
                 return None
 
         except Exception as e:
