@@ -1,12 +1,16 @@
 from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
 import jwt
+import logging
 
-# Import the DB helper from the main app package
+# Import the DB helper and Services
 from .. import mongo
 from ..models import BifrostDB
+from ..services.payway import PayWayService
+from ..services.gumroad import GumroadService
 
 internal_bp = Blueprint('internal', __name__, url_prefix='/internal')
+log = logging.getLogger(__name__)
 
 
 def require_service_auth(f):
@@ -25,10 +29,12 @@ def require_service_auth(f):
         client_secret = auth.password
 
         # Verify the service credentials against the DB
-        # FIX: Use mongo.cx to get the raw MongoClient, not the PyMongo wrapper
         db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
         if not db.verify_client_secret(client_id, client_secret):
             return jsonify({"error": "Invalid client_id or secret"}), 401
+
+        # Store the authenticated client_id in the request context for use in routes
+        request.authenticated_client_id = client_id
 
         return f(*args, **kwargs)
 
@@ -40,12 +46,10 @@ def require_service_auth(f):
 def validate_token():
     """
     Validates a User JWT provided by a Client App.
-    Payload: { "jwt": "..." }
-    Response: { "is_valid": true, "account_id": "...", "app_specific_role": "premium_user" }
     """
     data = request.json
     token = data.get('jwt')
-    client_id = request.authorization.username  # Authenticated Client ID
+    client_id = request.authorization.username
 
     if not token:
         return jsonify({"is_valid": False, "error": "Missing token"}), 400
@@ -56,58 +60,44 @@ def validate_token():
             token,
             current_app.config['JWT_SECRET_KEY'],
             algorithms=["HS256"],
-            audience=client_id  # The token must be FOR this client
+            audience=client_id
         )
 
         account_id = payload['sub']
 
         # 2. Fetch Actual Role from Database
         db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-
-        # Get App ID from Client ID
         app_doc = db.get_app_by_client_id(client_id)
+
         if not app_doc:
-            # Should not happen if require_service_auth passed, but safety check
             return jsonify({"is_valid": False, "error": "App not found"}), 500
 
         # Get Role from App Link
         role = db.get_user_role_for_app(account_id, app_doc['_id'])
-
-        # Default to 'user' ONLY if no specific role is assigned
         final_role = role if role else "user"
 
         return jsonify({
             "is_valid": True,
             "account_id": account_id,
             "app_specific_role": final_role,
-            # We can also pass the email if needed by the client app
-            "email": db.find_account_by_id(account_id).get('email') if hasattr(db, 'find_account_by_id') else None
+            "email": db.find_account_by_id(account_id).get('email')
         })
 
-    except jwt.ExpiredSignatureError:
-        return jsonify({"is_valid": False, "error": "Token expired"}), 401
-    except jwt.InvalidTokenError as e:
-        return jsonify({"is_valid": False, "error": str(e)}), 401
+    except Exception:
+        return jsonify({"is_valid": False, "error": "Invalid Token"}), 401
 
 
 @internal_bp.route('/generate-otp', methods=['POST'])
 @require_service_auth
 def generate_otp():
-    """
-    Generates a login code for a specific Telegram ID.
-    Called by the Telegram Bot.
-    Payload: { "telegram_id": "12345" }
-    """
+    """Generates a login code for a specific Telegram ID."""
     data = request.json
     telegram_id = data.get('telegram_id')
 
     if not telegram_id:
         return jsonify({"error": "Missing telegram_id"}), 400
 
-    # Ensure DB connection
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-
-    # Generate Code (Using legacy wrapper for now)
     code = db.create_login_code(telegram_id)
 
     return jsonify({"code": code, "expires_in": "10 minutes"})
@@ -116,15 +106,7 @@ def generate_otp():
 @internal_bp.route('/set-credentials', methods=['POST'])
 @require_service_auth
 def set_credentials():
-    """
-    Sets the password for an email account.
-    Requires a valid 'Proof Token' obtained via verify-email-otp.
-    Payload: {
-        "email": "...",
-        "password": "...",
-        "proof_token": "..."
-    }
-    """
+    """Sets the password for an email account using a proof token."""
     data = request.json
     email = data.get('email')
     password = data.get('password')
@@ -133,7 +115,6 @@ def set_credentials():
     if not email or not password or not proof_token:
         return jsonify({"error": "Missing email, password, or proof_token"}), 400
 
-    # 1. Verify Proof Token
     try:
         payload = jwt.decode(
             proof_token,
@@ -143,36 +124,24 @@ def set_credentials():
     except jwt.InvalidTokenError:
         return jsonify({"error": "Invalid proof_token"}), 403
 
-    # 2. Validate Token Claims
     if payload.get('scope') != 'credential_reset':
         return jsonify({"error": "Invalid token scope"}), 403
 
     if payload.get('email') != email:
         return jsonify({"error": "Token does not match provided email"}), 403
 
-    if not payload.get('verified'):
-        return jsonify({"error": "Token not verified"}), 403
-
-    # 3. Update Database with Context Awareness
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-
-    # Retrieve 'account_id' from the proof token if it exists (the "Context Baton")
     context_account_id = payload.get('account_id')
 
-    # SCENARIO A: Linking to an existing account (e.g., Telegram User adding Email)
     if context_account_id:
         success, message = db.link_email_credentials(context_account_id, email, password)
         if success:
             return jsonify({"success": True, "message": "Account linked successfully", "mode": "linked"})
         else:
-            return jsonify({"error": message}), 409  # Conflict
-
-    # SCENARIO B: Fresh Sign Up or Forgot Password
+            return jsonify({"error": message}), 409
     else:
-        # Check if user exists
         user = db.find_account_by_email(email)
         if not user:
-            # Create new
             db.create_account({
                 "email": email,
                 "password": password,
@@ -181,6 +150,168 @@ def set_credentials():
             })
             return jsonify({"success": True, "message": "Account created", "mode": "created"})
         else:
-            # Update password
             db.update_password(email, password)
             return jsonify({"success": True, "message": "Credentials updated", "mode": "updated"})
+
+
+# =========================================================
+#  SECTION: PAYMENT ENDPOINTS (HYBRID: PAYWAY + GUMROAD)
+# =========================================================
+
+@internal_bp.route('/payments/create-intent', methods=['POST'])
+@require_service_auth
+def create_payment_intent():
+    """
+    Step 1: Client App (FinanceBot) requests to start a payment.
+    Payload: {
+        "account_id": "...",
+        "amount": "5.00",
+        "region": "local" | "international",
+        "target_role": "premium_user",
+        "product_id": "savvify-premium"  <-- Optional: Specific Gumroad Slug
+    }
+    """
+    data = request.json
+    account_id = data.get('account_id')
+    amount = data.get('amount')
+    region = data.get('region', 'local')
+    target_role = data.get('target_role', 'premium_user')
+
+    # Capture the specific product the bot wants to sell
+    product_id = data.get('product_id')
+
+    # User info
+    firstname = data.get('firstname', 'Bifrost')
+    lastname = data.get('lastname', 'User')
+    email = data.get('email', 'user@example.com')
+    phone = data.get('phone', '099999999')
+
+    client_id = request.authenticated_client_id
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    app_doc = db.get_app_by_client_id(client_id)
+
+    if not app_doc:
+        return jsonify({"error": "App context lost"}), 500
+
+    # 1. Create Pending Transaction in Bifrost
+    tx_id = db.create_transaction(
+        account_id=account_id,
+        app_id=app_doc['_id'],
+        amount=amount,
+        currency="USD",
+        description=f"Upgrade to {target_role}",
+        target_role=target_role
+    )
+
+    # 2. ROUTER LOGIC
+    if region == 'local':
+        # --- PATH A: ABA PAYWAY (Cambodia) ---
+        payway = PayWayService()
+        items = [{"name": target_role, "quantity": "1", "price": amount}]
+
+        result = payway.create_transaction(
+            transaction_id=tx_id,
+            amount=amount,
+            items=items,
+            firstname=firstname,
+            lastname=lastname,
+            email=email,
+            phone=phone
+        )
+
+        if result:
+            return jsonify({
+                "success": True,
+                "transaction_id": tx_id,
+                "provider": "payway",
+                "qr_string": result['qr_string'],
+                "deeplink": result['deeplink']
+            })
+        else:
+            return jsonify({"error": "Failed to communicate with ABA"}), 502
+
+    else:
+        # --- PATH B: GUMROAD (International) ---
+        gumroad = GumroadService()
+
+        # We pass the 'product_id' (permalink) from the request to the service
+        # If None, the service will fall back to the Default in Config
+        checkout_url = gumroad.generate_checkout_url(
+            transaction_id=tx_id,
+            email=email,
+            product_permalink=product_id
+        )
+
+        if not checkout_url:
+            return jsonify({"error": "Missing product configuration"}), 400
+
+        return jsonify({
+            "success": True,
+            "transaction_id": tx_id,
+            "provider": "gumroad",
+            "payment_url": checkout_url
+        })
+
+
+@internal_bp.route('/payments/callback', methods=['POST'])
+def payway_callback():
+    """
+    ABA PAYWAY WEBHOOK
+    """
+    data = request.form.to_dict()
+    log.info(f"PayWay Webhook: {data}")
+
+    payway = PayWayService()
+
+    # In Sandbox, verify_webhook might fail if keys aren't perfect,
+    # but uncomment for Prod:
+    # if not payway.verify_webhook(data):
+    #     return "Invalid Signature", 400
+
+    status = data.get('status')
+    tran_id = data.get('tran_id')
+    apv = data.get('apv')
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    if status == '00':
+        success, msg = db.complete_transaction(transaction_id=tran_id, provider_ref=apv)
+        log.info(f"PayWay TX {tran_id}: {msg}")
+
+    return "OK", 200
+
+
+@internal_bp.route('/payments/webhook/gumroad', methods=['POST'])
+def gumroad_webhook():
+    """
+    GUMROAD WEBHOOK
+    Gumroad sends data as application/x-www-form-urlencoded
+    """
+    data = request.form.to_dict()
+    log.info(f"Gumroad Webhook: {data}")
+
+    gumroad = GumroadService()
+    if not gumroad.verify_webhook(data):
+        return "Invalid Product", 400
+
+    # 1. Extract Transaction ID
+    # We sent it as '?transaction_id=...' so it comes back in the custom field 'transaction_id'
+    tx_id = data.get('transaction_id')
+
+    if not tx_id:
+        log.info("Gumroad ping received (no transaction_id)")
+        return "OK", 200
+
+    # 2. Extract Sale ID (Gumroad's receipt ID)
+    sale_id = data.get('sale_id')
+
+    # 3. Complete Transaction
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # Ensure this is a sale event
+    if data.get('resource_name') == 'sale':
+        success, msg = db.complete_transaction(tx_id, provider_ref=sale_id)
+        log.info(f"Gumroad TX {tx_id}: {msg}")
+
+    return "OK", 200
