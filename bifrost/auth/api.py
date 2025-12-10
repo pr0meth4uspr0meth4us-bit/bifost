@@ -4,13 +4,12 @@ from zoneinfo import ZoneInfo
 import jwt
 from werkzeug.security import check_password_hash
 import logging
-from bson import ObjectId
 
 # Use Relative Imports
 from .. import mongo
 from ..models import BifrostDB
-from ..utils.telegram import verify_telegram_data
 from ..services.email_service import send_otp_email
+from ..utils.telegram import verify_telegram_data
 
 auth_api_bp = Blueprint('auth_api', __name__, url_prefix='/auth/api')
 UTC_TZ = ZoneInfo("UTC")
@@ -18,38 +17,50 @@ log = logging.getLogger(__name__)
 
 
 # =========================================================
-#  SECTION 1: EMAIL OTP ENDPOINTS (NEW)
+#  SECTION 1: PUBLIC OTP & ACCOUNT MANAGEMENT (HEADLESS)
 # =========================================================
+
+@auth_api_bp.route('/check-email', methods=['POST'])
+def check_email():
+    """
+    Checks if an email is already registered.
+    Useful for the frontend to decide whether to show 'Login' or 'Register'.
+    Payload: { "email": "..." }
+    """
+    data = request.json
+    email = data.get('email')
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    user = db.find_account_by_email(email)
+
+    return jsonify({"exists": bool(user)})
+
 
 @auth_api_bp.route('/request-email-otp', methods=['POST'])
 def request_email_otp():
     """
     Generates an OTP for an email address and sends it via SMTP.
-    Payload: {
-        "email": "user@example.com",
-        "client_id": "...",
-        "account_id": "..." (Optional: For linking flows)
-    }
+    Payload: { "email": "user@example.com", "client_id": "..." }
     """
     data = request.json
     email = data.get('email')
     client_id = data.get('client_id')
-    account_id = data.get('account_id')  # Context from existing session (e.g., Telegram)
 
-    if not email:
-        return jsonify({"error": "Missing email"}), 400
+    if not email or not client_id:
+        return jsonify({"error": "Missing email or client_id"}), 400
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
     # 1. Validate Client & Get App Name for Branding
-    app_name = "Savvify"
-    if client_id:
-        app_config = db.get_app_by_client_id(client_id)
-        if app_config:
-            app_name = app_config.get('app_name', 'Savvify')
+    app_config = db.get_app_by_client_id(client_id)
+    if not app_config:
+        return jsonify({"error": "Invalid client_id"}), 401
 
-    # 2. Generate Code (Passing account_id context if present)
-    code, verification_id = db.create_otp(email, channel="email", account_id=account_id)
+    # Default to 'Bifrost Identity' if app_name isn't set
+    app_name = app_config.get('app_name', 'Bifrost Identity')
+
+    # 2. Generate Code
+    code, verification_id = db.create_otp(email, channel="email")
 
     # 3. Send Email with Dynamic Branding
     if send_otp_email(to_email=email, otp=code, app_name=app_name):
@@ -74,32 +85,33 @@ def verify_email_otp():
     if not verification_id or not code:
         return jsonify({"error": "Missing verification_id or code"}), 400
 
-    # FIX: Force string type and remove ALL spaces
-    code = str(code).replace(" ", "").strip()
-
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    # 1. Verify and Consume (Delete) the OTP
-    # This returns the full OTP record (dict) if valid, or False
-    otp_record = db.verify_otp(verification_id=verification_id, code=code)
+    # 1. Lookup OTP Record (Safe peek)
+    try:
+        # We need to manually access the collection to find the identifier before consuming
+        # because db.verify_otp consumes it immediately.
+        oid = db.db.verification_codes.find_one({"_id": db.db.bson.ObjectId(verification_id)})
+    except Exception:
+        return jsonify({"error": "Invalid verification ID format"}), 400
 
-    if not otp_record:
-        return jsonify({"error": "Invalid code or expired session"}), 401
+    if not oid:
+        return jsonify({"error": "Invalid or expired verification session"}), 400
 
-    email = otp_record['identifier']
+    email = oid['identifier']
 
-    # Retrieve the linking context if it was saved during creation
-    context_account_id = otp_record.get('account_id')
+    # 2. Verify and Consume (Delete) the OTP
+    if not db.verify_otp(verification_id=verification_id, code=code):
+        return jsonify({"error": "Invalid code"}), 401
 
-    # 2. Issue Proof Token (Short lived 5-min token for setting credentials)
-    # We bake the 'account_id' into this token to securely pass the intent to the next step.
+    # 3. Issue Proof Token (Short lived 5-min token for setting credentials)
+    # This token proves the user owns the email.
     proof_payload = {
         "email": email,
-        "scope": "credential_reset",
+        "scope": "credential_change",
         "verified": True,
         "iss": "bifrost",
-        "account_id": context_account_id,  # Can be None if this is a fresh signup
-        "exp": datetime.now(UTC_TZ).timestamp() + 300
+        "exp": datetime.now(UTC_TZ).timestamp() + 300 # 5 minutes
     }
 
     proof_token = jwt.encode(
@@ -110,167 +122,118 @@ def verify_email_otp():
 
     return jsonify({
         "success": True,
-        "proof_token": proof_token
+        "proof_token": proof_token,
+        "email": email
     })
 
 
-# =========================================================
-#  SECTION 2: EXISTING LOGIN ENDPOINTS
-# =========================================================
-
-@auth_api_bp.route('/verify-otp', methods=['POST'])
-def verify_otp_login():
+@auth_api_bp.route('/complete-registration', methods=['POST'])
+def complete_registration():
     """
-    Verifies a code generated by the Bot (via /internal/generate-otp).
-    Payload: { "client_id": "...", "code": "123456" }
+    Finalizes account creation.
+    Requires a valid 'Proof Token' from verify-email-otp.
+    Payload: { "proof_token": "...", "password": "...", "display_name": "...", "client_id": "..." }
+    Returns: A valid Login JWT for the app.
     """
     data = request.json
+    proof_token = data.get('proof_token')
+    password = data.get('password')
+    display_name = data.get('display_name')
     client_id = data.get('client_id')
-    code = data.get('code')
 
-    log.info(f"AUTH REQUEST: Verify OTP. Client={client_id}, Code={code}")
+    if not proof_token or not password or not client_id:
+        return jsonify({"error": "Missing required fields"}), 400
 
-    if not client_id or not code:
-        return jsonify({"error": "Missing client_id or code"}), 400
-
-    # FIX: Force string type and remove ALL spaces
-    code = str(code).replace(" ", "").strip()
+    # 1. Verify Proof Token
+    try:
+        payload = jwt.decode(proof_token, current_app.config['JWT_SECRET_KEY'], algorithms=["HS256"])
+        if payload.get('scope') != 'credential_change' or not payload.get('verified'):
+            raise jwt.InvalidTokenError("Invalid scope")
+        email = payload.get('email')
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid or expired proof token"}), 403
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
     app_config = db.get_app_by_client_id(client_id)
-
     if not app_config:
-        log.error(f"AUTH FAIL: Invalid client_id {client_id}")
         return jsonify({"error": "Invalid client_id"}), 401
 
-    if "telegram" not in app_config.get("allowed_auth_methods", []):
-        log.error(f"AUTH FAIL: Telegram auth not enabled for {client_id}")
-        return jsonify({"error": "Telegram auth not enabled for this application"}), 403
+    # 2. Create or Update Account
+    existing_user = db.find_account_by_email(email)
 
-    # Verify Code
-    telegram_id = db.verify_and_consume_code(code)
-
-    if not telegram_id:
-        # DB log will handle detail
-        log.error(f"AUTH FAIL: verify_and_consume_code returned None for code {code}")
-        return jsonify({"error": "Invalid or expired code"}), 401
-
-    # Find or Create Account
-    user = db.find_account_by_telegram(telegram_id)
-
-    if not user:
-        user_id = db.create_account({
-            "telegram_id": telegram_id,
-            "display_name": "Telegram User",
-            "auth_providers": ["telegram"]
-        })
+    if existing_user:
+        # If user exists, we update the password and ensure fields
+        # Ideally, we should check if they allowed this overwrite, but Proof Token proves ownership.
+        db.update_password(email, password)
+        user_id = existing_user['_id']
     else:
-        user_id = user['_id']
+        # Create new
+        user_id = db.create_account({
+            "email": email,
+            "password": password,
+            "display_name": display_name or email.split('@')[0],
+            "auth_providers": ["email"]
+        })
 
-    # Link User to App
+    # 3. Link User to App
     db.link_user_to_app(user_id, app_config['_id'])
 
-    # Issue JWT
+    # 4. Issue App JWT
     token_payload = {
         "sub": str(user_id),
         "iss": "bifrost",
         "aud": client_id,
         "iat": datetime.now(UTC_TZ),
-        "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7
+        "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7 # 7 Days
     }
 
-    encoded_jwt = jwt.encode(
-        token_payload,
-        current_app.config['JWT_SECRET_KEY'],
-        algorithm="HS256"
-    )
-
-    log.info(f"AUTH SUCCESS: User {user_id} logged in via OTP")
+    encoded_jwt = jwt.encode(token_payload, current_app.config['JWT_SECRET_KEY'], algorithm="HS256")
 
     return jsonify({
+        "success": True,
         "jwt": encoded_jwt,
         "account_id": str(user_id),
-        "display_name": "Telegram User" if not user else user.get('display_name')
+        "display_name": display_name or email
     })
 
 
-@auth_api_bp.route('/telegram-login', methods=['POST'])
-def telegram_login():
+@auth_api_bp.route('/reset-password', methods=['POST'])
+def reset_password():
     """
-    Legacy/Widget Telegram Login.
+    Resets password using a Proof Token.
+    Payload: { "proof_token": "...", "password": "..." }
     """
     data = request.json
-    client_id = data.get('client_id')
-    tg_data = data.get('telegram_data')
+    proof_token = data.get('proof_token')
+    password = data.get('password')
 
-    if not client_id or not tg_data:
-        return jsonify({"error": "Missing client_id or telegram_data"}), 400
+    if not proof_token or not password:
+        return jsonify({"error": "Missing data"}), 400
 
-    app_config = mongo.db.applications.find_one({"client_id": client_id})
+    # 1. Verify Proof Token
+    try:
+        payload = jwt.decode(proof_token, current_app.config['JWT_SECRET_KEY'], algorithms=["HS256"])
+        if payload.get('scope') != 'credential_change':
+            raise jwt.InvalidTokenError("Invalid scope")
+        email = payload.get('email')
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid or expired proof token"}), 403
 
-    if not app_config:
-        return jsonify({"error": "Invalid client_id"}), 401
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
-    if "telegram" not in app_config.get("allowed_auth_methods", []):
-        return jsonify({"error": "Telegram auth not enabled for this application"}), 403
-
-    bot_token = app_config.get("telegram_bot_token")
-    if not bot_token:
-        return jsonify({"error": "Server misconfiguration: No Bot Token found"}), 500
-
-    if not verify_telegram_data(tg_data, bot_token):
-        return jsonify({"error": "Authentication verification failed"}), 401
-
-    telegram_id = str(tg_data['id'])
-    user = mongo.db.accounts.find_one({"telegram_id": telegram_id})
-
+    user = db.find_account_by_email(email)
     if not user:
-        user = {
-            "telegram_id": telegram_id,
-            "display_name": tg_data.get('first_name', 'Unknown'),
-            "created_at": datetime.now(UTC_TZ),
-            "is_active": True,
-            "auth_providers": ["telegram"]
-        }
-        result = mongo.db.accounts.insert_one(user)
-        user['_id'] = result.inserted_id
+        return jsonify({"error": "User not found"}), 404
 
-    user_id = user['_id']
+    # 2. Update Password
+    db.update_password(email, password)
 
-    # Link User to App
-    link = mongo.db.app_links.find_one({
-        "account_id": user_id,
-        "app_id": app_config['_id']
-    })
+    return jsonify({"success": True, "message": "Password updated successfully"})
 
-    if not link:
-        mongo.db.app_links.insert_one({
-            "account_id": user_id,
-            "app_id": app_config['_id'],
-            "role": "user",
-            "linked_at": datetime.now(UTC_TZ)
-        })
 
-    token_payload = {
-        "sub": str(user_id),
-        "iss": "bifrost",
-        "aud": client_id,
-        "iat": datetime.now(UTC_TZ),
-        "exp": datetime.now(UTC_TZ).timestamp() + 3600
-    }
-
-    encoded_jwt = jwt.encode(
-        token_payload,
-        current_app.config['JWT_SECRET_KEY'],
-        algorithm="HS256"
-    )
-
-    return jsonify({
-        "jwt": encoded_jwt,
-        "account_id": str(user_id),
-        "display_name": user.get('display_name')
-    })
-
+# =========================================================
+#  SECTION 2: LOGIN ENDPOINTS
+# =========================================================
 
 @auth_api_bp.route('/login', methods=['POST'])
 def login():
@@ -293,12 +256,14 @@ def login():
 
     user = db.find_account_by_email(email)
 
+    # Validate Password
     if not user or not user.get('password_hash') or not check_password_hash(user['password_hash'], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
-    # Link & Issue JWT
+    # Link User to App
     db.link_user_to_app(user['_id'], app_config['_id'])
 
+    # Issue JWT
     token_payload = {
         "sub": str(user['_id']),
         "iss": "bifrost",
@@ -307,14 +272,121 @@ def login():
         "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7
     }
 
-    encoded_jwt = jwt.encode(
-        token_payload,
-        current_app.config['JWT_SECRET_KEY'],
-        algorithm="HS256"
-    )
+    encoded_jwt = jwt.encode(token_payload, current_app.config['JWT_SECRET_KEY'], algorithm="HS256")
 
     return jsonify({
         "jwt": encoded_jwt,
         "account_id": str(user['_id']),
         "display_name": user.get('display_name')
+    })
+
+
+@auth_api_bp.route('/verify-otp-login', methods=['POST'])
+def verify_otp_login():
+    """
+    Verifies a code for Login (Telegram mainly).
+    """
+    data = request.json
+    client_id = data.get('client_id')
+    code = data.get('code')
+
+    if not client_id or not code:
+        return jsonify({"error": "Missing client_id or code"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    app_config = db.get_app_by_client_id(client_id)
+
+    if not app_config:
+        return jsonify({"error": "Invalid client_id"}), 401
+
+    # Verify Code
+    telegram_id = db.verify_and_consume_code(code)
+
+    if not telegram_id:
+        return jsonify({"error": "Invalid or expired code"}), 401
+
+    # Find or Create Account
+    user = db.find_account_by_telegram(telegram_id)
+
+    if not user:
+        user_id = db.create_account({
+            "telegram_id": telegram_id,
+            "display_name": "Telegram User",
+            "auth_providers": ["telegram"]
+        })
+    else:
+        user_id = user['_id']
+
+    db.link_user_to_app(user_id, app_config['_id'])
+
+    token_payload = {
+        "sub": str(user_id),
+        "iss": "bifrost",
+        "aud": client_id,
+        "iat": datetime.now(UTC_TZ),
+        "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7
+    }
+
+    encoded_jwt = jwt.encode(token_payload, current_app.config['JWT_SECRET_KEY'], algorithm="HS256")
+
+    return jsonify({
+        "jwt": encoded_jwt,
+        "account_id": str(user_id),
+        "display_name": "Telegram User" if not user else user.get('display_name')
+    })
+
+
+@auth_api_bp.route('/telegram-login', methods=['POST'])
+def telegram_login():
+    """
+    Headless/Widget Telegram Login.
+    """
+    data = request.json
+    client_id = data.get('client_id')
+    tg_data = data.get('telegram_data')
+
+    if not client_id or not tg_data:
+        return jsonify({"error": "Missing client_id or telegram_data"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    app_config = db.get_app_by_client_id(client_id)
+
+    if not app_config:
+        return jsonify({"error": "Invalid client_id"}), 401
+
+    bot_token = app_config.get("telegram_bot_token")
+    if not bot_token:
+        return jsonify({"error": "Server misconfiguration: No Bot Token found"}), 500
+
+    if not verify_telegram_data(tg_data, bot_token):
+        return jsonify({"error": "Authentication verification failed"}), 401
+
+    telegram_id = str(tg_data['id'])
+    user = db.find_account_by_telegram(telegram_id)
+
+    if not user:
+        user_id = db.create_account({
+            "telegram_id": telegram_id,
+            "display_name": tg_data.get('first_name', 'Unknown'),
+            "auth_providers": ["telegram"]
+        })
+    else:
+        user_id = user['_id']
+
+    db.link_user_to_app(user_id, app_config['_id'])
+
+    token_payload = {
+        "sub": str(user_id),
+        "iss": "bifrost",
+        "aud": client_id,
+        "iat": datetime.now(UTC_TZ),
+        "exp": datetime.now(UTC_TZ).timestamp() + 3600 * 24 * 7
+    }
+
+    encoded_jwt = jwt.encode(token_payload, current_app.config['JWT_SECRET_KEY'], algorithm="HS256")
+
+    return jsonify({
+        "jwt": encoded_jwt,
+        "account_id": str(user_id),
+        "display_name": user.get('display_name') if user else "Telegram User"
     })
