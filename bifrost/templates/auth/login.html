@@ -50,7 +50,7 @@
                 {% endwith %}
 
                 {% if "email" in app.allowed_auth_methods %}
-                <form action="{{ url_for('.login', client_id=app.client_id) }}" method="POST">
+                <form action="{{ url_for('auth_ui.login', client_id=app.client_id) }}" method="POST">
                     <fieldset>
                         <div class="form-group">
                             <input class="form-control" placeholder="Email" name="email" type="email" autofocus>
