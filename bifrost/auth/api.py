@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 import jwt
 from werkzeug.security import check_password_hash
 import logging
+from bson import ObjectId  # <--- FIXED: Explicit Import
 
 # Use Relative Imports
 from .. import mongo
@@ -89,10 +90,10 @@ def verify_email_otp():
 
     # 1. Lookup OTP Record (Safe peek)
     try:
-        # We need to manually access the collection to find the identifier before consuming
-        # because db.verify_otp consumes it immediately.
-        oid = db.db.verification_codes.find_one({"_id": db.db.bson.ObjectId(verification_id)})
-    except Exception:
+        # FIXED: Use ObjectId directly from bson import
+        oid = db.db.verification_codes.find_one({"_id": ObjectId(verification_id)})
+    except Exception as e:
+        log.error(f"Error looking up verification ID: {e}")
         return jsonify({"error": "Invalid verification ID format"}), 400
 
     if not oid:
@@ -105,7 +106,6 @@ def verify_email_otp():
         return jsonify({"error": "Invalid code"}), 401
 
     # 3. Issue Proof Token (Short lived 5-min token for setting credentials)
-    # This token proves the user owns the email.
     proof_payload = {
         "email": email,
         "scope": "credential_change",
@@ -133,7 +133,6 @@ def complete_registration():
     Finalizes account creation.
     Requires a valid 'Proof Token' from verify-email-otp.
     Payload: { "proof_token": "...", "password": "...", "display_name": "...", "client_id": "..." }
-    Returns: A valid Login JWT for the app.
     """
     data = request.json
     proof_token = data.get('proof_token')
@@ -162,12 +161,9 @@ def complete_registration():
     existing_user = db.find_account_by_email(email)
 
     if existing_user:
-        # If user exists, we update the password and ensure fields
-        # Ideally, we should check if they allowed this overwrite, but Proof Token proves ownership.
         db.update_password(email, password)
         user_id = existing_user['_id']
     else:
-        # Create new
         user_id = db.create_account({
             "email": email,
             "password": password,
