@@ -7,6 +7,8 @@ import logging
 import random
 import secrets
 
+# Configure logging to print to stdout
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
 
@@ -26,7 +28,7 @@ class BifrostDB:
         Creates unique indexes to enforce data integrity at the DB level.
         Run this on app startup.
         """
-        log.info("Ensuring Database Indexes...")
+        # log.info("Ensuring Database Indexes...") # Commented out to reduce noise
 
         # 1. Accounts Collection
         self.db.accounts.create_index([("email", ASCENDING)], unique=True, sparse=True)
@@ -55,8 +57,6 @@ class BifrostDB:
         self.db.transactions.create_index([("account_id", ASCENDING)])
         self.db.transactions.create_index([("app_id", ASCENDING)])
 
-        log.info("Indexes verified.")
-
     # --- OTP Management (Generic) ---
 
     def create_otp(self, identifier, channel="email", account_id=None):
@@ -79,10 +79,12 @@ class BifrostDB:
 
         result = self.db.verification_codes.insert_one(doc)
 
+        log.info(f"✅ OTP Created: Code={code}, Channel={channel}, ID={identifier}")
         return code, str(result.inserted_id)
 
     # Legacy wrapper for Telegram Bot compatibility
     def create_login_code(self, telegram_id):
+        # Force channel='telegram'
         code, _ = self.create_otp(telegram_id, channel="telegram")
         return code
 
@@ -115,13 +117,27 @@ class BifrostDB:
 
     # Legacy wrapper for Telegram Bot compatibility
     def verify_and_consume_code(self, code):
-        # FIX: Ensure code is string
         safe_code = str(code).strip() if code else None
 
-        # We find purely by code for the legacy generic bot flow
-        record = self.db.verification_codes.find_one_and_delete({"code": safe_code, "channel": "telegram"})
+        log.info(f"🔍 Attempting to verify Telegram code: '{safe_code}'")
+
+        # 1. Try to find strict match
+        query = {"code": safe_code, "channel": "telegram"}
+        record = self.db.verification_codes.find_one_and_delete(query)
+
         if record:
+            log.info(f"✅ Code verified for Telegram ID: {record.get('identifier')}")
             return record['identifier']
+
+        # 2. Debugging: If not found, check if it exists but matches incorrectly
+        # This helps identify if the user is typing the wrong code or if the channel is wrong
+        check = self.db.verification_codes.find_one({"code": safe_code})
+        if check:
+            log.warning(
+                f"⚠️ Code '{safe_code}' FOUND but failed verification. Expected channel='telegram', Got='{check.get('channel')}'")
+        else:
+            log.warning(f"❌ Code '{safe_code}' NOT FOUND in DB.")
+
         return None
 
     # --- User Account Management ---

@@ -128,6 +128,8 @@ def verify_otp_login():
     client_id = data.get('client_id')
     code = data.get('code')
 
+    log.info(f"AUTH REQUEST: Verify OTP. Client={client_id}, Code={code}")
+
     if not client_id or not code:
         return jsonify({"error": "Missing client_id or code"}), 400
 
@@ -138,15 +140,19 @@ def verify_otp_login():
     app_config = db.get_app_by_client_id(client_id)
 
     if not app_config:
+        log.error(f"AUTH FAIL: Invalid client_id {client_id}")
         return jsonify({"error": "Invalid client_id"}), 401
 
     if "telegram" not in app_config.get("allowed_auth_methods", []):
+        log.error(f"AUTH FAIL: Telegram auth not enabled for {client_id}")
         return jsonify({"error": "Telegram auth not enabled for this application"}), 403
 
     # Verify Code
     telegram_id = db.verify_and_consume_code(code)
 
     if not telegram_id:
+        # DB log will handle detail
+        log.error(f"AUTH FAIL: verify_and_consume_code returned None for code {code}")
         return jsonify({"error": "Invalid or expired code"}), 401
 
     # Find or Create Account
@@ -178,6 +184,8 @@ def verify_otp_login():
         current_app.config['JWT_SECRET_KEY'],
         algorithm="HS256"
     )
+
+    log.info(f"AUTH SUCCESS: User {user_id} logged in via OTP")
 
     return jsonify({
         "jwt": encoded_jwt,
