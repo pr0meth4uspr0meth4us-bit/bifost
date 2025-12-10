@@ -74,8 +74,8 @@ def verify_email_otp():
     if not verification_id or not code:
         return jsonify({"error": "Missing verification_id or code"}), 400
 
-    # FIX: Force string type for code to match DB type
-    code = str(code).strip()
+    # FIX: Force string type and remove ALL spaces
+    code = str(code).replace(" ", "").strip()
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
@@ -133,8 +133,8 @@ def verify_otp_login():
     if not client_id or not code:
         return jsonify({"error": "Missing client_id or code"}), 400
 
-    # FIX: Force string type
-    code = str(code).strip()
+    # FIX: Force string type and remove ALL spaces
+    code = str(code).replace(" ", "").strip()
 
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
     app_config = db.get_app_by_client_id(client_id)

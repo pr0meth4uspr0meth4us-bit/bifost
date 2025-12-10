@@ -28,7 +28,7 @@ class BifrostDB:
         Creates unique indexes to enforce data integrity at the DB level.
         Run this on app startup.
         """
-        # log.info("Ensuring Database Indexes...") # Commented out to reduce noise
+        # log.info("Ensuring Database Indexes...")
 
         # 1. Accounts Collection
         self.db.accounts.create_index([("email", ASCENDING)], unique=True, sparse=True)
@@ -94,8 +94,8 @@ class BifrostDB:
         Can verify by (identifier + code) OR (verification_id + code).
         If valid, deletes the code and returns the OTP record (dict) or False.
         """
-        # FIX: Ensure code is string to prevent Type Mismatch with DB
-        safe_code = str(code).strip() if code else None
+        # FIX: Ensure code is string and remove ALL spaces (internal & external)
+        safe_code = str(code).replace(" ", "").strip() if code else None
         query = {"code": safe_code}
 
         if verification_id:
@@ -117,7 +117,8 @@ class BifrostDB:
 
     # Legacy wrapper for Telegram Bot compatibility
     def verify_and_consume_code(self, code):
-        safe_code = str(code).strip() if code else None
+        # FIX: Ensure code is string and remove ALL spaces (internal & external)
+        safe_code = str(code).replace(" ", "").strip() if code else None
 
         log.info(f"🔍 Attempting to verify Telegram code: '{safe_code}'")
 
@@ -130,7 +131,6 @@ class BifrostDB:
             return record['identifier']
 
         # 2. Debugging: If not found, check if it exists but matches incorrectly
-        # This helps identify if the user is typing the wrong code or if the channel is wrong
         check = self.db.verification_codes.find_one({"code": safe_code})
         if check:
             log.warning(
