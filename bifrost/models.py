@@ -92,7 +92,9 @@ class BifrostDB:
         Can verify by (identifier + code) OR (verification_id + code).
         If valid, deletes the code and returns the OTP record (dict) or False.
         """
-        query = {"code": code}
+        # FIX: Ensure code is string to prevent Type Mismatch with DB
+        safe_code = str(code).strip() if code else None
+        query = {"code": safe_code}
 
         if verification_id:
             try:
@@ -113,8 +115,11 @@ class BifrostDB:
 
     # Legacy wrapper for Telegram Bot compatibility
     def verify_and_consume_code(self, code):
+        # FIX: Ensure code is string
+        safe_code = str(code).strip() if code else None
+
         # We find purely by code for the legacy generic bot flow
-        record = self.db.verification_codes.find_one_and_delete({"code": code, "channel": "telegram"})
+        record = self.db.verification_codes.find_one_and_delete({"code": safe_code, "channel": "telegram"})
         if record:
             return record['identifier']
         return None
@@ -281,7 +286,6 @@ class BifrostDB:
         - Hyphens (-)
         MUST BE MAX 20 CHARACTERS
         """
-        # FIX: Reduced token_hex from 12 to 8.
         # "tx-" (3) + 16 hex chars = 19 chars total.
         transaction_id = f"tx-{secrets.token_hex(8)}"
 
