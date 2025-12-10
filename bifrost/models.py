@@ -175,6 +175,28 @@ class BifrostDB:
             return True, "Account linked successfully."
         return False, "Account not found."
 
+    def update_account_profile(self, account_id, updates):
+        """
+        Updates profile fields (display_name, email).
+        Handles email uniqueness check.
+        """
+        # If email is being updated, check for uniqueness
+        if 'email' in updates:
+            new_email = updates['email']
+            existing = self.db.accounts.find_one({"email": new_email, "_id": {"$ne": ObjectId(account_id)}})
+            if existing:
+                return False, "Email is already in use by another account."
+
+        # Perform update
+        result = self.db.accounts.update_one(
+            {"_id": ObjectId(account_id)},
+            {"$set": updates}
+        )
+
+        if result.matched_count > 0:
+            return True, "Profile updated."
+        return False, "Account not found."
+
     def find_account_by_email(self, email):
         return self.db.accounts.find_one({"email": email})
 
@@ -248,9 +270,7 @@ class BifrostDB:
         )
         return link['role'] if link else None
 
-    # --- Payment / Transaction Management (THE MISSING PART) ---
-
-    # In bifrost/models.py, update the create_transaction method:
+    # --- Payment / Transaction Management ---
 
     def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None):
         """
@@ -259,8 +279,7 @@ class BifrostDB:
         - Letters (a-z, A-Z)
         - Numbers (0-9)
         - Hyphens (-)
-
-        [cite_start]MUST BE MAX 20 CHARACTERS [cite: 95]
+        MUST BE MAX 20 CHARACTERS
         """
         # FIX: Reduced token_hex from 12 to 8.
         # "tx-" (3) + 16 hex chars = 19 chars total.

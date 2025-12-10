@@ -154,6 +154,32 @@ def set_credentials():
             return jsonify({"success": True, "message": "Credentials updated", "mode": "updated"})
 
 
+@internal_bp.route('/users/<account_id>/update', methods=['POST'])
+@require_service_auth
+def update_user_profile(account_id):
+    """
+    Updates basic user profile information (display_name, email).
+    Does NOT require a password reset token, but relies on Service Auth.
+    """
+    data = request.json
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    updates = {}
+    if 'display_name' in data:
+        updates['display_name'] = data['display_name']
+    if 'email' in data:
+        updates['email'] = data['email']
+
+    if not updates:
+        return jsonify({"error": "No fields to update"}), 400
+
+    success, msg = db.update_account_profile(account_id, updates)
+    if success:
+        return jsonify({"success": True, "message": msg})
+    else:
+        return jsonify({"error": msg}), 409
+
+
 # =========================================================
 #  SECTION: PAYMENT ENDPOINTS (HYBRID: PAYWAY + GUMROAD)
 # =========================================================
