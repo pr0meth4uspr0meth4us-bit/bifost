@@ -5,7 +5,7 @@ from flask.json.provider import JSONProvider
 import json
 import datetime
 from bson import ObjectId
-from flask_cors import CORS  # <--- FIX: Import CORS
+from flask_cors import CORS
 
 # Globally accessible PyMongo instance
 mongo = PyMongo()
@@ -30,7 +30,7 @@ def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # --- FIX: Enable CORS ---
+    # --- Enable CORS ---
     # This allows your Next.js frontend to communicate with this Flask backend
     CORS(app, resources={r"/*": {"origins": "*"}})
 
@@ -41,7 +41,7 @@ def create_app(config_class):
     # Initialize Mongo
     mongo.init_app(app)
 
-    # --- Initialize Database Indexes Correctly ---
+    # --- Initialize Database Indexes ---
     # We instantiate the BifrostDB class to trigger index creation
     with app.app_context():
         # Ensure we pass the client and db_name correctly
@@ -52,7 +52,7 @@ def create_app(config_class):
         except Exception as e:
             print(f"Warning: Could not connect to DB during init: {e}")
 
-    # --- Register Blueprints Correctly ---
+    # --- Register Blueprints ---
     from .auth.ui import auth_ui_bp
     app.register_blueprint(auth_ui_bp)
 
@@ -62,7 +62,7 @@ def create_app(config_class):
     from .internal.routes import internal_bp
     app.register_blueprint(internal_bp)
 
-    # --- Initialize Admin Correctly ---
+    # --- Initialize Admin ---
     from .admin_panel import init_admin
     # Wrap in try/except in case mongo isn't ready
     try:

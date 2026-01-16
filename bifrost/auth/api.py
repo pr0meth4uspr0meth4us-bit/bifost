@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 import jwt
 from werkzeug.security import check_password_hash
 import logging
-from bson import ObjectId  # <--- FIXED: Explicit Import
+from bson import ObjectId
 
 # Use Relative Imports
 from .. import mongo
@@ -90,7 +90,7 @@ def verify_email_otp():
 
     # 1. Lookup OTP Record (Safe peek)
     try:
-        # FIXED: Use ObjectId directly from bson import
+        # Use ObjectId directly from bson import
         oid = db.db.verification_codes.find_one({"_id": ObjectId(verification_id)})
     except Exception as e:
         log.error(f"Error looking up verification ID: {e}")
