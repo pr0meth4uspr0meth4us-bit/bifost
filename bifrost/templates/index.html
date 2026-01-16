@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helm Identity Portal</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Inter', sans-serif;
+            color: #333;
+        }
+        .navbar-helm {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e1e4e8;
+            padding: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .navbar-brand {
+            font-weight: 600;
+            color: #1a1a1a !important;
+            font-size: 24px;
+        }
+        .hero-section {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .hero-title {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .hero-subtitle {
+            font-size: 18px;
+            color: #7f8c8d;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .apps-container {
+            margin-top: 40px;
+        }
+        .app-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #eee;
+            margin-bottom: 30px;
+            height: 100%;
+        }
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            border-color: #dcdcdc;
+        }
+        .app-logo {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 20px;
+            background: #fafafa;
+            border-radius: 50%;
+            padding: 10px;
+        }
+        .app-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .app-desc {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 20px;
+            min-height: 40px;
+        }
+        .btn-launch {
+            border-radius: 20px;
+            padding: 8px 25px;
+            font-weight: 500;
+        }
+        .footer {
+            margin-top: 60px;
+            padding: 30px 0;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-helm">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="/">Helm Identity</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container hero-section">
+    <h1 class="hero-title">One Identity, All Services</h1>
+    <p class="hero-subtitle">Securely access the Helm ecosystem with a single account. Select a service below to launch or sign in.</p>
+</div>
+
+<div class="container apps-container">
+    <div class="row">
+        {% if apps %}
+            {% for app in apps %}
+            <div class="col-md-4 col-sm-6">
+                <div class="app-card">
+                    <img src="{{ app.app_logo_url or 'https://via.placeholder.com/80?text=App' }}"
+                         alt="{{ app.app_name }}"
+                         class="app-logo">
+
+                    <h3 class="app-name">{{ app.app_name }}</h3>
+
+                    <a href="{{ url_for('auth_ui.login', client_id=app.client_id) }}"
+                       class="btn btn-primary btn-launch">
+                       Launch
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-md-12 text-center">
+                <div class="alert alert-warning">
+                    <strong>No Applications Found.</strong><br>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="footer">
+    <p>&copy; 2026 Helm. Powered by Bifrost.</p>
+</div>
+
+</body>
+</html>
