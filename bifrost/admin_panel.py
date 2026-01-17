@@ -18,7 +18,9 @@ class AdminLoginForm(form.Form):
 
 class ApplicationForm(form.Form):
     app_name = fields.StringField('App Name', [validators.DataRequired()])
-    app_callback_url = fields.StringField('Callback URL', [validators.DataRequired()])
+    app_callback_url = fields.StringField('Auth Callback URL', [validators.DataRequired()])
+    app_web_url = fields.StringField('Application Web URL (Home Page)')
+    app_logo_url = fields.StringField('Logo URL (HTTPS)')
     allowed_auth_methods = fields.StringField('Auth Methods (csv)', default="email,telegram")
     telegram_bot_token = fields.StringField('Telegram Bot Token (Optional)')
 
@@ -32,8 +34,6 @@ class AccountForm(form.Form):
 
 class AppLinkForm(form.Form):
     account_id = fields.StringField('Account ID (ObjectId)', [validators.DataRequired()])
-    # Removed client_id from edit form as it's hard to read/edit manually, usually we just edit Role
-    # But kept in view for reference
     role = fields.SelectField('Role', choices=[('user', 'User'), ('premium_user', 'Premium User'), ('admin', 'Admin')])
 
 
@@ -55,11 +55,8 @@ class BifrostAdminIndexView(AdminIndexView):
     def login_view(self):
         form = AdminLoginForm(request.form)
         if request.method == 'POST' and form.validate():
-            # Access mongo via the app instance attached to admin
             mongo = self.admin.app.mongo_client
             db_name = self.admin.app.config.get('DB_NAME', 'bifrost_db')
-
-            # Manual DB lookup
             admin = mongo[db_name].admins.find_one({"email": form.email.data})
 
             if admin and check_password_hash(admin['password_hash'], form.password.data):
@@ -86,7 +83,7 @@ class SecureModelView(ModelView):
 
 
 class ApplicationsView(SecureModelView):
-    column_list = ('app_name', 'client_id', 'app_callback_url', 'created_at')
+    column_list = ('app_name', 'client_id', 'app_web_url', 'created_at')
     form = ApplicationForm
 
     def on_model_change(self, form, model, is_created):
@@ -116,7 +113,7 @@ class AppLinksView(SecureModelView):
     column_list = ('account_id', 'app_id', 'role', 'linked_at')
     form = AppLinkForm
     can_create = False
-    can_edit = True  # ENABLED EDITING
+    can_edit = True
     can_delete = True
 
 
@@ -141,11 +138,7 @@ def init_admin(app, mongo):
         name='Bifrost IdP',
         index_view=BifrostAdminIndexView()
     )
-
-    # Attach client for login view
     app.mongo_client = mongo.cx
-
-    # We need to point to the specific DB for the views
     db = mongo.cx[app.config.get('DB_NAME', 'bifrost_db')]
 
     admin.add_view(ApplicationsView(db.applications, 'Applications'))

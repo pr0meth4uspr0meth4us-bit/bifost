@@ -3,143 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helm Identity Portal</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f4f6f9;
-            font-family: 'Inter', sans-serif;
-            color: #333;
-        }
-        .navbar-helm {
-            background-color: #ffffff;
-            border-bottom: 1px solid #e1e4e8;
-            padding: 15px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .navbar-brand {
-            font-weight: 600;
-            color: #1a1a1a !important;
-            font-size: 24px;
-        }
-        .hero-section {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        .hero-title {
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #2c3e50;
-        }
-        .hero-subtitle {
-            font-size: 18px;
-            color: #7f8c8d;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .apps-container {
-            margin-top: 40px;
-        }
-        .app-card {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: 1px solid #eee;
-            margin-bottom: 30px;
-            height: 100%;
-        }
-        .app-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
-            border-color: #dcdcdc;
-        }
-        .app-logo {
-            width: 80px;
-            height: 80px;
-            object-fit: contain;
-            margin-bottom: 20px;
-            background: #fafafa;
-            border-radius: 50%;
-            padding: 10px;
-        }
-        .app-name {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .app-desc {
-            font-size: 14px;
-            color: #777;
-            margin-bottom: 20px;
-            min-height: 40px;
-        }
-        .btn-launch {
-            border-radius: 20px;
-            padding: 8px 25px;
-            font-weight: 500;
-        }
-        .footer {
-            margin-top: 60px;
-            padding: 30px 0;
-            text-align: center;
-            color: #999;
-            font-size: 13px;
-            border-top: 1px solid #eee;
-        }
-    </style>
+    <title>Bifrost | Helm Ecosystem Identity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
-<body>
+<body class="bg-slate-50 min-h-screen">
 
-<nav class="navbar navbar-helm">
-    <div class="container">
-        <div class="navbar-header">
-            <a class="navbar-brand" href="/">Helm Identity</a>
+    <div class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-6 py-24 text-center">
+            <h1 class="text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
+                Bifrost <span class="text-indigo-600">Identity Provider</span>
+            </h1>
+            <p class="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+                Bifrost is a dedicated Identity Provider (IdP) built to <strong>centralize authentication</strong>
+                and security across the <strong>Helm</strong> digital product family. It ensures seamless,
+                secure access for every service in our ecosystem.
+            </p>
         </div>
     </div>
-</nav>
 
-<div class="container hero-section">
-    <h1 class="hero-title">One Identity, All Services</h1>
-    <p class="hero-subtitle">Securely access the Helm ecosystem with a single account. Select a service below to launch or sign in.</p>
-</div>
+    <div class="max-w-7xl mx-auto px-6 py-16">
+        <h2 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 mb-10 text-center">The Helm Product Family</h2>
 
-<div class="container apps-container">
-    <div class="row">
         {% if apps %}
-            {% for app in apps %}
-            <div class="col-md-4 col-sm-6">
-                <div class="app-card">
-                    <img src="{{ app.app_logo_url or 'https://via.placeholder.com/80?text=App' }}"
-                         alt="{{ app.app_name }}"
-                         class="app-logo">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for product in apps %}
+            <div class="bg-white rounded-[2rem] p-8 border border-slate-200 hover:shadow-2xl transition-all duration-300 flex flex-col h-full">
+                <div class="flex items-center space-x-4 mb-8">
+                    <div class="h-14 w-14 bg-slate-50 rounded-2xl flex items-center justify-center p-2 shadow-inner">
+                        {% if product.app_logo_url %}
+                            <img src="{{ product.app_logo_url }}" alt="Logo" class="h-full w-full object-contain">
+                        {% else %}
+                            <span class="text-xl font-bold text-indigo-600">{{ product.app_name[0] }}</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">{{ product.app_name }}</h3>
+                        <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest">Helm Ecosystem</p>
+                    </div>
+                </div>
 
-                    <h3 class="app-name">{{ app.app_name }}</h3>
+                <p class="text-slate-500 mb-10 flex-grow">
+                    Integrated with Bifrost for secure SSO and centralized user management.
+                </p>
 
-                    <a href="{{ url_for('auth_ui.login', client_id=app.client_id) }}"
-                       class="btn btn-primary btn-launch">
-                       Launch
+                <div class="flex flex-col space-y-3">
+                    <a href="{{ product.app_web_url or '#' }}" target="_blank"
+                       class="w-full py-4 bg-slate-900 text-white text-center font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
+                        Visit {{ product.app_name }}
+                    </a>
+
+                    <a href="{{ url_for('auth_ui.login', client_id=product.client_id) }}"
+                       class="w-full py-3 bg-white text-slate-500 text-center font-bold rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all text-sm">
+                        Sign In with Bifrost
                     </a>
                 </div>
             </div>
             {% endfor %}
+        </div>
         {% else %}
-            <div class="col-md-12 text-center">
-                <div class="alert alert-warning">
-                    <strong>No Applications Found.</strong><br>
-                </div>
-            </div>
+        <div class="bg-white rounded-[2rem] p-20 text-center border-2 border-dashed border-slate-200">
+            <p class="text-slate-400 font-medium">No products registered in the Helm family yet.</p>
+            <a href="/admin" class="text-indigo-600 font-bold hover:underline mt-4 inline-block">Manage via Bifrost Admin</a>
+        </div>
         {% endif %}
-    </div>
-</div>
 
-<div class="footer">
-    <p>&copy; 2026 Helm. Powered by Bifrost.</p>
-</div>
+        <footer class="mt-24 pt-12 border-t border-slate-200 text-center">
+            <p class="text-slate-400 text-sm font-medium">© 2026 Helm Digital Products. Powering identity via Bifrost IdP.</p>
+        </footer>
+    </div>
 
 </body>
 </html>

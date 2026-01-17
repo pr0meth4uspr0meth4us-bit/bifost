@@ -17,7 +17,7 @@ def load_email_template():
         log.error(f"Template not found at: {template_path}")
         return "<html><body><h1>Verification Code: {OTP_CODE}</h1><p>For: {APP_NAME}</p></body></html>"
 
-def send_otp_email(to_email, otp, app_name="Bifrost Identity"):
+def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, app_url="#"):
     """
     Sends an OTP email branded with the specific app_name.
     """
@@ -35,7 +35,12 @@ def send_otp_email(to_email, otp, app_name="Bifrost Identity"):
 
     # Inject variables into template
     html_template = load_email_template()
-    html_content = html_template.replace("{OTP_CODE}", str(otp)).replace("{APP_NAME}", app_name)
+
+    # NEW: Added placeholders for LOGO_URL and APP_URL
+    html_content = html_template.replace("{OTP_CODE}", str(otp)) \
+        .replace("{APP_NAME}", app_name) \
+        .replace("{LOGO_URL}", logo_url or "") \
+        .replace("{APP_URL}", app_url)
 
     # Plain text fallback
     text_content = f"""

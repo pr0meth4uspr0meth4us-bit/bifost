@@ -3,70 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - {{ app.app_name }}</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    <style>
-        body { background-color: #f8f8f8; }
-        .auth-panel {
-            margin-top: 10%;
-            max-width: 450px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .panel-heading {
-            text-align: center;
-        }
-        .app-logo {
-            max-width: 100px;
-            margin-bottom: 15px;
-        }
-    </style>
+    <title>Create Account - {{ app.app_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
-<body>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
 
-<div class="container">
-    <div class="auth-panel">
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                {% if app.app_logo_url %}
-                    <img src="{{ app.app_logo_url }}" alt="{{ app.app_name }} Logo" class="app-logo">
-                {% endif %}
-                <h4>Create account for <strong>{{ app.app_name }}</strong></h4>
-            </div>
-            <div class="panel-body">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            <div class="p-8 sm:p-12">
+                <div class="text-center mb-10">
+                    <h1 class="text-3xl font-extrabold text-slate-900">Create Account</h1>
+                    <p class="text-slate-500 mt-2">Join <span class="text-indigo-600 font-semibold">{{ app.app_name }}</span> ecosystem</p>
+                </div>
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category or 'info' }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-
-                <form action="{{ url_for('.register', client_id=app.client_id) }}" method="POST">
-                    <fieldset>
-                        <div class="form-group">
-                            <input class="form-control" placeholder="Display Name" name="display_name" type="text" required>
-                        </div>
-                        <div class="form-group">
-                            <input class="form-control" placeholder="Email" name="email" type="email" required>
-                        </div>
-                        <div class="form-group">
-                            <input class="form-control" placeholder="Password" name="password" type="password" required>
-                        </div>
-                        <button type="submit" class="btn btn-lg btn-primary btn-block">Register</button>
-                    </fieldset>
+                <form action="{{ url_for('.register', client_id=app.client_id) }}" method="POST" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Display Name</label>
+                        <input type="text" name="display_name" required placeholder="John Doe"
+                               class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+                        <input type="email" name="email" required placeholder="name@example.com"
+                               class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Password</label>
+                        <input type="password" name="password" required placeholder="Minimum 8 characters"
+                               class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all outline-none">
+                    </div>
+                    <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-extrabold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 transform active:scale-[0.98]">
+                        Create Account
+                    </button>
                 </form>
-            </div>
-            <div class="panel-footer text-center">
-                Already have an account? <a href="{{ url_for('.login', client_id=app.client_id) }}">Sign in</a>
+
+                <div class="mt-10 pt-8 border-t border-slate-100 text-center">
+                    <p class="text-slate-500 font-medium">Already have an account?</p>
+                    <a href="{{ url_for('.login', client_id=app.client_id) }}" class="inline-block mt-2 text-indigo-600 font-extrabold hover:underline">Sign in instead</a>
+                </div>
             </div>
         </div>
-        <p class="text-center text-muted">Powered by Bifrost</p>
+        <p class="text-center text-slate-400 text-xs mt-8 font-medium">Secured by Bifrost Identity Platform</p>
     </div>
-</div>
 
 </body>
 </html>
