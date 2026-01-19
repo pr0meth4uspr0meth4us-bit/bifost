@@ -40,8 +40,9 @@ class BifrostDB:
                 except Exception as e:
                     log.warning(f"Could not recreate sparse index for {field}: {e}")
 
-        # Ensure sparse indexes for optional fields that allow multiple null/missing values
+        # Ensure sparse indexes for optional fields
         ensure_unique_sparse(self.db.accounts, "email")
+        ensure_unique_sparse(self.db.accounts, "username")
         ensure_unique_sparse(self.db.accounts, "telegram_id")
         ensure_unique_sparse(self.db.accounts, "google_id")
         ensure_unique_sparse(self.db.accounts, "phone_number")
@@ -110,9 +111,12 @@ class BifrostDB:
             "auth_providers": data.get("auth_providers", [])
         }
 
-        # Conditionally add fields to avoid 'null' conflicts in sparse unique indexes
+        # Conditionally add unique identifiers
         if data.get("email"):
-            account["email"] = data.get("email")
+            account["email"] = data.get("email").lower()
+
+        if data.get("username"):
+            account["username"] = data.get("username").lower()
 
         if data.get("password"):
             account["password_hash"] = generate_password_hash(data["password"])
@@ -128,13 +132,31 @@ class BifrostDB:
 
         return self.db.accounts.insert_one(account).inserted_id
 
+    def find_account_by_email(self, email):
+        if not email: return None
+        return self.db.accounts.find_one({"email": email.lower()})
+
+    def find_account_by_username(self, username):
+        if not username: return None
+        return self.db.accounts.find_one({"username": username.lower()})
+
+    def find_account_by_id(self, account_id):
+        try:
+            return self.db.accounts.find_one({"_id": ObjectId(account_id)})
+        except:
+            return None
+
+    def find_account_by_telegram(self, telegram_id):
+        return self.db.accounts.find_one({"telegram_id": str(telegram_id)})
+
     def update_password(self, email, new_password):
         self.db.accounts.update_one(
-            {"email": email},
+            {"email": email.lower()},
             {"$set": {"password_hash": generate_password_hash(new_password)}}
         )
 
     def link_email_credentials(self, account_id, email, password):
+        email = email.lower()
         existing = self.db.accounts.find_one({"email": email, "_id": {"$ne": ObjectId(account_id)}})
         if existing:
             return False, "Email is already associated with another account."
@@ -149,24 +171,19 @@ class BifrostDB:
 
     def update_account_profile(self, account_id, updates):
         if 'email' in updates:
-            new_email = updates['email']
-            existing = self.db.accounts.find_one({"email": new_email, "_id": {"$ne": ObjectId(account_id)}})
+            updates['email'] = updates['email'].lower()
+            existing = self.db.accounts.find_one({"email": updates['email'], "_id": {"$ne": ObjectId(account_id)}})
             if existing:
                 return False, "Email is already in use by another account."
+
+        if 'username' in updates:
+            updates['username'] = updates['username'].lower()
+            existing = self.db.accounts.find_one({"username": updates['username'], "_id": {"$ne": ObjectId(account_id)}})
+            if existing:
+                return False, "Username is already taken."
+
         result = self.db.accounts.update_one({"_id": ObjectId(account_id)}, {"$set": updates})
         return (True, "Profile updated.") if result.matched_count > 0 else (False, "Account not found.")
-
-    def find_account_by_email(self, email):
-        return self.db.accounts.find_one({"email": email})
-
-    def find_account_by_id(self, account_id):
-        try:
-            return self.db.accounts.find_one({"_id": ObjectId(account_id)})
-        except:
-            return None
-
-    def find_account_by_telegram(self, telegram_id):
-        return self.db.accounts.find_one({"telegram_id": str(telegram_id)})
 
     def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None):
         client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
@@ -245,7 +262,7 @@ class BifrostDB:
 
     def create_super_admin(self, email, password):
         admin = {
-            "email": email,
+            "email": email.lower(),
             "password_hash": generate_password_hash(password),
             "role": "super_admin",
             "created_at": datetime.now(UTC)
