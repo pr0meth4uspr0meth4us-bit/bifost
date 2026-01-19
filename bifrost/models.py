@@ -24,9 +24,29 @@ class BifrostDB:
 
     def init_indexes(self):
         """Creates unique indexes to enforce data integrity."""
-        self.db.accounts.create_index([("email", ASCENDING)], unique=True, sparse=True)
-        self.db.accounts.create_index([("telegram_id", ASCENDING)], unique=True, sparse=True)
-        self.db.accounts.create_index([("google_id", ASCENDING)], unique=True, sparse=True)
+
+        # Helper to ensure unique sparse index (recreates if exists with different options)
+        def ensure_unique_sparse(collection, field):
+            idx_name = f"{field}_1"
+            try:
+                # Attempt to create index with sparse=True
+                collection.create_index([(field, ASCENDING)], unique=True, sparse=True)
+            except Exception:
+                # If it fails, it's likely an existing index with different options (missing sparse=True)
+                try:
+                    log.info(f"Recreating index for {field} to ensure sparse constraint...")
+                    collection.drop_index(idx_name)
+                    collection.create_index([(field, ASCENDING)], unique=True, sparse=True)
+                except Exception as e:
+                    log.warning(f"Could not recreate sparse index for {field}: {e}")
+
+        # Ensure sparse indexes for optional fields that allow multiple null/missing values
+        ensure_unique_sparse(self.db.accounts, "email")
+        ensure_unique_sparse(self.db.accounts, "telegram_id")
+        ensure_unique_sparse(self.db.accounts, "google_id")
+        ensure_unique_sparse(self.db.accounts, "phone_number")
+
+        # Standard non-sparse indexes
         self.db.applications.create_index([("client_id", ASCENDING)], unique=True)
         self.db.app_links.create_index([("account_id", ASCENDING), ("app_id", ASCENDING)], unique=True)
         self.db.admins.create_index([("email", ASCENDING)], unique=True)
@@ -79,17 +99,33 @@ class BifrostDB:
         return None
 
     def create_account(self, data):
+        """
+        Creates a new user account document.
+        Logic: Optional fields are only added if present to avoid DuplicateKeyErrors on null values.
+        """
         account = {
-            "email": data.get("email"),
-            "password_hash": generate_password_hash(data["password"]) if data.get("password") else None,
-            "telegram_id": data.get("telegram_id"),
-            "google_id": data.get("google_id"),
             "display_name": data.get("display_name", "Unknown User"),
-            "phone_number": data.get("phone_number"),
             "is_active": True,
             "created_at": datetime.now(UTC),
             "auth_providers": data.get("auth_providers", [])
         }
+
+        # Conditionally add fields to avoid 'null' conflicts in sparse unique indexes
+        if data.get("email"):
+            account["email"] = data.get("email")
+
+        if data.get("password"):
+            account["password_hash"] = generate_password_hash(data["password"])
+
+        if data.get("telegram_id"):
+            account["telegram_id"] = str(data.get("telegram_id"))
+
+        if data.get("google_id"):
+            account["google_id"] = data.get("google_id")
+
+        if data.get("phone_number"):
+            account["phone_number"] = data.get("phone_number")
+
         return self.db.accounts.insert_one(account).inserted_id
 
     def update_password(self, email, new_password):
