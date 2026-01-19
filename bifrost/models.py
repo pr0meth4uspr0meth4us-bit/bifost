@@ -1,4 +1,4 @@
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -61,7 +61,7 @@ class BifrostDB:
         code = str(random.randint(100000, 999999))
         doc = {
             "code": code,
-            "identifier": str(identifier),
+            "identifier": str(identifier).lower(),
             "channel": channel,
             "created_at": datetime.now(UTC)
         }
@@ -84,7 +84,7 @@ class BifrostDB:
             except:
                 return False
         elif identifier:
-            query["identifier"] = str(identifier)
+            query["identifier"] = str(identifier).lower()
         else:
             return False
         record = self.db.verification_codes.find_one_and_delete(query)

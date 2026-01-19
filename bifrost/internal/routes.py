@@ -46,9 +46,10 @@ def require_service_auth(f):
 def validate_token():
     """
     Validates a User JWT provided by a Client App.
+    Returns User ID, Email, Username, and App Role.
     """
     data = request.json
-    token = data.get('jwt')
+    token = data.get('jwt') or data.get('token')
     client_id = request.authorization.username
 
     if not token:
@@ -72,6 +73,10 @@ def validate_token():
         if not app_doc:
             return jsonify({"is_valid": False, "error": "App not found"}), 500
 
+        user = db.find_account_by_id(account_id)
+        if not user or not user.get('is_active', True):
+            return jsonify({"is_valid": False, "error": "User inactive or not found"}), 403
+
         # Get Role from App Link
         role = db.get_user_role_for_app(account_id, app_doc['_id'])
         final_role = role if role else "user"
@@ -80,10 +85,13 @@ def validate_token():
             "is_valid": True,
             "account_id": account_id,
             "app_specific_role": final_role,
-            "email": db.find_account_by_id(account_id).get('email')
+            "email": user.get('email'),
+            "username": user.get('username'),
+            "display_name": user.get('display_name')
         })
 
-    except Exception:
+    except Exception as e:
+        log.error(f"Token validation failed: {e}")
         return jsonify({"is_valid": False, "error": "Invalid Token"}), 401
 
 
@@ -158,7 +166,7 @@ def set_credentials():
 @require_service_auth
 def update_user_profile(account_id):
     """
-    Updates basic user profile information (display_name, email).
+    Updates basic user profile information (display_name, email, username).
     Does NOT require a password reset token, but relies on Service Auth.
     """
     data = request.json
@@ -169,6 +177,8 @@ def update_user_profile(account_id):
         updates['display_name'] = data['display_name']
     if 'email' in data:
         updates['email'] = data['email']
+    if 'username' in data:
+        updates['username'] = data['username']
 
     if not updates:
         return jsonify({"error": "No fields to update"}), 400
@@ -178,6 +188,23 @@ def update_user_profile(account_id):
         return jsonify({"success": True, "message": msg})
     else:
         return jsonify({"error": msg}), 409
+
+
+@internal_bp.route('/users/<user_id>', methods=['GET'])
+@require_service_auth
+def get_user_info(user_id):
+    """Retrieve public user info for a client service"""
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    user = db.find_account_by_id(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({
+        "id": str(user['_id']),
+        "email": user.get('email'),
+        "username": user.get('username'),
+        "display_name": user.get('display_name')
+    }), 200
 
 
 # =========================================================
