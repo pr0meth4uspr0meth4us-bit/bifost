@@ -535,3 +535,24 @@ def get_user_role_internal():
     role = db.get_user_role_for_app(user['_id'], app_doc['_id'])
 
     return jsonify({"role": role or "user"}), 200
+
+@auth_bp.route('/me', methods=['GET'])
+@auth_required
+def get_current_user():
+    """
+    Introspection Endpoint.
+    Services can call this with a Bearer token to validate it
+    and retrieve user identity without knowing the Secret Key.
+    """
+    from flask import g
+    user = User.find_by_id(g.user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({
+        "id": str(user['_id']),
+        "email": user.get('email'),
+        "telegram_id": user.get('telegram_id'),
+        "roles": user.get('roles', []),
+        "is_active": True
+    }), 200
