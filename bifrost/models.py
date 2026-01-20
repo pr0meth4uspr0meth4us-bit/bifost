@@ -53,9 +53,19 @@ class BifrostDB:
         self.db.admins.create_index([("email", ASCENDING)], unique=True)
         self.db.verification_codes.create_index("created_at", expireAfterSeconds=600)
         self.db.verification_codes.create_index([("identifier", ASCENDING)])
+
+        # Transactions
         self.db.transactions.create_index([("transaction_id", ASCENDING)], unique=True)
         self.db.transactions.create_index([("account_id", ASCENDING)])
         self.db.transactions.create_index([("app_id", ASCENDING)])
+
+        # --- NEW: Payment Logs (For Universal Claim System) ---
+        self.db.payment_logs.create_index([("trx_id", ASCENDING)], unique=True)
+        self.db.payment_logs.create_index([("status", ASCENDING)])
+
+    # ---------------------------------------------------------
+    # AUTH & OTP UTILITIES
+    # ---------------------------------------------------------
 
     def create_otp(self, identifier, channel="email", account_id=None):
         code = str(random.randint(100000, 999999))
@@ -101,8 +111,6 @@ class BifrostDB:
         elif identifier:
             query["identifier"] = str(identifier).lower()
 
-        # Note: If neither identifier nor verification_id is provided,
-        # we search solely by code (used for deep links)
         if not identifier and not verification_id and not safe_code:
             return False
 
@@ -117,6 +125,10 @@ class BifrostDB:
         if record:
             return record['identifier']
         return None
+
+    # ---------------------------------------------------------
+    # ACCOUNT MANAGEMENT
+    # ---------------------------------------------------------
 
     def create_account(self, data):
         account = {
@@ -166,7 +178,6 @@ class BifrostDB:
 
     def link_email_credentials(self, account_id, email, password):
         email = email.lower()
-        # Ensure email is not taken by DIFFERENT account
         existing = self.db.accounts.find_one({"email": email, "_id": {"$ne": ObjectId(account_id)}})
         if existing:
             return False, "Email is already associated with another account."
@@ -182,7 +193,6 @@ class BifrostDB:
 
     def link_telegram(self, account_id, telegram_id, display_name):
         telegram_id = str(telegram_id)
-        # Ensure TG ID not taken by DIFFERENT account
         existing = self.db.accounts.find_one({"telegram_id": telegram_id, "_id": {"$ne": ObjectId(account_id)}})
         if existing:
             return False, "Telegram account already linked to another user."
@@ -213,6 +223,10 @@ class BifrostDB:
 
         result = self.db.accounts.update_one({"_id": ObjectId(account_id)}, {"$set": updates})
         return (True, "Profile updated.") if result.matched_count > 0 else (False, "Account not found.")
+
+    # ---------------------------------------------------------
+    # CLIENT APP MANAGEMENT
+    # ---------------------------------------------------------
 
     def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None):
         client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
@@ -252,7 +266,12 @@ class BifrostDB:
 
     def get_user_role_for_app(self, account_id, app_id):
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
-        return link['role'] if link else None
+        # Safely return 'user' if role is missing
+        return link.get('role', 'user') if link else None
+
+    # ---------------------------------------------------------
+    # PAYMENT & TRANSACTIONS
+    # ---------------------------------------------------------
 
     def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None):
         transaction_id = f"tx-{secrets.token_hex(8)}"
@@ -288,6 +307,92 @@ class BifrostDB:
                 upsert=True
             )
         return True, "Transaction completed and role updated"
+
+    # --- NEW: Universal Payment Listener Logic ---
+
+    def save_pending_payment(self, trx_id, amount, currency, raw_text, payer_name):
+        """
+        Saves a payment message from the ABA Bot into the database.
+        Used by the Group Listener.
+        """
+        try:
+            # Prevent duplicates
+            if self.db.payment_logs.find_one({"trx_id": trx_id}):
+                return False
+
+            self.db.payment_logs.insert_one({
+                "trx_id": trx_id,
+                "amount": float(amount),
+                "currency": currency,
+                "payer_name": payer_name,
+                "raw_text": raw_text,
+                "status": "unclaimed",
+                "claimed_by_account_id": None,
+                "created_at": datetime.now(UTC)
+            })
+            return True
+        except Exception as e:
+            log.error(f"Error saving payment log: {e}")
+            return False
+
+    def claim_payment(self, trx_input, app_id, user_identity):
+        """
+        Universal Claim Logic. Match a User (Tele/Email) to a Pending Payment.
+
+        :param trx_input: The Last 6 digits (or full ID) provided by user.
+        :param app_id: The App ID (ObjectId) to upgrade.
+        :param user_identity: Dict. {'telegram_id': '...'} OR {'email': '...'}
+        """
+        # 1. Resolve User
+        user = None
+        if 'account_id' in user_identity:
+            user = self.find_account_by_id(user_identity['account_id'])
+        elif 'telegram_id' in user_identity:
+            user = self.find_account_by_telegram(user_identity['telegram_id'])
+        elif 'email' in user_identity:
+            user = self.find_account_by_email(user_identity['email'])
+
+        if not user:
+            return False, "User account not found."
+
+        # 2. Fuzzy Match Payment (Suffix Search)
+        # Ensure we escape the input to prevent regex injection, though digits are safe.
+        safe_input = str(trx_input).strip()
+        regex_pattern = f"{safe_input}$"
+
+        payment = self.db.payment_logs.find_one({
+            "status": "unclaimed",
+            "trx_id": {"$regex": regex_pattern}
+        })
+
+        if not payment:
+            return False, "Transaction ID not found or already claimed."
+
+        # 3. Atomic Claim
+        result = self.db.payment_logs.update_one(
+            {"_id": payment['_id'], "status": "unclaimed"},
+            {
+                "$set": {
+                    "status": "claimed",
+                    "claimed_by_account_id": user['_id'],
+                    "claimed_for_app_id": ObjectId(app_id),
+                    "claimed_method": list(user_identity.keys())[0],
+                    "claimed_at": datetime.now(UTC)
+                }
+            }
+        )
+
+        if result.modified_count == 0:
+            return False, "Error: Payment claimed by someone else."
+
+        # 4. Grant Premium Role
+        self.link_user_to_app(user['_id'], app_id, role="premium_user")
+
+        return True, f"Success! ${payment['amount']} claimed."
+
+    # ---------------------------------------------------------
+    # ADMIN
+    # ---------------------------------------------------------
 
     def create_super_admin(self, email, password):
         admin = {

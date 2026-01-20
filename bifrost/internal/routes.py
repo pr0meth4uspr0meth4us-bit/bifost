@@ -460,3 +460,42 @@ def gumroad_webhook():
         print(f"💰 Processed Sale {sale_id} for TX {tx_id}: {msg}", flush=True)
 
     return "OK", 200
+
+@internal_bp.route('/payments/claim', methods=['POST'])
+@require_service_auth
+def api_claim_payment():
+    """
+    Universal Endpoint to claim a payment.
+    Can be called by Bifrost Bot (Telegram) OR Finance Web (Email).
+    Payload:
+      - trx_input: "123456"
+      - target_app_id: "finance_bot"
+      - identity_type: "telegram_id" OR "email"
+      - identity_value: "12345" OR "user@example.com"
+    """
+    data = request.json
+    trx_input = data.get('trx_input')
+    target_app_id = data.get('target_app_id')
+    identity_type = data.get('identity_type')
+    identity_value = data.get('identity_value')
+
+    if not trx_input or not target_app_id or not identity_type:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # Verify the App exists first
+    app_doc = db.get_app_by_client_id(target_app_id)
+    if not app_doc:
+        return jsonify({"error": "Invalid App ID"}), 404
+
+    # Construct Identity Dict
+    user_identity = {identity_type: identity_value}
+
+    # Perform Claim
+    success, msg = db.claim_payment(trx_input, app_doc['_id'], user_identity)
+
+    if success:
+        return jsonify({"success": True, "message": msg}), 200
+    else:
+        return jsonify({"success": False, "error": msg}), 400
