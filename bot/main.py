@@ -1,14 +1,12 @@
 import os
 import logging
 from pathlib import Path
-from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ContextTypes, ConversationHandler
 )
 from dotenv import load_dotenv
 
-# Ensure safe env loading
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BASE_DIR / '.env'
 if not ENV_FILE.exists():
@@ -16,9 +14,10 @@ if not ENV_FILE.exists():
 load_dotenv(dotenv_path=ENV_FILE)
 
 from handlers import (
-    start_command, receive_trx_id, cancel, WAITING_TRX_ID
+    start_command, receive_proof, cancel,
+    admin_approve, admin_reject_menu, admin_reject_confirm, admin_restore_menu,
+    WAITING_PROOF
 )
-from group_listener import aba_message_handler
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -34,15 +33,11 @@ def main():
 
     app = Application.builder().token(token).build()
 
-    # 1. GROUP LISTENER
-    # Catches ABA receipts in the Payment Group
-    app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT, aba_message_handler))
-
-    # 2. USER CLAIM CONVERSATION
+    # User Conversation (Photo Flow)
     payment_conv = ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
         states={
-            WAITING_TRX_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_trx_id)]
+            WAITING_PROOF: [MessageHandler(filters.PHOTO, receive_proof)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
         per_message=False,
@@ -50,6 +45,12 @@ def main():
     )
 
     app.add_handler(payment_conv)
+
+    # Admin Callbacks
+    app.add_handler(CallbackQueryHandler(admin_approve, pattern="^pay_approve_"))
+    app.add_handler(CallbackQueryHandler(admin_reject_menu, pattern="^pay_reject_menu_"))
+    app.add_handler(CallbackQueryHandler(admin_reject_confirm, pattern="^pay_reject_confirm_"))
+    app.add_handler(CallbackQueryHandler(admin_restore_menu, pattern="^pay_restore_"))
 
     logger.info("⚡ Bifrost Bot is listening...")
     app.run_polling(drop_pending_updates=True)
