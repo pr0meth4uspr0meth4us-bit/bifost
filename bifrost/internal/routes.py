@@ -8,6 +8,7 @@ from .. import mongo
 from ..models import BifrostDB
 from ..services.payway import PayWayService
 from ..services.gumroad import GumroadService
+from ..utils.telegram import verify_telegram_data
 
 internal_bp = Blueprint('internal', __name__, url_prefix='/internal')
 log = logging.getLogger(__name__)
@@ -41,12 +42,100 @@ def require_service_auth(f):
     return decorated
 
 
+@internal_bp.route('/generate-link-token', methods=['POST'])
+@require_service_auth
+def generate_link_token():
+    """
+    Generates a token for the user to click (Web -> Tele flow).
+    """
+    data = request.json
+    account_id = data.get('account_id')
+
+    if not account_id:
+        return jsonify({"error": "Missing account_id"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    token = db.create_deep_link_token(account_id)
+
+    return jsonify({"token": token, "expires_in": "10 minutes"})
+
+
+@internal_bp.route('/link-account', methods=['POST'])
+@require_service_auth
+def link_account_internal():
+    """
+    Connects a credential (Email/Pass or Telegram) to an existing account.
+    """
+    data = request.json
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    client_id = request.authenticated_client_id
+    app_config = db.get_app_by_client_id(client_id)
+
+    # --- MODE 1: Link Email & Password ---
+    if data.get('email') and data.get('password') and data.get('account_id'):
+        account_id = data['account_id']
+        email = data['email']
+        password = data['password']
+
+        success, msg = db.link_email_credentials(account_id, email, password)
+        if success:
+            return jsonify({"success": True, "message": "Email linked successfully", "email": email}), 200
+        else:
+            return jsonify({"error": msg}), 409
+
+    # --- MODE 2: Link Telegram via Widget Data (Legacy/Widget Flow) ---
+    elif data.get('telegram_data') and data.get('account_id'):
+        account_id = data['account_id']
+        tg_data = data['telegram_data']
+        bot_token = app_config.get("telegram_bot_token")
+
+        if not bot_token:
+            return jsonify({"error": "Server misconfiguration: No Bot Token found for this app"}), 500
+
+        if not verify_telegram_data(tg_data, bot_token):
+            return jsonify({"error": "Invalid Telegram signature"}), 401
+
+        telegram_id = str(tg_data['id'])
+        display_name = tg_data.get('first_name', 'Unknown')
+
+        success, msg = db.link_telegram(account_id, telegram_id, display_name)
+        if success:
+            return jsonify({"success": True, "message": "Telegram linked successfully", "telegram_id": telegram_id}), 200
+        else:
+            return jsonify({"error": msg}), 409
+
+    # --- MODE 3: Link via Deep Link Token (Bot -> Web User) ---
+    elif data.get('link_token') and data.get('telegram_id'):
+        token = data['link_token']
+        telegram_id = str(data['telegram_id'])
+
+        # 1. Verify Token
+        record = db.verify_otp(code=token)
+        if not record or record.get('channel') != 'deep_link':
+            return jsonify({"error": "Invalid or expired link token"}), 400
+
+        target_account_id = record.get('account_id')
+
+        # 2. Perform Link
+        success, msg = db.link_telegram(target_account_id, telegram_id, "Linked via Bot")
+
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Telegram linked successfully",
+                "account_id": target_account_id
+            }), 200
+        else:
+            return jsonify({"error": msg}), 409
+
+    return jsonify({"error": "Invalid payload. Provide email/pass, telegram_data, or link_token"}), 400
+
+
 @internal_bp.route('/validate-token', methods=['POST'])
 @require_service_auth
 def validate_token():
     """
     Validates a User JWT provided by a Client App.
-    Returns User ID, Email, Username, and App Role.
     """
     data = request.json
     token = data.get('jwt') or data.get('token')
@@ -214,26 +303,13 @@ def get_user_info(user_id):
 @internal_bp.route('/payments/create-intent', methods=['POST'])
 @require_service_auth
 def create_payment_intent():
-    """
-    Step 1: Client App (FinanceBot) requests to start a payment.
-    Payload: {
-        "account_id": "...",
-        "amount": "5.00",
-        "region": "local" | "international",
-        "target_role": "premium_user",
-        "product_id": "savvify-premium"  <-- Optional: Specific Gumroad Slug
-    }
-    """
     data = request.json
     account_id = data.get('account_id')
     amount = data.get('amount')
     region = data.get('region', 'local')
     target_role = data.get('target_role', 'premium_user')
-
-    # Capture the specific product the bot wants to sell
     product_id = data.get('product_id')
 
-    # User info
     firstname = data.get('firstname', 'Bifrost')
     lastname = data.get('lastname', 'User')
     email = data.get('email', 'user@example.com')
@@ -259,7 +335,6 @@ def create_payment_intent():
 
     # 2. ROUTER LOGIC
     if region == 'local':
-        # --- PATH A: ABA PAYWAY (Cambodia) ---
         payway = PayWayService()
         items = [{"name": target_role, "quantity": "1", "price": amount}]
 
@@ -285,11 +360,7 @@ def create_payment_intent():
             return jsonify({"error": "Failed to communicate with ABA"}), 502
 
     else:
-        # --- PATH B: GUMROAD (International) ---
         gumroad = GumroadService()
-
-        # We pass the 'product_id' (permalink) from the request to the service
-        # If None, the service will fall back to the Default in Config
         checkout_url = gumroad.generate_checkout_url(
             transaction_id=tx_id,
             email=email,
@@ -309,18 +380,8 @@ def create_payment_intent():
 
 @internal_bp.route('/payments/callback', methods=['POST'])
 def payway_callback():
-    """
-    ABA PAYWAY WEBHOOK
-    """
     data = request.form.to_dict()
     log.info(f"PayWay Webhook: {data}")
-
-    payway = PayWayService()
-
-    # In Sandbox, verify_webhook might fail if keys aren't perfect,
-    # but uncomment for Prod:
-    # if not payway.verify_webhook(data):
-    #     return "Invalid Signature", 400
 
     status = data.get('status')
     tran_id = data.get('tran_id')
@@ -337,22 +398,14 @@ def payway_callback():
 
 @internal_bp.route('/payments/webhook/gumroad', methods=['POST'])
 def gumroad_webhook():
-    # 1. LOG EVERYTHING IMMEDIATELY
-    # This proves the request hit the server
     raw_data = request.form.to_dict()
     print(f"🔔 HIT! Webhook received. Raw Data: {raw_data}", flush=True)
 
-    # 2. Handle "Test Ping" from Gumroad Settings
-    # Gumroad sends a dummy sale_id like '1234' or 'dummy' for test pings
     if raw_data.get('sale_id') == '1234' or raw_data.get('test'):
         print("✅ Gumroad Test Ping confirmed successful.", flush=True)
         return "OK", 200
 
-    # 3. Extract IDs (Nested Check)
-    # Gumroad sends custom fields as: 'url_params[transaction_id]'
     tx_id = raw_data.get('url_params[transaction_id]')
-
-    # Fallback for some Gumroad versions
     if not tx_id:
         tx_id = raw_data.get('transaction_id')
 
@@ -360,11 +413,10 @@ def gumroad_webhook():
         print("⚠️ Warning: No transaction_id found in webhook. Ignoring.", flush=True)
         return "OK", 200
 
-    # 4. Process Sale
     sale_id = raw_data.get('sale_id')
     resource = raw_data.get('resource_name')
 
-    if resource == 'sale' or resource == 'subscription':  # Handle subscriptions too
+    if resource == 'sale' or resource == 'subscription':
         from ..models import BifrostDB
         from .. import mongo
         db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])

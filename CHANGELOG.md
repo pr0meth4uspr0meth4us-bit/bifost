@@ -4,6 +4,19 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-20
+
+### Added
+- **Deep Linking Support**: Added `create_deep_link_token` to `BifrostDB` and `POST /internal/generate-link-token` to support secure "Web -> Telegram" account linking.
+- **Unified Account Linking**: Added `POST /internal/link-account` which supports:
+    - Linking Email/Password to existing accounts.
+    - Linking Telegram (via legacy Widget Data).
+    - Linking Telegram (via new Deep Link Token).
+- **Payment Hooks**: Integrated Webhooks for Gumroad and ABA Payway.
+
+### Changed
+- **Token Verification**: Updated `verify_otp` to handle string-based tokens (for deep links) alongside numeric OTPs.
+
 ## [1.1.0] - 2026-01-19
 
 ### Added

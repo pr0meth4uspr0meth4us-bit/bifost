@@ -75,9 +75,24 @@ class BifrostDB:
         code, _ = self.create_otp(telegram_id, channel="telegram")
         return code
 
+    def create_deep_link_token(self, account_id):
+        """Generates a secure, long-string token for Deep Linking."""
+        token = secrets.token_urlsafe(16)  # e.g. "D5s-8xLz..."
+        doc = {
+            "code": token,
+            "identifier": "deep_link",
+            "account_id": str(account_id),
+            "channel": "deep_link",
+            "created_at": datetime.now(UTC)
+        }
+        self.db.verification_codes.insert_one(doc)
+        log.info(f"🔗 Deep Link Token Created for Account {account_id}")
+        return token
+
     def verify_otp(self, identifier=None, code=None, verification_id=None):
         safe_code = str(code).replace(" ", "").strip() if code else None
         query = {"code": safe_code}
+
         if verification_id:
             try:
                 query["_id"] = ObjectId(verification_id)
@@ -85,8 +100,12 @@ class BifrostDB:
                 return False
         elif identifier:
             query["identifier"] = str(identifier).lower()
-        else:
+
+        # Note: If neither identifier nor verification_id is provided,
+        # we search solely by code (used for deep links)
+        if not identifier and not verification_id and not safe_code:
             return False
+
         record = self.db.verification_codes.find_one_and_delete(query)
         return record if record else False
 
@@ -100,10 +119,6 @@ class BifrostDB:
         return None
 
     def create_account(self, data):
-        """
-        Creates a new user account document.
-        Logic: Optional fields are only added if present to avoid DuplicateKeyErrors on null values.
-        """
         account = {
             "display_name": data.get("display_name", "Unknown User"),
             "is_active": True,
@@ -111,22 +126,16 @@ class BifrostDB:
             "auth_providers": data.get("auth_providers", [])
         }
 
-        # Conditionally add unique identifiers
         if data.get("email"):
             account["email"] = data.get("email").lower()
-
         if data.get("username"):
             account["username"] = data.get("username").lower()
-
         if data.get("password"):
             account["password_hash"] = generate_password_hash(data["password"])
-
         if data.get("telegram_id"):
             account["telegram_id"] = str(data.get("telegram_id"))
-
         if data.get("google_id"):
             account["google_id"] = data.get("google_id")
-
         if data.get("phone_number"):
             account["phone_number"] = data.get("phone_number")
 
@@ -157,9 +166,11 @@ class BifrostDB:
 
     def link_email_credentials(self, account_id, email, password):
         email = email.lower()
+        # Ensure email is not taken by DIFFERENT account
         existing = self.db.accounts.find_one({"email": email, "_id": {"$ne": ObjectId(account_id)}})
         if existing:
             return False, "Email is already associated with another account."
+
         result = self.db.accounts.update_one(
             {"_id": ObjectId(account_id)},
             {
@@ -168,6 +179,24 @@ class BifrostDB:
             }
         )
         return (True, "Account linked successfully.") if result.modified_count > 0 else (False, "Account not found.")
+
+    def link_telegram(self, account_id, telegram_id, display_name):
+        telegram_id = str(telegram_id)
+        # Ensure TG ID not taken by DIFFERENT account
+        existing = self.db.accounts.find_one({"telegram_id": telegram_id, "_id": {"$ne": ObjectId(account_id)}})
+        if existing:
+            return False, "Telegram account already linked to another user."
+
+        updates = {"telegram_id": telegram_id}
+
+        result = self.db.accounts.update_one(
+            {"_id": ObjectId(account_id)},
+            {
+                "$set": updates,
+                "$addToSet": {"auth_providers": "telegram"}
+            }
+        )
+        return (True, "Telegram linked.") if result.modified_count > 0 else (False, "Account not found.")
 
     def update_account_profile(self, account_id, updates):
         if 'email' in updates:
