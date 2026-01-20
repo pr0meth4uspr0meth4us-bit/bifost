@@ -297,7 +297,7 @@ def get_user_info(user_id):
 
 
 # =========================================================
-#  SECTION: PAYMENT ENDPOINTS (HYBRID: PAYWAY + GUMROAD)
+#  SECTION: PAYMENT ENDPOINTS (HYBRID: PAYWAY + GUMROAD + MANUAL)
 # =========================================================
 
 @internal_bp.route('/payments/create-intent', methods=['POST'])
@@ -376,6 +376,42 @@ def create_payment_intent():
             "provider": "gumroad",
             "payment_url": checkout_url
         })
+
+
+@internal_bp.route('/grant-premium', methods=['POST'])
+@require_service_auth
+def grant_premium_by_admin():
+    """
+    Manually upgrades a user to premium via Telegram ID.
+    Used by the Central Bifrost Bot to approve transfers for specific apps.
+    """
+    data = request.json
+    telegram_id = data.get('telegram_id')
+    target_client_id = data.get('target_client_id')
+
+    # If no target provided, default to the caller's ID (legacy support/direct app call)
+    caller_client_id = request.authenticated_client_id
+    app_client_id = target_client_id if target_client_id else caller_client_id
+
+    if not telegram_id:
+        return jsonify({"error": "Missing telegram_id"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    app_doc = db.get_app_by_client_id(app_client_id)
+
+    if not app_doc:
+        return jsonify({"error": f"Target App ({app_client_id}) not found"}), 404
+
+    # Find User
+    user = db.find_account_by_telegram(telegram_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Update Role
+    db.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user")
+
+    log.info(f"Admin manually granted premium for App '{app_doc.get('app_name')}' to User {telegram_id}")
+    return jsonify({"success": True, "message": f"User upgraded to Premium for {app_doc.get('app_name')}"}), 200
 
 
 @internal_bp.route('/payments/callback', methods=['POST'])

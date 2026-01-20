@@ -4,6 +4,15 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-20
+
+### Added
+- **Bifrost Bot**: Introduced a dedicated Telegram Bot (`bifrost/bot`) to handle centralized authentication and "Proof of Payment" flows for the entire ecosystem.
+- **Internal API**: Added `POST /internal/grant-premium` to allow the Bifrost Bot (and other internal services) to manually upgrade a user's role for a specific application via Telegram ID.
+
+### Changed
+- **Infrastructure**: Updated `docker-compose.yml` to include the `bifrost_bot` service.
+
 ## [1.2.0] - 2026-01-20
 
 ### Added

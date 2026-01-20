@@ -1,0 +1,58 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: ./web_service/Dockerfile
+    container_name: finance-bot-web
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: ./web_service
+          target: /app
+          ignore:
+            - "**/__pycache__/**"
+            - "**/*.pyc"
+
+  bifrost:
+    build:
+      context: .
+      dockerfile: ./bifrost/Dockerfile
+    container_name: bifrost
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: ./bifrost
+          target: /app
+          ignore:
+            - "**/__pycache__/**"
+            - "**/*.pyc"
+
+  bifrost_bot:
+    build:
+      context: .
+      dockerfile: ./bifrost/bot/Dockerfile
+    container_name: bifrost_bot
+    environment:
+      - BIFROST_BOT_TOKEN=${BIFROST_BOT_TOKEN}
+      - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
+      - BIFROST_API_URL=https://objective-denna-auppecampus-9a7d86fc.koyeb.app/
+      - BIFROST_CLIENT_ID=${BIFROST_ROOT_CLIENT_ID}
+      - BIFROST_CLIENT_SECRET=${BIFROST_ROOT_CLIENT_SECRET}
+    depends_on:
+      - bifrost
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

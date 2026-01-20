@@ -1,0 +1,11 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy only the bot code (we assume context is set to . in compose)
+COPY . .
+
+CMD ["python", "main.py"]
