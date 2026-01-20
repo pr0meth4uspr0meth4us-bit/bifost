@@ -25,6 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("bifrost-bot")
 
+
 def main():
     token = os.getenv("BIFROST_BOT_TOKEN")
     if not token:
@@ -54,6 +55,7 @@ def main():
 
     logger.info("⚡ Bifrost Bot is listening...")
     app.run_polling(drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()

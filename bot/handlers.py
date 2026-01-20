@@ -8,22 +8,45 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 log = logging.getLogger(__name__)
 
-# Config
+# --- CONFIGURATION ---
 BIFROST_API_URL = os.getenv("BIFROST_API_URL", "http://localhost:8000")
+# Use Root credentials for the Service, fallback to Client credentials
 MY_CLIENT_ID = os.getenv("BIFROST_ROOT_CLIENT_ID") or os.getenv("BIFROST_CLIENT_ID")
 MY_CLIENT_SECRET = os.getenv("BIFROST_ROOT_CLIENT_SECRET") or os.getenv("BIFROST_CLIENT_SECRET")
-# The Group where you (Admin) sit and approve requests
 PAYMENT_GROUP_ID = os.getenv("PAYMENT_GROUP_ID")
 
-# QR Code Path (Optional)
+# QR Code Path
 BASE_DIR = Path(__file__).resolve().parent
 QR_IMAGE_PATH = BASE_DIR / "assets" / "qr.jpg"
 
 WAITING_PROOF = 1
 
+# --- API HELPERS ---
+
+def call_grant_premium(user_telegram_id, target_client_id):
+    """Calls Bifrost Internal API to upgrade user role."""
+    url = f"{BIFROST_API_URL}/internal/grant-premium"
+    payload = {
+        "telegram_id": str(user_telegram_id),
+        "target_client_id": target_client_id
+    }
+
+    # Authenticate as the Bifrost Service itself
+    auth = HTTPBasicAuth(MY_CLIENT_ID, MY_CLIENT_SECRET)
+
+    try:
+        res = requests.post(url, json=payload, auth=auth, timeout=10)
+        res.raise_for_status()
+        return True
+    except Exception as e:
+        log.error(f"Failed to call Bifrost API: {e}")
+        return False
+
+# --- USER HANDLERS ---
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handles /start pay_CLIENTID_PRICE
+    Step 1: User starts the bot with a payload (e.g. /start pay_finance_bot_5.00)
     """
     args = context.args
 
@@ -63,11 +86,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "3. <b>Send the photo here.</b>"
     )
 
+    # Send QR Image if available, otherwise text
     if QR_IMAGE_PATH.exists():
         with open(QR_IMAGE_PATH, 'rb') as photo:
             await update.message.reply_photo(photo=photo, caption=msg, parse_mode='HTML')
     else:
-        # Fallback if no local image
         await update.message.reply_text(f"⚠️ [QR Missing]\n\n{msg}", parse_mode='HTML')
 
     return WAITING_PROOF
@@ -124,16 +147,21 @@ async def receive_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
-# --- ADMIN ACTIONS (Existing logic works, just ensuring verify_admin checks group or ID) ---
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancels the conversation."""
+    await update.message.reply_text("Action cancelled.")
+    return ConversationHandler.END
+
+# --- ADMIN ACTIONS ---
 
 async def _verify_admin(update: Update):
     """
-    Security: Only allow clicks from the Payment Group or specific Admin IDs.
+    Security: Only allow clicks from the Payment Group or known Admins.
     """
     chat_id = str(update.effective_chat.id)
-    user_id = str(update.effective_user.id)
 
-    # Allow if message is IN the payment group OR user is the hardcoded Admin
+    # Allow if message is IN the payment group
+    # (Or you could check specific user IDs here)
     if chat_id == str(PAYMENT_GROUP_ID):
         return True
 
@@ -172,26 +200,51 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.answer("❌ API Error. Check Logs.", show_alert=True)
 
-async def admin_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_reject_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await _verify_admin(update): return
     query = update.callback_query
-    if str(update.effective_user.id) != str(ADMIN_CHAT_ID):
-        await query.answer("⛔ Unauthorized")
+    data_part = query.data.replace("pay_reject_menu_", "")
+
+    keyboard = [
+        [InlineKeyboardButton("Bad Amount", callback_data=f"pay_reject_confirm_{data_part}|amount")],
+        [InlineKeyboardButton("Fake/Blurry", callback_data=f"pay_reject_confirm_{data_part}|fake")],
+        [InlineKeyboardButton("Duplicate", callback_data=f"pay_reject_confirm_{data_part}|dup")],
+        [InlineKeyboardButton("🔙 Back", callback_data=f"pay_restore_{data_part}")]
+    ]
+    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def admin_reject_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await _verify_admin(update): return
+    query = update.callback_query
+    # Format: pay_reject_confirm_12345|finance|amount
+    data_part = query.data.replace("pay_reject_confirm_", "")
+
+    try:
+        user_id, target_app, reason = data_part.split('|')
+    except ValueError:
+        await query.answer("❌ Data Error")
         return
 
-    data = query.data.replace("pay_reject_", "")
-    user_id = data.split('|')[0]
-
-    await query.answer("Rejected.")
-
     await query.edit_message_caption(
-        caption=f"{query.message.caption}\n\n❌ <b>REJECTED</b>",
+        caption=f"{query.message.caption}\n\n❌ <b>REJECTED ({reason})</b> by {update.effective_user.first_name}",
         parse_mode='HTML'
     )
-
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text="❌ <b>Payment Rejected</b>\nPlease check your payment details and try again."
+            text=f"❌ Payment rejected.\nReason: {reason}\nPlease try again."
         )
-    except:
+    except Exception:
         pass
+
+async def admin_restore_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await _verify_admin(update): return
+    query = update.callback_query
+    data_part = query.data.replace("pay_restore_", "")
+
+    # Restore original buttons
+    keyboard = [[
+        InlineKeyboardButton("✅ Approve", callback_data=f"pay_approve_{data_part}"),
+        InlineKeyboardButton("❌ Reject", callback_data=f"pay_reject_menu_{data_part}")
+    ]]
+    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
