@@ -536,8 +536,8 @@ def get_user_role_internal():
 
     return jsonify({"role": role or "user"}), 200
 
-@auth_bp.route('/me', methods=['GET'])
-@auth_required
+@internal_bp.route('Ï/me', methods=['GET'])
+@require_service_auth
 def get_current_user():
     """
     Introspection Endpoint.
