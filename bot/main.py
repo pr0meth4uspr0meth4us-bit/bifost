@@ -1,14 +1,12 @@
 import os
 import logging
 from pathlib import Path
-from telegram import Update
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters, ContextTypes, ConversationHandler
+    Application, CommandHandler, MessageHandler, filters, ConversationHandler
 )
 from dotenv import load_dotenv
 
-# Ensure safe env loading
+# Env Loading
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BASE_DIR / '.env'
 if not ENV_FILE.exists():
@@ -34,11 +32,10 @@ def main():
 
     app = Application.builder().token(token).build()
 
-    # 1. GROUP LISTENER
-    # Catches ABA receipts in the Payment Group
+    # Listeners
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT, aba_message_handler))
 
-    # 2. USER CLAIM CONVERSATION
+    # User Conversation
     payment_conv = ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
         states={
@@ -46,6 +43,8 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
         per_message=False,
+        # --- CRITICAL FIX ---
+        # This ensures clicking the link "resets" the flow even if stuck
         allow_reentry=True
     )
 
