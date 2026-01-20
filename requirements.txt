@@ -10,3 +10,4 @@ WTForms~=3.2.1
 pymongo~=4.15.4
 email-validator
 requests
+python-telegram-bot==20.6
