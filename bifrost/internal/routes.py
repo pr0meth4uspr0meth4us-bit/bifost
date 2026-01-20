@@ -499,3 +499,39 @@ def api_claim_payment():
         return jsonify({"success": True, "message": msg}), 200
     else:
         return jsonify({"success": False, "error": msg}), 400
+
+# ... existing imports ...
+
+@internal_bp.route('/get-role', methods=['POST'])
+@require_service_auth
+def get_user_role_internal():
+    """
+    Allows a Service (like Finance Bot) to check the role of a Telegram User.
+    Input: { "telegram_id": "123456" }
+    Output: { "role": "premium_user" }
+    """
+    data = request.json
+    telegram_id = data.get('telegram_id')
+
+    # The app asking (Finance Bot) is identified by Basic Auth
+    client_id = request.authenticated_client_id
+
+    if not telegram_id:
+        return jsonify({"error": "Missing telegram_id"}), 400
+
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # 1. Find the User Account
+    user = db.find_account_by_telegram(telegram_id)
+    if not user:
+        return jsonify({"role": "guest"}), 200 # User not known to Bifrost
+
+    # 2. Find the App ID for the calling service
+    app_doc = db.get_app_by_client_id(client_id)
+    if not app_doc:
+        return jsonify({"error": "Calling App not found"}), 404
+
+    # 3. Get the Role
+    role = db.get_user_role_for_app(user['_id'], app_doc['_id'])
+
+    return jsonify({"role": role or "user"}), 200
