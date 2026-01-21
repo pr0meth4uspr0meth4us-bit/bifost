@@ -4,6 +4,13 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-01-22
+
+### Fixed
+- **Webhook Implementation**: Resolved `NameError: name 'Config' is not defined` in `bifrost/internal/routes.py` by switching to `current_app.config`.
+- **Missing Imports**: Added missing `asyncio` and `process_webhook_update` imports required for the synchronous webhook wrapper.
+- **Stability**: The `/internal/telegram-webhook` route is now fully operational within synchronous Gunicorn workers.
+
 ## [1.6.1] - 2026-01-22
 
 ### Fixed

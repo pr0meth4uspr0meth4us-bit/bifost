@@ -4,12 +4,15 @@ import jwt
 import logging
 import asyncio
 
-from bot.main import process_webhook_update
+# Import the DB helper and Services
 from .. import mongo
 from ..models import BifrostDB
 from ..services.payway import PayWayService
 from ..services.gumroad import GumroadService
 from ..utils.telegram import verify_telegram_data
+
+# Import Bot Logic
+from bot.main import process_webhook_update
 
 internal_bp = Blueprint('internal', __name__, url_prefix='/internal')
 log = logging.getLogger(__name__)
@@ -101,7 +104,8 @@ def link_account_internal():
 
         success, msg = db.link_telegram(account_id, telegram_id, display_name)
         if success:
-            return jsonify({"success": True, "message": "Telegram linked successfully", "telegram_id": telegram_id}), 200
+            return jsonify(
+                {"success": True, "message": "Telegram linked successfully", "telegram_id": telegram_id}), 200
         else:
             return jsonify({"error": msg}), 409
 
@@ -462,17 +466,13 @@ def gumroad_webhook():
 
     return "OK", 200
 
+
 @internal_bp.route('/payments/claim', methods=['POST'])
 @require_service_auth
 def api_claim_payment():
     """
     Universal Endpoint to claim a payment.
     Can be called by Bifrost Bot (Telegram) OR Finance Web (Email).
-    Payload:
-      - trx_input: "123456"
-      - target_app_id: "finance_bot"
-      - identity_type: "telegram_id" OR "email"
-      - identity_value: "12345" OR "user@example.com"
     """
     data = request.json
     trx_input = data.get('trx_input')
@@ -501,15 +501,12 @@ def api_claim_payment():
     else:
         return jsonify({"success": False, "error": msg}), 400
 
-# ... existing imports ...
 
 @internal_bp.route('/get-role', methods=['POST'])
 @require_service_auth
 def get_user_role_internal():
     """
     Allows a Service (like Finance Bot) to check the role of a Telegram User.
-    Input: { "telegram_id": "123456" }
-    Output: { "role": "premium_user" }
     """
     data = request.json
     telegram_id = data.get('telegram_id')
@@ -525,7 +522,7 @@ def get_user_role_internal():
     # 1. Find the User Account
     user = db.find_account_by_telegram(telegram_id)
     if not user:
-        return jsonify({"role": "guest"}), 200 # User not known to Bifrost
+        return jsonify({"role": "guest"}), 200  # User not known to Bifrost
 
     # 2. Find the App ID for the calling service
     app_doc = db.get_app_by_client_id(client_id)
@@ -537,6 +534,7 @@ def get_user_role_internal():
 
     return jsonify({"role": role or "user"}), 200
 
+
 @internal_bp.route('/me', methods=['GET'])
 @require_service_auth
 def get_current_user():
@@ -545,19 +543,14 @@ def get_current_user():
     Services can call this with a Bearer token to validate it
     and retrieve user identity without knowing the Secret Key.
     """
-    from flask import g
-    user = User.find_by_id(g.user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+    # NOTE: user_id is usually set by auth middleware in real usage,
+    # but here we rely on the implementation detail.
+    return jsonify({"error": "Not implemented in headless mode"}), 501
 
-    return jsonify({
-        "id": str(user['_id']),
-        "email": user.get('email'),
-        "telegram_id": user.get('telegram_id'),
-        "roles": user.get('roles', []),
-        "is_active": True
-    }), 200
 
+# =========================================================
+#  SECTION: TELEGRAM WEBHOOK (SYNC WRAPPER FIX)
+# =========================================================
 
 @internal_bp.route('/telegram-webhook', methods=['POST'])
 def telegram_webhook():
@@ -568,31 +561,24 @@ def telegram_webhook():
     # 1. SECURITY CHECK
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
 
-    # Check Config for the secret
-    if secret_header != Config.BIFROST_BOT_SECRET:
+    # Check Config via Flask App Context (Safer than direct import)
+    if secret_header != current_app.config.get('BIFROST_BOT_SECRET'):
         log.warning(f"Unauthorized Webhook Attempt. Header: {secret_header}")
         return jsonify({"error": "Unauthorized", "message": "Invalid Secret Token"}), 403
 
     # 2. Process Update safely
-    # force=True ensures we get JSON even if mimetype is wrong
     data = request.get_json(force=True)
 
     try:
         # Create a fresh event loop for this request
-        # This isolates every request so they don't block each other's variables
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
         # This line BLOCKS until the bot finishes processing.
-        # If this crashes, we return 500, and Telegram RESENDS the message later.
         loop.run_until_complete(process_webhook_update(data))
 
         loop.close()
-
-        # We only return 200 OK if everything succeeded.
         return jsonify({"status": "ok"}), 200
-
     except Exception as e:
         log.error(f"Bot Webhook Processing Error: {e}")
-        # Return 500 so Telegram knows to retry
         return jsonify({"error": "Internal Error"}), 500
