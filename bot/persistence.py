@@ -2,7 +2,6 @@ import os
 import logging
 from pymongo import MongoClient
 from telegram.ext import BasePersistence, PersistenceInput
-from telegram.ext._utils.types import UD, CD, BD, CDC
 
 logger = logging.getLogger(__name__)
 
