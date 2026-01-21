@@ -105,3 +105,30 @@ def update_user_role(app_id, user_id):
         flash(f"User updated to {new_role}", "success")
 
     return redirect(url_for('backoffice.view_app', app_id=app_id))
+
+@backoffice_bp.route('/app/<app_id>/add', methods=['POST'])
+@login_required
+def add_user_to_app(app_id):
+    db = get_db()
+
+    # Security: Ensure Tenant owns this app (or is Super Admin)
+    if not session.get('is_super_admin'):
+        owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
+        if app_id not in owned_apps:
+            flash("Unauthorized.", "danger")
+            return redirect(url_for('backoffice.dashboard'))
+
+    email = request.form.get('email').strip().lower()
+    role = request.form.get('role')
+
+    # 1. Find the User
+    user = db.find_account_by_email(email)
+    if not user:
+        flash(f"User with email '{email}' not found. They must register with Bifrost first.", "warning")
+        return redirect(url_for('backoffice.view_app', app_id=app_id))
+
+    # 2. Link them (Force the role)
+    db.link_user_to_app(user['_id'], app_id, role=role, duration_str="lifetime")
+
+    flash(f"✅ User {email} added as {role}!", "success")
+    return redirect(url_for('backoffice.view_app', app_id=app_id))
