@@ -301,11 +301,20 @@ def get_current_user():
 def telegram_webhook():
     """Receives updates from Telegram."""
     # 1. SECURITY CHECK
+    # Fetch directly from os.environ to avoid Config import-time issues
+    server_secret = os.environ.get('BIFROST_BOT_SECRET')
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-    server_secret = current_app.config.get('BIFROST_BOT_SECRET')
+
+    # Debug Log to verify what the server actually sees
+    if not server_secret:
+        log.error("❌ BIFROST_BOT_SECRET is missing from server environment variables!")
+        return jsonify({"error": "Configuration Error"}), 500
 
     if secret_header != server_secret:
-        log.warning(f"⚠️ MISMATCH! Header='{secret_header}' vs Config='{server_secret}'")
+        # Log masked values for debugging
+        header_preview = secret_header[:5] + "..." if secret_header else "None"
+        config_preview = server_secret[:5] + "..." if server_secret else "None"
+        log.warning(f"⚠️ MISMATCH! Header='{header_preview}' vs Env='{config_preview}'")
         return jsonify({"error": "Unauthorized", "message": "Invalid Secret Token"}), 403
 
     # 2. Process Update safely
