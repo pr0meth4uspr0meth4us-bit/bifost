@@ -63,7 +63,17 @@ class MongoPersistence(BasePersistence):
         """Required by abstract class, but we save instantly in update_conversation"""
         pass
 
-    # --- Stubs for unused features (required by abstract class) ---
+    # --- REQUIRED STUBS (Missing methods that caused the crash) ---
+    async def refresh_bot_data(self, bot_data) -> None:
+        pass
+
+    async def refresh_chat_data(self, chat_id, chat_data) -> None:
+        pass
+
+    async def refresh_user_data(self, user_id, user_data) -> None:
+        pass
+
+    # --- Stubs for unused features ---
     async def get_user_data(self) -> dict: return {}
     async def update_user_data(self, user_id, data) -> None: pass
     async def drop_user_data(self, user_id) -> None: pass
