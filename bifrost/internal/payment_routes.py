@@ -55,13 +55,10 @@ def create_secure_payment_intent():
         ref_id=ref_id
     )
 
-    # 4. Return the Secure Link
-    bot_username = current_app.config.get('BIFROST_BOT_USERNAME', 'BifrostBot')
-
     return jsonify({
         "success": True,
         "transaction_id": tx_id,
-        "secure_link": f"https://t.me/{bot_username}?start={tx_id}",
+        "secure_link": f"https://t.me/bifrost_byhelm_bot?start={tx_id}",
         "manual_command": f"/pay {tx_id}"
     })
 
