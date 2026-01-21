@@ -4,6 +4,18 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-01-21
+
+### Changed
+- **Bot Architecture**: Migrated from Long Polling to Webhooks for cost efficiency and scalability on serverless platforms (Koyeb).
+- **Process Management**: Updated `run.sh` to exclusively run the Gunicorn Web Server. The Bot process is now triggered internally via the `/telegram-webhook` route.
+- **State Management**: Replaced local file storage (`PicklePersistence`) with `MongoPersistence` (`bot/persistence.py`) to store conversation states in MongoDB. This enables stateless, concurrent webhook workers to handle multiple users simultaneously without race conditions.
+
+### Fixed
+- **Concurrency Crash**: Resolved `RuntimeError: Event loop is closed` by creating an ephemeral `Application` instance for each incoming webhook request.
+- **Import Errors**: Fixed `ModuleNotFoundError` for bot handlers when running within the Flask application context.
+- **Telegram Conflict**: Resolved HTTP 409 Conflict errors caused by running duplicate bot instances (background process vs. container).
+
 ## [1.3.0] - 2026-01-20
 
 ### Added
@@ -19,9 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 - **Deep Linking Support**: Added `create_deep_link_token` to `BifrostDB` and `POST /internal/generate-link-token` to support secure "Web -> Telegram" account linking.
 - **Unified Account Linking**: Added `POST /internal/link-account` which supports:
-    - Linking Email/Password to existing accounts.
-    - Linking Telegram (via legacy Widget Data).
-    - Linking Telegram (via new Deep Link Token).
+  - Linking Email/Password to existing accounts.
+  - Linking Telegram (via legacy Widget Data).
+  - Linking Telegram (via new Deep Link Token).
 - **Payment Hooks**: Integrated Webhooks for Gumroad and ABA Payway.
 
 ### Changed
