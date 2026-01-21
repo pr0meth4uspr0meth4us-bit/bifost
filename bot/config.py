@@ -1,7 +1,26 @@
 import os
+import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Setup minimal logging for config phase
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("bifrost-config")
+
+# Robustly find .env file by walking up directories
+env_path = Path(__file__).resolve().parent
+found_env = False
+for _ in range(4):
+    potential_env = env_path / '.env'
+    if potential_env.exists():
+        logger.info(f"✅ Loading environment from: {potential_env}")
+        load_dotenv(dotenv_path=potential_env)
+        found_env = True
+        break
+    env_path = env_path.parent
+
+if not found_env:
+    logger.warning("⚠️ No .env file found. Relying on System Environment Variables.")
 
 class Config:
     # --- CORE DATABASE & SECURITY ---

@@ -1,39 +1,31 @@
 import sys
 import os
-
-# --- PATH FIX: Add project root to sys.path ---
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import logging
 import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 
-# Import Central Config
-from config import Config
+# --- PATH FIX: Add project root to sys.path ---
+# This ensures we can resolve siblings if needed
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Absolute imports
-from bot.handlers import (
-    start_command, receive_proof, cancel,
-    admin_approve, admin_reject_menu, admin_reject_confirm, admin_restore_menu,
-    WAITING_PROOF
-)
+from bot.config import Config
 from bot.persistence import MongoPersistence
+from bot.handlers import (
+    start_command, receive_proof, cancel, WAITING_PROOF,
+    admin_approve, admin_reject_menu, admin_reject_confirm, admin_restore_menu
+)
 
-# Configure logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger("bifrost-bot")
 
 def create_bifrost_bot():
-    """
-    Factory function to build the PTB Application.
-    Used by both Webhooks (Production) and Polling (Local).
-    """
+    """Factory function to build the PTB Application."""
     if not Config.BIFROST_BOT_TOKEN or not Config.MONGO_URI:
         logger.critical("Missing BIFROST_BOT_TOKEN or MONGO_URI in Config!")
         return None
 
-    # 1. Setup Persistence (MongoDB)
+    # 1. Setup Persistence
     persistence = MongoPersistence(mongo_uri=Config.MONGO_URI)
 
     # 2. Build App
@@ -42,8 +34,8 @@ def create_bifrost_bot():
     # 3. Register Handlers
     payment_conv = ConversationHandler(
         entry_points=[
-            CommandHandler("start", start_command), # Handles deep links
-            CommandHandler("pay", start_command)    # Handles manual commands
+            CommandHandler("start", start_command),
+            CommandHandler("pay", start_command)
         ],
         states={WAITING_PROOF: [MessageHandler(filters.PHOTO, receive_proof)]},
         fallbacks=[CommandHandler("cancel", cancel)],
