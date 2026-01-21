@@ -1,3 +1,4 @@
+import os
 from flask import request, jsonify, current_app
 import jwt
 import logging
@@ -305,7 +306,6 @@ def telegram_webhook():
     server_secret = os.environ.get('BIFROST_BOT_SECRET')
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
 
-    # Debug Log to verify what the server actually sees
     if not server_secret:
         log.error("❌ BIFROST_BOT_SECRET is missing from server environment variables!")
         return jsonify({"error": "Configuration Error"}), 500
