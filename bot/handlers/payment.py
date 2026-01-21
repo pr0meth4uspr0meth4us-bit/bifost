@@ -16,11 +16,27 @@ async def receive_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Please send a <b>Photo</b> of the receipt.", parse_mode='HTML')
         return WAITING_PROOF
 
-    photo = update.message.photo[-1]
-    pay_ctx = context.user_data.get('payment_context', {})
+    # Retrieve Context
+    pay_ctx = context.user_data.get('payment_context')
 
-    target_app = pay_ctx.get('client_id') or context.user_data.get('target_app', 'unknown')
-    app_name = pay_ctx.get('app_name', target_app)
+    # --- SAFETY CHECK ---
+    # If the bot restarted before we fixed persistence, pay_ctx might be None.
+    # Prevent sending "Unknown" / "$?" to admins.
+    if not pay_ctx:
+        await update.message.reply_text(
+            "⚠️ <b>Session Expired</b>\n\n"
+            "We lost track of your payment details (likely due to a system update).\n"
+            "Please click the <b>Payment Link</b> or scan the QR code again to restart.",
+            parse_mode='HTML'
+        )
+        return ConversationHandler.END
+    # --------------------
+
+    photo = update.message.photo[-1]
+
+    # Extract Data (Now guaranteed to exist if we passed the check above)
+    target_app = pay_ctx.get('client_id', 'unknown')
+    app_name = pay_ctx.get('app_name', 'Unknown App')
     amount = pay_ctx.get('amount', '?')
 
     if not Config.PAYMENT_GROUP_ID:
