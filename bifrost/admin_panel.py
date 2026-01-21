@@ -20,6 +20,7 @@ class ApplicationForm(form.Form):
     app_name = fields.StringField('App Name', [validators.DataRequired()])
     app_callback_url = fields.StringField('Auth Callback URL', [validators.DataRequired()])
     app_web_url = fields.StringField('Application Web URL (Home Page)')
+    app_api_url = fields.StringField('API Base URL (e.g. https://api.myapp.com)', [validators.Optional()])
     app_logo_url = fields.StringField('Logo URL (HTTPS)')
     allowed_auth_methods = fields.StringField('Auth Methods (csv)', default="email,telegram")
     telegram_bot_token = fields.StringField('Telegram Bot Token (Optional)')
@@ -83,7 +84,7 @@ class SecureModelView(ModelView):
 
 
 class ApplicationsView(SecureModelView):
-    column_list = ('app_name', 'client_id', 'app_web_url', 'created_at')
+    column_list = ('app_name', 'client_id', 'app_api_url', 'created_at')
     form = ApplicationForm
 
     def on_model_change(self, form, model, is_created):

@@ -6,6 +6,7 @@ from bson import ObjectId
 import logging
 import random
 import secrets
+from .services.webhook_service import WebhookService
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -127,6 +128,40 @@ class BifrostDB:
         return None
 
     # ---------------------------------------------------------
+    # HELPER: WEBHOOK TRIGGERS
+    # ---------------------------------------------------------
+
+    def _trigger_event_for_user(self, account_id, event_type, specific_app_id=None, token=None):
+        """
+        Finds linked apps for a user and triggers the webhook.
+        If specific_app_id is provided, only triggers for that app.
+        Otherwise, triggers for ALL linked apps (Global event).
+        """
+        try:
+            query = {"account_id": ObjectId(account_id)}
+            if specific_app_id:
+                query["app_id"] = ObjectId(specific_app_id)
+
+            links = list(self.db.app_links.find(query))
+            if not links:
+                return
+
+            # Avoid duplicates if multiple links point to same app (unlikely due to index, but safe)
+            app_ids = list(set([link['app_id'] for link in links]))
+
+            apps = self.db.applications.find({"_id": {"$in": app_ids}})
+
+            for app_doc in apps:
+                WebhookService.send_event(
+                    app_doc=app_doc,
+                    event_type=event_type,
+                    account_id=account_id,
+                    token=token
+                )
+        except Exception as e:
+            log.error(f"Failed to trigger events for user {account_id}: {e}")
+
+    # ---------------------------------------------------------
     # ACCOUNT MANAGEMENT
     # ---------------------------------------------------------
 
@@ -171,10 +206,17 @@ class BifrostDB:
         return self.db.accounts.find_one({"telegram_id": str(telegram_id)})
 
     def update_password(self, email, new_password):
+        user = self.find_account_by_email(email)
+        if not user:
+            return
+
         self.db.accounts.update_one(
-            {"email": email.lower()},
+            {"_id": user['_id']},
             {"$set": {"password_hash": generate_password_hash(new_password)}}
         )
+
+        # EVENT: Password Changed -> Global Invalidation
+        self._trigger_event_for_user(user['_id'], "security_password_change")
 
     def link_email_credentials(self, account_id, email, password):
         email = email.lower()
@@ -189,7 +231,13 @@ class BifrostDB:
                 "$addToSet": {"auth_providers": "email"}
             }
         )
-        return (True, "Account linked successfully.") if result.modified_count > 0 else (False, "Account not found.")
+
+        if result.modified_count > 0:
+            # EVENT: Credentials updated (Profile change)
+            self._trigger_event_for_user(account_id, "account_update")
+            return True, "Account linked successfully."
+        else:
+            return False, "Account not found."
 
     def link_telegram(self, account_id, telegram_id, display_name):
         telegram_id = str(telegram_id)
@@ -206,7 +254,12 @@ class BifrostDB:
                 "$addToSet": {"auth_providers": "telegram"}
             }
         )
-        return (True, "Telegram linked.") if result.modified_count > 0 else (False, "Account not found.")
+
+        if result.modified_count > 0:
+            self._trigger_event_for_user(account_id, "account_update")
+            return True, "Telegram linked."
+        else:
+            return False, "Account not found."
 
     def update_account_profile(self, account_id, updates):
         if 'email' in updates:
@@ -222,13 +275,19 @@ class BifrostDB:
                 return False, "Username is already taken."
 
         result = self.db.accounts.update_one({"_id": ObjectId(account_id)}, {"$set": updates})
-        return (True, "Profile updated.") if result.matched_count > 0 else (False, "Account not found.")
+
+        if result.matched_count > 0:
+            # EVENT: Profile Update
+            self._trigger_event_for_user(account_id, "account_update")
+            return True, "Profile updated."
+        else:
+            return False, "Account not found."
 
     # ---------------------------------------------------------
     # CLIENT APP MANAGEMENT
     # ---------------------------------------------------------
 
-    def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None):
+    def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None, api_url=None):
         client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
         client_secret = secrets.token_urlsafe(32)
         app_doc = {
@@ -238,6 +297,7 @@ class BifrostDB:
             "app_logo_url": logo_url or "/static/default_logo.png",
             "app_web_url": web_url,
             "app_callback_url": callback_url,
+            "app_api_url": api_url,
             "allowed_auth_methods": allowed_methods or ["email"],
             "telegram_bot_token": None,
             "created_at": datetime.now(UTC)
@@ -255,14 +315,25 @@ class BifrostDB:
         return check_password_hash(app["client_secret_hash"], provided_secret)
 
     def link_user_to_app(self, account_id, app_id, role="user"):
+        # Check if role is changing
+        current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
+        old_role = current_link.get('role') if current_link else None
+
         self.db.app_links.update_one(
             {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
             {
                 "$set": {"last_login": datetime.now(UTC)},
-                "$setOnInsert": {"role": role, "linked_at": datetime.now(UTC)}
+                "$setOnInsert": {"linked_at": datetime.now(UTC)},
+                # Only update role if provided and different?
+                # For this method, assume we enforce the role passed in arg if it's an upsert/update
+                "$set": {"role": role}
             },
             upsert=True
         )
+
+        if old_role and old_role != role:
+            # EVENT: Role Change
+            self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
 
     def get_user_role_for_app(self, account_id, app_id):
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
@@ -301,11 +372,9 @@ class BifrostDB:
             {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
         )
         if tx.get('target_role'):
-            self.db.app_links.update_one(
-                {"account_id": tx['account_id'], "app_id": tx['app_id']},
-                {"$set": {"role": tx['target_role'], "updated_at": datetime.now(UTC)}},
-                upsert=True
-            )
+            # This calls link_user_to_app which triggers the webhook automatically
+            self.link_user_to_app(tx['account_id'], tx['app_id'], role=tx['target_role'])
+
         return True, "Transaction completed and role updated"
 
     # --- NEW: Universal Payment Listener Logic ---
@@ -337,11 +406,13 @@ class BifrostDB:
 
     def claim_payment(self, trx_input, app_id, user_identity):
         """
-        Universal Claim Logic. Match a User (Tele/Email) to a Pending Payment.
+        Universal Claim Logic.
+        Match a User (Tele/Email) to a Pending Payment.
 
         :param trx_input: The Last 6 digits (or full ID) provided by user.
         :param app_id: The App ID (ObjectId) to upgrade.
-        :param user_identity: Dict. {'telegram_id': '...'} OR {'email': '...'}
+        :param user_identity: Dict.
+        {'telegram_id': '...'} OR {'email': '...'}
         """
         # 1. Resolve User
         user = None
@@ -385,7 +456,7 @@ class BifrostDB:
         if result.modified_count == 0:
             return False, "Error: Payment claimed by someone else."
 
-        # 4. Grant Premium Role
+        # 4. Grant Premium Role (Triggers Webhook)
         self.link_user_to_app(user['_id'], app_id, role="premium_user")
 
         return True, f"Success! ${payment['amount']} claimed."
