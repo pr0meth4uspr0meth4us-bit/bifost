@@ -7,14 +7,16 @@ import logging
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
 
+
 class PaymentMixin:
     # ---------------------------------------------------------
     # PAYMENT & TRANSACTIONS
     # ---------------------------------------------------------
-    def create_transaction(self, account_id, app_id, app_name, amount, currency, description, target_role=None, duration=None,
+    def create_transaction(self, account_id, app_id, app_name, amount, currency, description, target_role=None,
+                           duration=None,
                            ref_id=None):
         """
-        Creates a pending transaction.
+        Creates a pending transaction. 
         Stores app_name directly to prevent lookup failures later.
         """
         transaction_id = f"tx-{secrets.token_hex(8)}"
@@ -22,7 +24,7 @@ class PaymentMixin:
             "transaction_id": transaction_id,
             "account_id": ObjectId(account_id) if account_id else None,
             "app_id": ObjectId(app_id),
-            "app_name": app_name,  # <--- DENORMALIZED FIELD
+            "app_name": app_name,
             "amount": amount,
             "currency": currency,
             "description": description,
@@ -49,11 +51,26 @@ class PaymentMixin:
 
         # Grant the role and Apply Duration
         if tx.get('target_role') and tx.get('account_id'):
+            # 1. Update DB Link (Triggers 'account_role_change')
             self.link_user_to_app(
                 account_id=tx['account_id'],
                 app_id=tx['app_id'],
                 role=tx['target_role'],
                 duration_str=tx.get('duration')
+            )
+
+            # 2. Trigger Specific Payment Success Webhook
+            self._trigger_event_for_user(
+                account_id=tx['account_id'],
+                event_type="subscription_success",
+                specific_app_id=tx['app_id'],
+                extra_data={
+                    "transaction_id": transaction_id,
+                    "amount": tx['amount'],
+                    "currency": tx['currency'],
+                    "role": tx['target_role'],
+                    "client_ref_id": tx.get('client_ref_id')
+                }
             )
 
         return True, "Transaction completed and role updated"
@@ -120,7 +137,21 @@ class PaymentMixin:
         if result.modified_count == 0:
             return False, "Error: Payment claimed by someone else."
 
-        # 4. Grant Premium Role (Triggers Webhook)
+        # 4. Grant Premium Role
         self.link_user_to_app(user['_id'], app_id, role="premium_user")
+
+        # 5. Send Success Webhook for Claims
+        self._trigger_event_for_user(
+            account_id=user['_id'],
+            event_type="subscription_success",
+            specific_app_id=app_id,
+            extra_data={
+                "transaction_id": payment['trx_id'],
+                "amount": payment['amount'],
+                "currency": payment['currency'],
+                "role": "premium_user",
+                "method": "claim"
+            }
+        )
 
         return True, f"Success! ${payment['amount']} claimed."

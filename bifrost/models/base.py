@@ -51,7 +51,7 @@ class BaseMixin:
         self.db.payment_logs.create_index([("trx_id", ASCENDING)], unique=True)
         self.db.payment_logs.create_index([("status", ASCENDING)])
 
-    def _trigger_event_for_user(self, account_id, event_type, specific_app_id=None, token=None):
+    def _trigger_event_for_user(self, account_id, event_type, specific_app_id=None, token=None, extra_data=None):
         """
         Finds linked apps for a user and triggers the webhook.
         """
@@ -73,7 +73,8 @@ class BaseMixin:
                     app_doc=app_doc,
                     event_type=event_type,
                     account_id=account_id,
-                    token=token
+                    token=token,
+                    extra_data=extra_data
                 )
         except Exception as e:
             log.error(f"Failed to trigger events for user {account_id}: {e}")

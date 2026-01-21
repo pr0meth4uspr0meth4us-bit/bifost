@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 from .models import BifrostDB
-from . import mongo # Assuming you can import the mongo instance or pass it in
+from . import mongo
 
 log = logging.getLogger("bifrost_reaper")
 UTC = ZoneInfo("UTC")
@@ -36,6 +36,7 @@ def run_expiration_check(app):
         for link in expired_links:
             user_id = link['account_id']
             app_id = link['app_id']
+            old_role = link.get('role', 'unknown')
 
             # 1. Downgrade in DB
             db.db.app_links.update_one(
@@ -46,10 +47,18 @@ def run_expiration_check(app):
                 }
             )
 
-            # 2. Trigger Webhook (Crucial!)
-            # This tells Finance Bot to clear its cache immediately
+            # 2. Trigger Specific Expiration Webhook
             log.info(f"⬇️ Downgrading User {user_id} for App {app_id}")
-            db._trigger_event_for_user(user_id, "account_role_change", specific_app_id=app_id)
+            db._trigger_event_for_user(
+                account_id=user_id,
+                event_type="subscription_expired",
+                specific_app_id=app_id,
+                extra_data={
+                    "previous_role": old_role,
+                    "new_role": "user",
+                    "reason": "expired"
+                }
+            )
 
 def start_scheduler(app):
     """Starts the scheduler in a background thread."""

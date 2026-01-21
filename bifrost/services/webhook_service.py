@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 class WebhookService:
     @staticmethod
-    def send_event(app_doc, event_type, account_id, token=None):
+    def send_event(app_doc, event_type, account_id, token=None, extra_data=None):
         """
         Sends an auth event webhook to a specific client application.
         Signs the payload using HMAC-SHA256 for security.
@@ -34,6 +34,10 @@ class WebhookService:
             "timestamp": int(datetime.utcnow().timestamp())
         }
 
+        # Merge extra data (e.g. transaction details) if provided
+        if extra_data:
+            payload.update(extra_data)
+
         # 1. Create HMAC Signature
         # Use separators to ensure compact JSON representation (matches most receiver logic)
         payload_bytes = json.dumps(payload, separators=(',', ':')).encode('utf-8')
@@ -53,7 +57,7 @@ class WebhookService:
         }
 
         try:
-            log.info(f"🚀 Sending webhook to: {endpoint}")
+            log.info(f"🚀 Sending webhook to: {endpoint} | Event: {event_type}")
             # Note: No Basic Auth used. Security is handled by the Signature.
             response = requests.post(endpoint, data=payload_bytes, headers=headers, timeout=5)
 
