@@ -556,3 +556,14 @@ def get_current_user():
         "roles": user.get('roles', []),
         "is_active": True
     }), 200
+
+@internal_bp.route('/telegram-webhook', methods=['POST'])
+async def telegram_webhook():
+    secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+
+    if secret_header != Config.BIFROST_BOT_SECRET:
+        return jsonify({"error": "Unauthorized", "message": "Invalid Secret Token"}), 403
+
+    # 2. Process Update
+    await process_webhook_update(request.json)
+    return jsonify({"status": "ok"}), 200
