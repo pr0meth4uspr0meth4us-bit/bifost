@@ -4,6 +4,11 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.5] - 2026-01-22
+
+### Fixed
+- **Critical Deadlock**: Replaced the HTTP call in `call_grant_premium` with a direct database operation. Previously, the bot tried to call its own API via HTTP, causing the server worker to freeze (waiting for itself) and timeout.
+
 ## [1.9.4] - 2026-01-22
 
 ### Fixed

@@ -5,25 +5,49 @@ from bson import ObjectId
 from .config import Config
 from .database import get_db
 
+# Import the logic directly from the Backend
+# We use a try/except import to allow this file to run in standalone contexts if needed
+try:
+    from bifrost.models import BifrostDB
+except ImportError:
+    BifrostDB = None
+
 log = logging.getLogger(__name__)
 
 def call_grant_premium(user_telegram_id, target_client_id):
-    """Calls Bifrost Internal API to upgrade user role."""
-    url = f"{Config.BIFROST_API_URL}/internal/grant-premium"
-    payload = {
-        "telegram_id": str(user_telegram_id),
-        "target_client_id": target_client_id
-    }
-
-    # Authenticate as the Bifrost Service itself
-    auth = HTTPBasicAuth(Config.BIFROST_ROOT_CLIENT_ID, Config.BIFROST_ROOT_CLIENT_SECRET)
-
+    """
+    Directly accesses the database to grant premium.
+    Replaces the HTTP call to avoid Gunicorn Deadlocks.
+    """
     try:
-        res = requests.post(url, json=payload, auth=auth, timeout=10)
-        res.raise_for_status()
+        if BifrostDB is None:
+            log.error("CRITICAL: BifrostDB model not found. Cannot grant premium.")
+            return False
+
+        # 1. Get a DB connection
+        db_instance = get_db()
+        # Create the logic handler (passing the client and db_name)
+        logic = BifrostDB(db_instance.client, Config.DB_NAME)
+
+        # 2. Find User
+        user = logic.find_account_by_telegram(user_telegram_id)
+        if not user:
+            log.error(f"User {user_telegram_id} not found.")
+            return False
+
+        # 3. Find App
+        app_doc = logic.get_app_by_client_id(target_client_id)
+        if not app_doc:
+            log.error(f"App {target_client_id} not found.")
+            return False
+
+        # 4. Perform the Link (Grant Role)
+        logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user")
+        log.info(f"✅ Directly granted premium to {user_telegram_id} for {target_client_id}")
         return True
+
     except Exception as e:
-        log.error(f"Failed to call Bifrost API: {e}")
+        log.error(f"Direct DB Grant failed: {e}")
         return False
 
 def get_app_details(client_id):
