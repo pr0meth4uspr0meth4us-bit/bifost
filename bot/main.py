@@ -8,8 +8,9 @@ from dotenv import load_dotenv
 # Load env
 load_dotenv()
 
-# Import your existing handlers
-from handlers import (
+# CHANGED: Updated import to be absolute from the project root
+# This ensures it works when imported by the Flask Webhook
+from bot.handlers import (
     start_command, receive_proof, cancel,
     admin_approve, admin_reject_menu, admin_reject_confirm, admin_restore_menu,
     WAITING_PROOF
@@ -51,6 +52,7 @@ async def init_bot():
     await app.start()
 
     logger.info("🤖 Bot initialized in Webhook Mode.")
+    ptb_application = app
     return app
 
 async def process_webhook_update(update_json):
@@ -60,5 +62,6 @@ async def process_webhook_update(update_json):
         await init_bot()
 
     # Decode update and feed to bot
+    # We must construct the Update object manually or via de_json
     update = Update.de_json(update_json, ptb_application.bot)
     await ptb_application.process_update(update)
