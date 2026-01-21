@@ -1,0 +1,165 @@
+import secrets
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from bson import ObjectId
+from werkzeug.security import generate_password_hash, check_password_hash
+import logging
+
+log = logging.getLogger(__name__)
+UTC = ZoneInfo("UTC")
+
+class AppMixin:
+    # ---------------------------------------------------------
+    # CLIENT APP MANAGEMENT
+    # ---------------------------------------------------------
+    def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None,
+                             api_url=None):
+        client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
+        client_secret = secrets.token_urlsafe(32)
+        webhook_secret = secrets.token_hex(24)
+
+        app_doc = {
+            "app_name": app_name,
+            "client_id": client_id,
+            "client_secret_hash": generate_password_hash(client_secret),
+            "webhook_secret": webhook_secret,
+            "app_logo_url": logo_url or "/static/default_logo.png",
+            "app_web_url": web_url,
+            "app_callback_url": callback_url,
+            "app_api_url": api_url,
+            "allowed_auth_methods": allowed_methods or ["email"],
+            "telegram_bot_token": None,
+            "created_at": datetime.now(UTC)
+        }
+        self.db.applications.insert_one(app_doc)
+        return client_id, client_secret, webhook_secret
+
+    def get_app_by_client_id(self, client_id):
+        return self.db.applications.find_one({"client_id": client_id})
+
+    def verify_client_secret(self, client_id, provided_secret):
+        app = self.get_app_by_client_id(client_id)
+        if not app:
+            return False
+        return check_password_hash(app["client_secret_hash"], provided_secret)
+
+    def link_user_to_app(self, account_id, app_id, role="user", duration_str=None):
+        """
+        Links a user to an app, optionally calculating an expiration date.
+        duration_str examples: '1m' (month), '1y' (year), 'lifetime'
+        """
+        current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
+        old_role = current_link.get('role') if current_link else None
+
+        update_doc = {
+            "last_login": datetime.now(UTC),
+            "role": role
+        }
+
+        if duration_str and duration_str != 'lifetime':
+            now = datetime.now(UTC)
+            expires_at = None
+
+            if duration_str == '1m':
+                expires_at = now + timedelta(days=30)
+            elif duration_str == '3m':
+                expires_at = now + timedelta(days=90)
+            elif duration_str == '6m':
+                expires_at = now + timedelta(days=180)
+            elif duration_str == '1y':
+                expires_at = now + timedelta(days=365)
+
+            if expires_at:
+                update_doc["expires_at"] = expires_at
+
+        # If 'lifetime', explicitly remove expiration
+        if duration_str == 'lifetime':
+            update_doc["expires_at"] = None
+
+        self.db.app_links.update_one(
+            {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
+            {
+                "$set": update_doc,
+                "$setOnInsert": {"linked_at": datetime.now(UTC)}
+            },
+            upsert=True
+        )
+
+        # Trigger Webhook if role changed
+        if old_role != role:
+            self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
+
+    def get_user_role_for_app(self, account_id, app_id):
+        link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
+        if not link:
+            return None
+
+        # Check Expiration
+        if link.get('expires_at') and link['expires_at'].replace(tzinfo=UTC) < datetime.now(UTC):
+            return "expired"
+
+        return link.get('role', 'user')
+
+    # ---------------------------------------------------------
+    # BACKOFFICE HELPERS
+    # ---------------------------------------------------------
+    def is_super_admin(self, email):
+        """Checks if the email belongs to a Super Admin."""
+        if not email: return False
+        return self.db.admins.find_one({"email": email.lower()}) is not None
+
+    def create_super_admin(self, email, password):
+        admin = {
+            "email": email.lower(),
+            "password_hash": generate_password_hash(password),
+            "role": "super_admin",
+            "created_at": datetime.now(UTC)
+        }
+        try:
+            self.db.admins.insert_one(admin)
+            return True
+        except Exception as e:
+            log.error(f"Could not create admin: {e}")
+            return False
+
+    def get_managed_apps(self, account_id):
+        """Returns a list of apps where the user is an 'admin' or 'owner'."""
+        links = self.db.app_links.find({
+            "account_id": ObjectId(account_id),
+            "role": {"$in": ["admin", "owner", "super_admin"]}
+        })
+        app_ids = [link['app_id'] for link in links]
+        return list(self.db.applications.find({"_id": {"$in": app_ids}}))
+
+    def get_all_apps(self):
+        """For Super Admin Dashboard."""
+        return list(self.db.applications.find({}))
+
+    def get_app_users(self, app_id):
+        """Returns all users linked to a specific app."""
+        links = list(self.db.app_links.find({"app_id": ObjectId(app_id)}))
+        if not links:
+            return []
+
+        user_ids = [link['account_id'] for link in links]
+        users_cursor = self.db.accounts.find({"_id": {"$in": user_ids}})
+
+        # Create a lookup dictionary
+        users_map = {u['_id']: u for u in users_cursor}
+
+        # Merge data
+        results = []
+        for link in links:
+            user = users_map.get(link['account_id'])
+            if user:
+                results.append({
+                    "account_id": str(user['_id']),
+                    "display_name": user.get('display_name'),
+                    "email": user.get('email'),
+                    "username": user.get('username'),
+                    "telegram_id": user.get('telegram_id'),
+                    "role": link.get('role'),
+                    "expires_at": link.get('expires_at'),
+                    "linked_at": link.get('linked_at')
+                })
+        return results

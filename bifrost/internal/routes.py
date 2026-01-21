@@ -1,5 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
-from functools import wraps
+from flask import request, jsonify, current_app
 import jwt
 import logging
 import asyncio
@@ -7,51 +6,19 @@ import asyncio
 # Import the DB helper and Services
 from .. import mongo
 from ..models import BifrostDB
-from ..services.payway import PayWayService
-from ..services.gumroad import GumroadService
 from ..utils.telegram import verify_telegram_data
+from .utils import require_service_auth
+from . import internal_bp
 
 # Import Bot Logic
 from bot.main import process_webhook_update
 
-internal_bp = Blueprint('internal', __name__, url_prefix='/internal')
 log = logging.getLogger(__name__)
-
-
-def require_service_auth(f):
-    """
-    Middleware: Ensures the request comes from a valid internal
-    service (like FinanceBot) using Client Credentials (Basic Auth).
-    """
-
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or not auth.username or not auth.password:
-            return jsonify({"error": "Missing Basic Auth credentials"}), 401
-
-        client_id = auth.username
-        client_secret = auth.password
-
-        # Verify the service credentials against the DB
-        db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-        if not db.verify_client_secret(client_id, client_secret):
-            return jsonify({"error": "Invalid client_id or secret"}), 401
-
-        # Store the authenticated client_id in the request context for use in routes
-        request.authenticated_client_id = client_id
-
-        return f(*args, **kwargs)
-
-    return decorated
-
 
 @internal_bp.route('/generate-link-token', methods=['POST'])
 @require_service_auth
 def generate_link_token():
-    """
-    Generates a token for the user to click (Web -> Tele flow).
-    """
+    """Generates a token for the user to click (Web -> Tele flow)."""
     data = request.json
     account_id = data.get('account_id')
 
@@ -67,9 +34,7 @@ def generate_link_token():
 @internal_bp.route('/link-account', methods=['POST'])
 @require_service_auth
 def link_account_internal():
-    """
-    Connects a credential (Email/Pass or Telegram) to an existing account.
-    """
+    """Connects a credential (Email/Pass or Telegram) to an existing account."""
     data = request.json
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
     client_id = request.authenticated_client_id
@@ -139,9 +104,7 @@ def link_account_internal():
 @internal_bp.route('/validate-token', methods=['POST'])
 @require_service_auth
 def validate_token():
-    """
-    Validates a User JWT provided by a Client App.
-    """
+    """Validates a User JWT provided by a Client App."""
     data = request.json
     token = data.get('jwt') or data.get('token')
     client_id = request.authorization.username
@@ -259,10 +222,7 @@ def set_credentials():
 @internal_bp.route('/users/<account_id>/update', methods=['POST'])
 @require_service_auth
 def update_user_profile(account_id):
-    """
-    Updates basic user profile information (display_name, email, username).
-    Does NOT require a password reset token, but relies on Service Auth.
-    """
+    """Updates basic user profile information (display_name, email, username)."""
     data = request.json
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
 
@@ -301,272 +261,12 @@ def get_user_info(user_id):
     }), 200
 
 
-# =========================================================
-#  SECTION: PAYMENT ENDPOINTS (SECURE + HYBRID)
-# =========================================================
-
-@internal_bp.route('/payments/secure-intent', methods=['POST'])
-@require_service_auth
-def create_secure_payment_intent():
-    """
-    ENTERPRISE FLOW: Creates a transaction intent in the DB first.
-    Returns a secure Transaction ID that the client uses in the Telegram link.
-    User cannot tamper with price/duration because they are stored in DB.
-    """
-    data = request.json
-
-    # 1. Validate Inputs
-    account_id = data.get('account_id')  # Optional (if known)
-    amount = data.get('amount')
-    currency = data.get('currency', 'USD')
-    target_role = data.get('target_role', 'premium_user')
-    duration = data.get('duration', '1m')
-    description = data.get('description', 'Subscription Upgrade')
-    ref_id = data.get('client_ref_id')  # E.g. Invoice #101 from client app
-
-    if not amount or not ref_id:
-        return jsonify({"error": "Missing amount or client_ref_id"}), 400
-
-    # 2. Get Authenticated App Context
-    client_id = request.authenticated_client_id
-    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-    app_doc = db.get_app_by_client_id(client_id)
-
-    if not app_doc:
-        return jsonify({"error": "App context lost"}), 500
-
-    # 3. Create Transaction Record (Pending)
-    # account_id is optional at this stage
-    tx_id = db.create_transaction(
-        account_id=account_id,
-        app_id=app_doc['_id'],
-        amount=amount,
-        currency=currency,
-        description=description,
-        target_role=target_role,
-        duration=duration,
-        ref_id=ref_id
-    )
-
-    # 4. Return the Secure Link
-    bot_username = current_app.config.get('BIFROST_BOT_USERNAME', 'BifrostBot')
-
-    return jsonify({
-        "success": True,
-        "transaction_id": tx_id,
-        "secure_link": f"https://t.me/{bot_username}?start={tx_id}",
-        "manual_command": f"/pay {tx_id}"
-    })
-
-
-@internal_bp.route('/payments/create-intent', methods=['POST'])
-@require_service_auth
-def create_payment_intent():
-    """LEGACY DIRECT GATEWAY (Payway/Gumroad)"""
-    data = request.json
-    account_id = data.get('account_id')
-    amount = data.get('amount')
-    region = data.get('region', 'local')
-    target_role = data.get('target_role', 'premium_user')
-    product_id = data.get('product_id')
-
-    firstname = data.get('firstname', 'Bifrost')
-    lastname = data.get('lastname', 'User')
-    email = data.get('email', 'user@example.com')
-    phone = data.get('phone', '099999999')
-
-    client_id = request.authenticated_client_id
-
-    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-    app_doc = db.get_app_by_client_id(client_id)
-
-    if not app_doc:
-        return jsonify({"error": "App context lost"}), 500
-
-    # 1. Create Pending Transaction in Bifrost
-    tx_id = db.create_transaction(
-        account_id=account_id,
-        app_id=app_doc['_id'],
-        amount=amount,
-        currency="USD",
-        description=f"Upgrade to {target_role}",
-        target_role=target_role
-    )
-
-    # 2. ROUTER LOGIC
-    if region == 'local':
-        payway = PayWayService()
-        items = [{"name": target_role, "quantity": "1", "price": amount}]
-
-        result = payway.create_transaction(
-            transaction_id=tx_id,
-            amount=amount,
-            items=items,
-            firstname=firstname,
-            lastname=lastname,
-            email=email,
-            phone=phone
-        )
-
-        if result:
-            return jsonify({
-                "success": True,
-                "transaction_id": tx_id,
-                "provider": "payway",
-                "qr_string": result['qr_string'],
-                "deeplink": result['deeplink']
-            })
-        else:
-            return jsonify({"error": "Failed to communicate with ABA"}), 502
-
-    else:
-        gumroad = GumroadService()
-        checkout_url = gumroad.generate_checkout_url(
-            transaction_id=tx_id,
-            email=email,
-            product_permalink=product_id
-        )
-
-        if not checkout_url:
-            return jsonify({"error": "Missing product configuration"}), 400
-
-        return jsonify({
-            "success": True,
-            "transaction_id": tx_id,
-            "provider": "gumroad",
-            "payment_url": checkout_url
-        })
-
-
-@internal_bp.route('/grant-premium', methods=['POST'])
-@require_service_auth
-def grant_premium_by_admin():
-    """
-    Manually upgrades a user to premium via Telegram ID.
-    Used by the Central Bifrost Bot to approve transfers for specific apps.
-    """
-    data = request.json
-    telegram_id = data.get('telegram_id')
-    target_client_id = data.get('target_client_id')
-
-    # If no target provided, default to the caller's ID (legacy support/direct app call)
-    caller_client_id = request.authenticated_client_id
-    app_client_id = target_client_id if target_client_id else caller_client_id
-
-    if not telegram_id:
-        return jsonify({"error": "Missing telegram_id"}), 400
-
-    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-    app_doc = db.get_app_by_client_id(app_client_id)
-
-    if not app_doc:
-        return jsonify({"error": f"Target App ({app_client_id}) not found"}), 404
-
-    # Find User
-    user = db.find_account_by_telegram(telegram_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    # Update Role
-    db.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user")
-
-    log.info(f"Admin manually granted premium for App '{app_doc.get('app_name')}' to User {telegram_id}")
-    return jsonify({"success": True, "message": f"User upgraded to Premium for {app_doc.get('app_name')}"}), 200
-
-
-@internal_bp.route('/payments/callback', methods=['POST'])
-def payway_callback():
-    data = request.form.to_dict()
-    log.info(f"PayWay Webhook: {data}")
-
-    status = data.get('status')
-    tran_id = data.get('tran_id')
-    apv = data.get('apv')
-
-    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-
-    if status == '00':
-        success, msg = db.complete_transaction(transaction_id=tran_id, provider_ref=apv)
-        log.info(f"PayWay TX {tran_id}: {msg}")
-
-    return "OK", 200
-
-
-@internal_bp.route('/payments/webhook/gumroad', methods=['POST'])
-def gumroad_webhook():
-    raw_data = request.form.to_dict()
-    print(f"🔔 HIT! Webhook received. Raw Data: {raw_data}", flush=True)
-
-    if raw_data.get('sale_id') == '1234' or raw_data.get('test'):
-        print("✅ Gumroad Test Ping confirmed successful.", flush=True)
-        return "OK", 200
-
-    tx_id = raw_data.get('url_params[transaction_id]')
-    if not tx_id:
-        tx_id = raw_data.get('transaction_id')
-
-    if not tx_id:
-        print("⚠️ Warning: No transaction_id found in webhook. Ignoring.", flush=True)
-        return "OK", 200
-
-    sale_id = raw_data.get('sale_id')
-    resource = raw_data.get('resource_name')
-
-    if resource == 'sale' or resource == 'subscription':
-        from ..models import BifrostDB
-        from .. import mongo
-        db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-        success, msg = db.complete_transaction(tx_id, provider_ref=sale_id)
-        print(f"💰 Processed Sale {sale_id} for TX {tx_id}: {msg}", flush=True)
-
-    return "OK", 200
-
-
-@internal_bp.route('/payments/claim', methods=['POST'])
-@require_service_auth
-def api_claim_payment():
-    """
-    Universal Endpoint to claim a payment.
-    Can be called by Bifrost Bot (Telegram) OR Finance Web (Email).
-    """
-    data = request.json
-    trx_input = data.get('trx_input')
-    target_app_id = data.get('target_app_id')
-    identity_type = data.get('identity_type')
-    identity_value = data.get('identity_value')
-
-    if not trx_input or not target_app_id or not identity_type:
-        return jsonify({"error": "Missing parameters"}), 400
-
-    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-
-    # Verify the App exists first
-    app_doc = db.get_app_by_client_id(target_app_id)
-    if not app_doc:
-        return jsonify({"error": "Invalid App ID"}), 404
-
-    # Construct Identity Dict
-    user_identity = {identity_type: identity_value}
-
-    # Perform Claim
-    success, msg = db.claim_payment(trx_input, app_doc['_id'], user_identity)
-
-    if success:
-        return jsonify({"success": True, "message": msg}), 200
-    else:
-        return jsonify({"success": False, "error": msg}), 400
-
-
 @internal_bp.route('/get-role', methods=['POST'])
 @require_service_auth
 def get_user_role_internal():
-    """
-    Allows a Service (like Finance Bot) to check the role of a Telegram User.
-    """
+    """Allows a Service (like Finance Bot) to check the role of a Telegram User."""
     data = request.json
     telegram_id = data.get('telegram_id')
-
-    # The app asking (Finance Bot) is identified by Basic Auth
     client_id = request.authenticated_client_id
 
     if not telegram_id:
@@ -577,7 +277,7 @@ def get_user_role_internal():
     # 1. Find the User Account
     user = db.find_account_by_telegram(telegram_id)
     if not user:
-        return jsonify({"role": "guest"}), 200  # User not known to Bifrost
+        return jsonify({"role": "guest"}), 200
 
     # 2. Find the App ID for the calling service
     app_doc = db.get_app_by_client_id(client_id)
@@ -593,41 +293,20 @@ def get_user_role_internal():
 @internal_bp.route('/me', methods=['GET'])
 @require_service_auth
 def get_current_user():
-    """
-    Introspection Endpoint.
-    Services can call this with a Bearer token to validate it
-    and retrieve user identity without knowing the Secret Key.
-    """
-    # NOTE: user_id is usually set by auth middleware in real usage,
-    # but here we rely on the implementation detail.
+    """Introspection Endpoint."""
     return jsonify({"error": "Not implemented in headless mode"}), 501
 
 
-# =========================================================
-#  SECTION: TELEGRAM WEBHOOK (SYNC WRAPPER FIX)
-# =========================================================
-
 @internal_bp.route('/telegram-webhook', methods=['POST'])
 def telegram_webhook():
-    """
-    Receives updates from Telegram.
-    Running in Synchronous Mode to support standard WSGI workers.
-    """
+    """Receives updates from Telegram."""
     # 1. SECURITY CHECK
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
     server_secret = current_app.config.get('BIFROST_BOT_SECRET')
 
-    # --- DEBUGGING LOG (Remove later) ---
-    # This will show us EXACTLY what the server has loaded vs what Telegram sent
     if secret_header != server_secret:
         log.warning(f"⚠️ MISMATCH! Header='{secret_header}' vs Config='{server_secret}'")
-
-        # Check lengths to spot hidden spaces
-        if server_secret:
-            log.warning(f"⚠️ Lengths: Header={len(secret_header)} vs Config={len(server_secret)}")
-
         return jsonify({"error": "Unauthorized", "message": "Invalid Secret Token"}), 403
-    # ------------------------------------
 
     # 2. Process Update safely
     data = request.get_json(force=True)
