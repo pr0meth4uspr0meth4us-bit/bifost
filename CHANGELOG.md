@@ -4,6 +4,11 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.6] - 2026-01-22
+
+### Fixed
+- **Admin Approval**: Fixed a bug where the Admin Approve button failed with "App lookup_skipped not found". The bot now correctly fetches the `client_id` from the database during the `/start` command instead of relying on a placeholder.
+
 ## [1.9.5] - 2026-01-22
 
 ### Fixed
