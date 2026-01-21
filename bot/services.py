@@ -1,6 +1,7 @@
 import logging
 import requests
 from requests.auth import HTTPBasicAuth
+from bson import ObjectId
 from .config import Config
 from .database import get_db
 
@@ -41,6 +42,11 @@ def get_transaction(transaction_id):
     return db.transactions.find_one({"transaction_id": transaction_id})
 
 def get_app_by_id(app_id):
-    """Fetches App by ObjectId."""
+    """Fetches App by ObjectId, safely handling strings."""
     db = get_db()
-    return db.applications.find_one({"_id": app_id})
+    try:
+        oid = ObjectId(app_id) if isinstance(app_id, str) else app_id
+        return db.applications.find_one({"_id": oid})
+    except Exception as e:
+        log.error(f"Invalid App ID format: {e}")
+        return None

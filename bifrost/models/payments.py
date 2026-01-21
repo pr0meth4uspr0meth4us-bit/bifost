@@ -11,14 +11,18 @@ class PaymentMixin:
     # ---------------------------------------------------------
     # PAYMENT & TRANSACTIONS
     # ---------------------------------------------------------
-    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None, duration=None,
+    def create_transaction(self, account_id, app_id, app_name, amount, currency, description, target_role=None, duration=None,
                            ref_id=None):
-        """Creates a pending transaction with optional subscription details."""
+        """
+        Creates a pending transaction.
+        Stores app_name directly to prevent lookup failures later.
+        """
         transaction_id = f"tx-{secrets.token_hex(8)}"
         doc = {
             "transaction_id": transaction_id,
             "account_id": ObjectId(account_id) if account_id else None,
             "app_id": ObjectId(app_id),
+            "app_name": app_name,  # <--- DENORMALIZED FIELD
             "amount": amount,
             "currency": currency,
             "description": description,

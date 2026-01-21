@@ -7,7 +7,7 @@ from .payment import WAITING_PROOF
 
 log = logging.getLogger(__name__)
 
-# QR Code Path (Resolved relative to this file)
+# QR Code Path
 BASE_DIR = Path(__file__).resolve().parents[1] # Up one level to 'bot'
 QR_IMAGE_PATH = BASE_DIR / "assets" / "qr.jpg"
 
@@ -42,10 +42,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("✅ This transaction is already completed.")
                 return ConversationHandler.END
 
-            # Fetch App Details
-            app_doc = get_app_by_id(tx['app_id'])
-            app_name = app_doc.get('app_name') if app_doc else "Unknown App"
-            client_id = app_doc.get('client_id') if app_doc else "unknown"
+            # OPTIMIZED: Use denormalized app_name if available, else fetch
+            if 'app_name' in tx and tx['app_name']:
+                app_name = tx['app_name']
+                # Fallback to fetch client_id only if needed (rarely needed for display)
+                client_id = "lookup_skipped"
+            else:
+                app_doc = get_app_by_id(tx['app_id'])
+                app_name = app_doc.get('app_name') if app_doc else "Unknown App"
+                client_id = app_doc.get('client_id') if app_doc else "unknown"
 
             ctx_data = {
                 "client_id": client_id,

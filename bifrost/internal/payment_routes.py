@@ -46,6 +46,7 @@ def create_secure_payment_intent():
     tx_id = db.create_transaction(
         account_id=account_id,
         app_id=app_doc['_id'],
+        app_name=app_doc.get('app_name', 'Unknown App'), # <--- Pass Name Here
         amount=amount,
         currency=currency,
         description=description,
@@ -93,6 +94,7 @@ def create_payment_intent():
     tx_id = db.create_transaction(
         account_id=account_id,
         app_id=app_doc['_id'],
+        app_name=app_doc.get('app_name', 'Unknown App'),
         amount=amount,
         currency="USD",
         description=f"Upgrade to {target_role}",

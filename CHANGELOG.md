@@ -3,8 +3,14 @@
 All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.9.1] - 2026-01-22
+
+### Refactored
+- **Payment Logic**: To prevent "Unknown App" errors, the `app_name` is now stored directly in the `transactions` collection at the time of creation. This removes the reliance on a secondary lookup by the Bot.
+- **Bot Services**: Added `bson.ObjectId` handling to `bot/services.py` to ensure robust database queries even if IDs are stored as strings.
 
 ## [1.9.0] - 2026-01-22
+
 ### Refactored
 - **Bot Structure**: Modularized the Telegram Bot into a package structure:
   - `handlers/`: Split monolithic logic into `commands.py` (User inputs), `payment.py` (Proof processing), and `admin.py` (Approval flows).
