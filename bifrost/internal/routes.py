@@ -615,23 +615,27 @@ def telegram_webhook():
     """
     # 1. SECURITY CHECK
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    server_secret = current_app.config.get('BIFROST_BOT_SECRET')
 
-    # Check Config via Flask App Context (Safer than direct import)
-    if secret_header != current_app.config.get('BIFROST_BOT_SECRET'):
-        log.warning(f"Unauthorized Webhook Attempt. Header: {secret_header}")
+    # --- DEBUGGING LOG (Remove later) ---
+    # This will show us EXACTLY what the server has loaded vs what Telegram sent
+    if secret_header != server_secret:
+        log.warning(f"⚠️ MISMATCH! Header='{secret_header}' vs Config='{server_secret}'")
+
+        # Check lengths to spot hidden spaces
+        if server_secret:
+            log.warning(f"⚠️ Lengths: Header={len(secret_header)} vs Config={len(server_secret)}")
+
         return jsonify({"error": "Unauthorized", "message": "Invalid Secret Token"}), 403
+    # ------------------------------------
 
     # 2. Process Update safely
     data = request.get_json(force=True)
 
     try:
-        # Create a fresh event loop for this request
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
-        # This line BLOCKS until the bot finishes processing.
         loop.run_until_complete(process_webhook_update(data))
-
         loop.close()
         return jsonify({"status": "ok"}), 200
     except Exception as e:
