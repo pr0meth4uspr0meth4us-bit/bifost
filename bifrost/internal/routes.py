@@ -2,8 +2,9 @@ from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
 import jwt
 import logging
+import asyncio
 
-# Import the DB helper and Services
+from bot.main import process_webhook_update
 from .. import mongo
 from ..models import BifrostDB
 from ..services.payway import PayWayService
@@ -557,13 +558,41 @@ def get_current_user():
         "is_active": True
     }), 200
 
+
 @internal_bp.route('/telegram-webhook', methods=['POST'])
-async def telegram_webhook():
+def telegram_webhook():
+    """
+    Receives updates from Telegram.
+    Running in Synchronous Mode to support standard WSGI workers.
+    """
+    # 1. SECURITY CHECK
     secret_header = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
 
+    # Check Config for the secret
     if secret_header != Config.BIFROST_BOT_SECRET:
+        log.warning(f"Unauthorized Webhook Attempt. Header: {secret_header}")
         return jsonify({"error": "Unauthorized", "message": "Invalid Secret Token"}), 403
 
-    # 2. Process Update
-    await process_webhook_update(request.json)
-    return jsonify({"status": "ok"}), 200
+    # 2. Process Update safely
+    # force=True ensures we get JSON even if mimetype is wrong
+    data = request.get_json(force=True)
+
+    try:
+        # Create a fresh event loop for this request
+        # This isolates every request so they don't block each other's variables
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # This line BLOCKS until the bot finishes processing.
+        # If this crashes, we return 500, and Telegram RESENDS the message later.
+        loop.run_until_complete(process_webhook_update(data))
+
+        loop.close()
+
+        # We only return 200 OK if everything succeeded.
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        log.error(f"Bot Webhook Processing Error: {e}")
+        # Return 500 so Telegram knows to retry
+        return jsonify({"error": "Internal Error"}), 500
