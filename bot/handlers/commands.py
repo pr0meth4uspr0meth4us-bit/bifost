@@ -3,7 +3,7 @@ from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from ..services import get_transaction, get_app_by_id, get_app_details
-from ..payment import WAITING_PROOF # Need the state constant
+from .payment import WAITING_PROOF
 
 log = logging.getLogger(__name__)
 
