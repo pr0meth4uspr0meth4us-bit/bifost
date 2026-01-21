@@ -4,6 +4,21 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-22
+
+### Added
+- **Enterprise Payment Flow**: Implemented "Intent-Based" payments to prevent parameter tampering.
+  - New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
+  - Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
+  - **Security**: The bot now fetches price, duration, and role directly from the MongoDB `transactions` collection instead of trusting the URL parameters.
+
+### Changed
+- **Models**: Updated `create_transaction` in `BifrostDB` to accept `None` for `account_id`, allowing transactions to be created before a user is identified.
+- **Config**: Added `BifrostBot` as the default username for generating deep links.
+
+### Security
+- **Tamper-Proofing**: Users can no longer modify the payment amount or duration by editing the Telegram deep link, as the link now only contains a reference ID.
+
 ## [1.6.2] - 2026-01-22
 
 ### Fixed

@@ -262,7 +262,8 @@ class BifrostDB:
 
         if 'username' in updates:
             updates['username'] = updates['username'].lower()
-            existing = self.db.accounts.find_one({"username": updates['username'], "_id": {"$ne": ObjectId(account_id)}})
+            existing = self.db.accounts.find_one(
+                {"username": updates['username'], "_id": {"$ne": ObjectId(account_id)}})
             if existing:
                 return False, "Username is already taken."
 
@@ -278,7 +279,8 @@ class BifrostDB:
     # CLIENT APP MANAGEMENT
     # ---------------------------------------------------------
 
-    def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None, api_url=None):
+    def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None,
+                             api_url=None):
         client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
         client_secret = secrets.token_urlsafe(32)
 
@@ -428,22 +430,23 @@ class BifrostDB:
     # PAYMENT & TRANSACTIONS
     # ---------------------------------------------------------
 
-    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None, duration=None, ref_id=None):
+    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None, duration=None,
+                           ref_id=None):
         """
         Creates a pending transaction with optional subscription details.
         """
         transaction_id = f"tx-{secrets.token_hex(8)}"
         doc = {
             "transaction_id": transaction_id,
-            "account_id": ObjectId(account_id),
+            "account_id": ObjectId(account_id) if account_id else None,  # <--- UPDATED: Handle None
             "app_id": ObjectId(app_id),
             "amount": amount,
             "currency": currency,
             "description": description,
             "status": "pending",
             "target_role": target_role,
-            "duration": duration,   # '1m', '1y'
-            "client_ref_id": ref_id, # External ID from client app
+            "duration": duration,  # '1m', '1y'
+            "client_ref_id": ref_id,  # External ID from client app
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
             "provider_ref": None
@@ -462,7 +465,7 @@ class BifrostDB:
         )
 
         # Grant the role and Apply Duration
-        if tx.get('target_role'):
+        if tx.get('target_role') and tx.get('account_id'):
             self.link_user_to_app(
                 account_id=tx['account_id'],
                 app_id=tx['app_id'],

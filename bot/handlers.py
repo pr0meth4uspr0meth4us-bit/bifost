@@ -19,6 +19,7 @@ QR_IMAGE_PATH = BASE_DIR / "assets" / "qr.jpg"
 
 WAITING_PROOF = 1
 
+
 # --- API HELPERS ---
 
 def call_grant_premium(user_telegram_id, target_client_id):
@@ -40,6 +41,7 @@ def call_grant_premium(user_telegram_id, target_client_id):
         log.error(f"Failed to call Bifrost API: {e}")
         return False
 
+
 def get_app_details(client_id):
     """Fetches App Name to display nicely in the Bot."""
     try:
@@ -50,84 +52,108 @@ def get_app_details(client_id):
         log.error(f"DB Error fetching app details: {e}")
         return None
 
+
 # --- USER HANDLERS ---
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Step 1: User starts the bot with a payload via Deep Link or /pay command.
-    Payload Format: client_id__price__duration__role__ref
-    Example: /pay finance_bot_123__5.00__1m__premium_user__inv_99
+    Handles /start <payload> OR /pay <payload>.
+    Supports two modes:
+    1. Enterprise (Secure): Payload is a Transaction ID (e.g., 'tx-a1b2c3...')
+    2. Legacy (Insecure): Payload is 'client_id__price__...' (Retained for backward compat)
     """
     args = context.args
-    payload = None
-
-    # Handle /start <payload> or /pay <payload>
-    if args and len(args) > 0:
-        payload = args[0]
+    payload = args[0] if args else None
 
     if not payload:
         await update.message.reply_text(
             "👋 <b>Bifrost Payment Gateway</b>\n\n"
-            "To make a payment, please use the button provided in your client app.\n"
-            "Or use manual command: <code>/pay [code]</code>",
+            "Please use the payment button provided in your app.\n"
+            "Or use: <code>/pay [transaction_id]</code>",
             parse_mode='HTML'
         )
         return ConversationHandler.END
 
+    ctx_data = {}
+
     try:
-        # Normalize separator: support pipes or double underscores
-        clean_payload = payload.replace("|", "__").replace(" ", "__")
-        parts = clean_payload.split("__")
+        # --- MODE 1: SECURE DATABASE LOOKUP (Enterprise) ---
+        if payload.startswith("tx-"):
+            db = get_db()
+            tx = db.transactions.find_one({"transaction_id": payload})
 
-        # We need at least client_id and price. Others can be optional/default.
-        # Format: client_id | price | duration | role | ref_id
+            if not tx:
+                await update.message.reply_text("❌ Error: Invalid or expired Transaction ID.")
+                return ConversationHandler.END
 
-        if len(parts) < 2:
-            await update.message.reply_text("❌ Invalid code format.")
-            return ConversationHandler.END
+            if tx.get('status') == 'completed':
+                await update.message.reply_text("✅ This transaction is already completed.")
+                return ConversationHandler.END
 
-        client_id = parts[0]
-        price = parts[1]
+            # Fetch App Details for Branding
+            app_doc = db.applications.find_one({"_id": tx['app_id']})
+            app_name = app_doc.get('app_name') if app_doc else "Unknown App"
+            client_id = app_doc.get('client_id') if app_doc else "unknown"
 
-        # Defaults
-        duration = parts[2] if len(parts) > 2 else "1m"
-        target_role = parts[3] if len(parts) > 3 else "premium_user"
-        ref_id = parts[4] if len(parts) > 4 else "N/A"
+            # Populate Context from DB (TRUSTED DATA)
+            ctx_data = {
+                "client_id": client_id,
+                "app_name": app_name,
+                "amount": tx['amount'],
+                "duration": tx.get('duration', '1m'),
+                "target_role": tx.get('target_role', 'premium'),
+                "ref_id": tx.get('client_ref_id', 'N/A'),
+                "transaction_id": payload  # Store the ID to link proof later
+            }
 
-        # Lookup App Name
-        app_doc = get_app_details(client_id)
-        if not app_doc:
-            await update.message.reply_text(f"❌ Error: App with ID <code>{client_id}</code> not found.")
-            return ConversationHandler.END
+        # --- MODE 2: LEGACY PARAMETER PARSING (Deprecated/Insecure) ---
+        else:
+            # Normalize separator
+            clean_payload = payload.replace("|", "__").replace(" ", "__")
+            parts = clean_payload.split("__")
 
-        app_name = app_doc.get('app_name', 'Unknown App')
+            if len(parts) < 2:
+                await update.message.reply_text("❌ Invalid format.")
+                return ConversationHandler.END
 
-        # Store context
-        context.user_data['target_app'] = client_id # For legacy compatibility
-        context.user_data['payment_context'] = {
-            "client_id": client_id,
-            "app_name": app_name,
-            "amount": price,
-            "duration": duration,
-            "target_role": target_role,
-            "ref_id": ref_id
-        }
+            # Parse Logic (Keep existing logic here)
+            client_id = parts[0]
+            price = parts[1]
+            duration = parts[2] if len(parts) > 2 else "1m"
+            target_role = parts[3] if len(parts) > 3 else "premium_user"
+            ref_id = parts[4] if len(parts) > 4 else "N/A"
 
-        # Format Text
-        duration_text = "Lifetime"
-        if duration == '1m': duration_text = "1 Month"
-        elif duration == '3m': duration_text = "3 Months"
-        elif duration == '6m': duration_text = "6 Months"
-        elif duration == '1y': duration_text = "1 Year"
+            # Lookup Name
+            db = get_db()
+            app_doc = db.applications.find_one({"client_id": client_id})
+            app_name = app_doc.get('app_name', 'Unknown App') if app_doc else 'Unknown'
+
+            ctx_data = {
+                "client_id": client_id,
+                "app_name": app_name,
+                "amount": price,
+                "duration": duration,
+                "target_role": target_role,
+                "ref_id": ref_id
+            }
+
+        # --- COMMON UI GENERATION ---
+
+        # Save to user context
+        context.user_data['payment_context'] = ctx_data
+
+        # Friendly Duration
+        dur_map = {'1m': '1 Month', '3m': '3 Months', '6m': '6 Months', '1y': '1 Year', 'lifetime': 'Lifetime'}
+        duration_text = dur_map.get(ctx_data['duration'], ctx_data['duration'])
 
         msg = (
             f"💎 <b>Secure Payment via Bifrost</b>\n"
             f"────────────────\n"
-            f"📱 <b>App:</b> {app_name}\n"
-            f"🏷 <b>Plan:</b> {target_role.replace('_', ' ').title()}\n"
+            f"📱 <b>App:</b> {ctx_data['app_name']}\n"
+            f"🏷 <b>Plan:</b> {ctx_data['target_role'].replace('_', ' ').title()}\n"
             f"⏳ <b>Duration:</b> {duration_text}\n"
-            f"💵 <b>Total:</b> ${price}\n"
-            f"🧾 <b>Ref:</b> <code>{ref_id}</code>\n"
+            f"💵 <b>Total:</b> ${ctx_data['amount']}\n"
+            f"🧾 <b>Ref:</b> <code>{ctx_data['ref_id']}</code>\n"
             f"────────────────\n\n"
             "1. <b>Scan QR</b> code below.\n"
             "2. Make the transfer.\n"
@@ -143,9 +169,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return WAITING_PROOF
 
     except Exception as e:
-        log.error(f"Payload parsing error: {e}")
-        await update.message.reply_text("❌ Error processing request.")
+        log.error(f"Handler error: {e}")
+        await update.message.reply_text("❌ System Error.")
         return ConversationHandler.END
+
 
 async def receive_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Step 2: User sends photo -> Bot forwards to Admin Group"""
@@ -199,9 +226,11 @@ async def receive_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Action cancelled.")
     return ConversationHandler.END
+
 
 # --- ADMIN ACTIONS ---
 
@@ -212,6 +241,7 @@ async def _verify_admin(update: Update):
         return True
     await update.callback_query.answer("⛔ Unauthorized.", show_alert=True)
     return False
+
 
 async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _verify_admin(update): return
@@ -244,6 +274,7 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.answer("❌ API Error. Check Logs.", show_alert=True)
 
+
 async def admin_reject_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _verify_admin(update): return
     query = update.callback_query
@@ -256,6 +287,7 @@ async def admin_reject_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Back", callback_data=f"pay_restore_{data_part}")]
     ]
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+
 
 async def admin_reject_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _verify_admin(update): return
@@ -279,6 +311,7 @@ async def admin_reject_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
         )
     except Exception:
         pass
+
 
 async def admin_restore_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _verify_admin(update): return

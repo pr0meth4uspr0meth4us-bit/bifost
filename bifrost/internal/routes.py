@@ -302,12 +302,67 @@ def get_user_info(user_id):
 
 
 # =========================================================
-#  SECTION: PAYMENT ENDPOINTS (HYBRID: PAYWAY + GUMROAD + MANUAL)
+#  SECTION: PAYMENT ENDPOINTS (SECURE + HYBRID)
 # =========================================================
+
+@internal_bp.route('/payments/secure-intent', methods=['POST'])
+@require_service_auth
+def create_secure_payment_intent():
+    """
+    ENTERPRISE FLOW: Creates a transaction intent in the DB first.
+    Returns a secure Transaction ID that the client uses in the Telegram link.
+    User cannot tamper with price/duration because they are stored in DB.
+    """
+    data = request.json
+
+    # 1. Validate Inputs
+    account_id = data.get('account_id')  # Optional (if known)
+    amount = data.get('amount')
+    currency = data.get('currency', 'USD')
+    target_role = data.get('target_role', 'premium_user')
+    duration = data.get('duration', '1m')
+    description = data.get('description', 'Subscription Upgrade')
+    ref_id = data.get('client_ref_id')  # E.g. Invoice #101 from client app
+
+    if not amount or not ref_id:
+        return jsonify({"error": "Missing amount or client_ref_id"}), 400
+
+    # 2. Get Authenticated App Context
+    client_id = request.authenticated_client_id
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    app_doc = db.get_app_by_client_id(client_id)
+
+    if not app_doc:
+        return jsonify({"error": "App context lost"}), 500
+
+    # 3. Create Transaction Record (Pending)
+    # account_id is optional at this stage
+    tx_id = db.create_transaction(
+        account_id=account_id,
+        app_id=app_doc['_id'],
+        amount=amount,
+        currency=currency,
+        description=description,
+        target_role=target_role,
+        duration=duration,
+        ref_id=ref_id
+    )
+
+    # 4. Return the Secure Link
+    bot_username = current_app.config.get('BIFROST_BOT_USERNAME', 'BifrostBot')
+
+    return jsonify({
+        "success": True,
+        "transaction_id": tx_id,
+        "secure_link": f"https://t.me/{bot_username}?start={tx_id}",
+        "manual_command": f"/pay {tx_id}"
+    })
+
 
 @internal_bp.route('/payments/create-intent', methods=['POST'])
 @require_service_auth
 def create_payment_intent():
+    """LEGACY DIRECT GATEWAY (Payway/Gumroad)"""
     data = request.json
     account_id = data.get('account_id')
     amount = data.get('amount')
