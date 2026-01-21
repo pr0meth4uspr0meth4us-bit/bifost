@@ -5,8 +5,8 @@ import jwt
 from werkzeug.security import check_password_hash
 import logging
 from bson import ObjectId
-
-# Use Relative Imports
+from bot.main import process_webhook_update
+import asyncio
 from .. import mongo
 from ..models import BifrostDB
 from ..services.email_service import send_otp_email
@@ -423,3 +423,22 @@ def telegram_login():
         "username": username,
         "display_name": user.get('display_name') if user else "Telegram User"
     })
+
+@auth_api_bp.route('/telegram-webhook', methods=['POST'])
+def telegram_webhook():
+    """
+    Receives updates from Telegram and passes them to the Bot.
+    This runs inside the Flask Process!
+    """
+    data = request.get_json(force=True)
+
+    # We must run the async bot logic in a sync Flask context
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(process_webhook_update(data))
+        loop.close()
+        return "OK", 200
+    except Exception as e:
+        log.error(f"Bot Webhook Error: {e}")
+        return "Error", 500
