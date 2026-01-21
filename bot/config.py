@@ -19,6 +19,7 @@ class Config:
     # --- PUBLIC URLS ---
     BIFROST_PUBLIC_URL = os.environ.get('BIFROST_PUBLIC_URL', 'http://localhost:5000')
     BIFROST_BOT_TOKEN = os.environ.get('BIFROST_BOT_TOKEN')
+    BIFROST_BOT_SECRET = os.getenv("BIFROST_BOT_SECRET")
     PAYMENT_GROUP_ID = os.environ.get('PAYMENT_GROUP_ID')
 
     # --- INTERNAL SERVICE AUTH (Bot talking to API) ---
