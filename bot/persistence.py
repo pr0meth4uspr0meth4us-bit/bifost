@@ -11,13 +11,14 @@ class MongoPersistence(BasePersistence):
     Atomic operations ensure User A and User B don't overwrite each other.
     """
     def __init__(self, mongo_uri, db_name="bifrost_bot"):
-        # We only persist conversations (flow states) for now to keep it efficient
+        # FIXED: Removed 'conversation_data=True' invalid argument.
+        # Conversations are persisted automatically because we override
+        # get_conversations and update_conversation below.
         super().__init__(store_data=PersistenceInput(
             user_data=False,
             chat_data=False,
             bot_data=False,
-            callback_data=False,
-            conversation_data=True
+            callback_data=False
         ))
 
         self.client = MongoClient(mongo_uri)
@@ -63,15 +64,10 @@ class MongoPersistence(BasePersistence):
         """Required by abstract class, but we save instantly in update_conversation"""
         pass
 
-    # --- REQUIRED STUBS (Missing methods that caused the crash) ---
-    async def refresh_bot_data(self, bot_data) -> None:
-        pass
-
-    async def refresh_chat_data(self, chat_id, chat_data) -> None:
-        pass
-
-    async def refresh_user_data(self, user_id, user_data) -> None:
-        pass
+    # --- REQUIRED STUBS (To satisfy Abstract Base Class) ---
+    async def refresh_bot_data(self, bot_data) -> None: pass
+    async def refresh_chat_data(self, chat_id, chat_data) -> None: pass
+    async def refresh_user_data(self, user_id, user_data) -> None: pass
 
     # --- Stubs for unused features ---
     async def get_user_data(self) -> dict: return {}

@@ -1,11 +1,12 @@
 from pymongo import ASCENDING
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 import logging
 import random
 import secrets
+import re
 from .services.webhook_service import WebhookService
 
 logging.basicConfig(level=logging.INFO)
@@ -26,14 +27,12 @@ class BifrostDB:
     def init_indexes(self):
         """Creates unique indexes to enforce data integrity."""
 
-        # Helper to ensure unique sparse index (recreates if exists with different options)
+        # Helper to ensure unique sparse index
         def ensure_unique_sparse(collection, field):
             idx_name = f"{field}_1"
             try:
-                # Attempt to create index with sparse=True
                 collection.create_index([(field, ASCENDING)], unique=True, sparse=True)
             except Exception:
-                # If it fails, it's likely an existing index with different options (missing sparse=True)
                 try:
                     log.info(f"Recreating index for {field} to ensure sparse constraint...")
                     collection.drop_index(idx_name)
@@ -60,7 +59,7 @@ class BifrostDB:
         self.db.transactions.create_index([("account_id", ASCENDING)])
         self.db.transactions.create_index([("app_id", ASCENDING)])
 
-        # --- NEW: Payment Logs (For Universal Claim System) ---
+        # Payment Logs
         self.db.payment_logs.create_index([("trx_id", ASCENDING)], unique=True)
         self.db.payment_logs.create_index([("status", ASCENDING)])
 
@@ -88,7 +87,7 @@ class BifrostDB:
 
     def create_deep_link_token(self, account_id):
         """Generates a secure, long-string token for Deep Linking."""
-        token = secrets.token_urlsafe(16)  # e.g. "D5s-8xLz..."
+        token = secrets.token_urlsafe(16)
         doc = {
             "code": token,
             "identifier": "deep_link",
@@ -134,8 +133,6 @@ class BifrostDB:
     def _trigger_event_for_user(self, account_id, event_type, specific_app_id=None, token=None):
         """
         Finds linked apps for a user and triggers the webhook.
-        If specific_app_id is provided, only triggers for that app.
-        Otherwise, triggers for ALL linked apps (Global event).
         """
         try:
             query = {"account_id": ObjectId(account_id)}
@@ -146,12 +143,11 @@ class BifrostDB:
             if not links:
                 return
 
-            # Avoid duplicates if multiple links point to same app (unlikely due to index, but safe)
             app_ids = list(set([link['app_id'] for link in links]))
-
             apps = self.db.applications.find({"_id": {"$in": app_ids}})
 
             for app_doc in apps:
+                # Trigger the webhook (WebhookService handles the signing)
                 WebhookService.send_event(
                     app_doc=app_doc,
                     event_type=event_type,
@@ -214,8 +210,6 @@ class BifrostDB:
             {"_id": user['_id']},
             {"$set": {"password_hash": generate_password_hash(new_password)}}
         )
-
-        # EVENT: Password Changed -> Global Invalidation
         self._trigger_event_for_user(user['_id'], "security_password_change")
 
     def link_email_credentials(self, account_id, email, password):
@@ -233,7 +227,6 @@ class BifrostDB:
         )
 
         if result.modified_count > 0:
-            # EVENT: Credentials updated (Profile change)
             self._trigger_event_for_user(account_id, "account_update")
             return True, "Account linked successfully."
         else:
@@ -246,7 +239,6 @@ class BifrostDB:
             return False, "Telegram account already linked to another user."
 
         updates = {"telegram_id": telegram_id}
-
         result = self.db.accounts.update_one(
             {"_id": ObjectId(account_id)},
             {
@@ -277,7 +269,6 @@ class BifrostDB:
         result = self.db.accounts.update_one({"_id": ObjectId(account_id)}, {"$set": updates})
 
         if result.matched_count > 0:
-            # EVENT: Profile Update
             self._trigger_event_for_user(account_id, "account_update")
             return True, "Profile updated."
         else:
@@ -290,10 +281,15 @@ class BifrostDB:
     def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None, api_url=None):
         client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
         client_secret = secrets.token_urlsafe(32)
+
+        # Generate a dedicated secret for Webhook Signing
+        webhook_secret = secrets.token_hex(24)
+
         app_doc = {
             "app_name": app_name,
             "client_id": client_id,
             "client_secret_hash": generate_password_hash(client_secret),
+            "webhook_secret": webhook_secret,
             "app_logo_url": logo_url or "/static/default_logo.png",
             "app_web_url": web_url,
             "app_callback_url": callback_url,
@@ -303,7 +299,9 @@ class BifrostDB:
             "created_at": datetime.now(UTC)
         }
         self.db.applications.insert_one(app_doc)
-        return client_id, client_secret
+
+        # Return all secrets to display to admin (one-time)
+        return client_id, client_secret, webhook_secret
 
     def get_app_by_client_id(self, client_id):
         return self.db.applications.find_one({"client_id": client_id})
@@ -314,37 +312,126 @@ class BifrostDB:
             return False
         return check_password_hash(app["client_secret_hash"], provided_secret)
 
-    def link_user_to_app(self, account_id, app_id, role="user"):
-        # Check if role is changing
+    def link_user_to_app(self, account_id, app_id, role="user", duration_str=None):
+        """
+        Links a user to an app, optionally calculating an expiration date.
+        duration_str examples: '1m' (month), '1y' (year), 'lifetime'
+        """
         current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
         old_role = current_link.get('role') if current_link else None
+
+        # Calculate Expiration
+        update_doc = {
+            "last_login": datetime.now(UTC),
+            "role": role
+        }
+
+        if duration_str and duration_str != 'lifetime':
+            now = datetime.now(UTC)
+            expires_at = None
+
+            if duration_str == '1m':
+                expires_at = now + timedelta(days=30)
+            elif duration_str == '3m':
+                expires_at = now + timedelta(days=90)
+            elif duration_str == '6m':
+                expires_at = now + timedelta(days=180)
+            elif duration_str == '1y':
+                expires_at = now + timedelta(days=365)
+
+            if expires_at:
+                update_doc["expires_at"] = expires_at
+
+        # If 'lifetime', explicitly remove expiration
+        if duration_str == 'lifetime':
+            update_doc["expires_at"] = None
 
         self.db.app_links.update_one(
             {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
             {
-                "$set": {"last_login": datetime.now(UTC)},
-                "$setOnInsert": {"linked_at": datetime.now(UTC)},
-                # Only update role if provided and different?
-                # For this method, assume we enforce the role passed in arg if it's an upsert/update
-                "$set": {"role": role}
+                "$set": update_doc,
+                "$setOnInsert": {"linked_at": datetime.now(UTC)}
             },
             upsert=True
         )
 
-        if old_role and old_role != role:
-            # EVENT: Role Change
+        # Trigger Webhook if role changed
+        if old_role != role:
             self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
 
     def get_user_role_for_app(self, account_id, app_id):
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
-        # Safely return 'user' if role is missing
-        return link.get('role', 'user') if link else None
+        if not link:
+            return None
+
+        # Check Expiration
+        if link.get('expires_at') and link['expires_at'].replace(tzinfo=UTC) < datetime.now(UTC):
+            return "expired"
+
+        return link.get('role', 'user')
+
+    # ---------------------------------------------------------
+    # TENANT DASHBOARD / BACKOFFICE HELPERS
+    # ---------------------------------------------------------
+
+    def is_super_admin(self, email):
+        """Checks if the email belongs to a Super Admin."""
+        if not email: return False
+        return self.db.admins.find_one({"email": email.lower()}) is not None
+
+    def get_managed_apps(self, account_id):
+        """Returns a list of apps where the user is an 'admin' or 'owner'."""
+        links = self.db.app_links.find({
+            "account_id": ObjectId(account_id),
+            "role": {"$in": ["admin", "owner", "super_admin"]}
+        })
+        app_ids = [link['app_id'] for link in links]
+        return list(self.db.applications.find({"_id": {"$in": app_ids}}))
+
+    def get_all_apps(self):
+        """For Super Admin Dashboard."""
+        return list(self.db.applications.find({}))
+
+    def get_app_users(self, app_id):
+        """
+        Returns all users linked to a specific app.
+        Joins 'app_links' with 'accounts' to provide a complete view.
+        """
+        links = list(self.db.app_links.find({"app_id": ObjectId(app_id)}))
+        if not links:
+            return []
+
+        user_ids = [link['account_id'] for link in links]
+        users_cursor = self.db.accounts.find({"_id": {"$in": user_ids}})
+
+        # Create a lookup dictionary
+        users_map = {u['_id']: u for u in users_cursor}
+
+        # Merge data
+        results = []
+        for link in links:
+            user = users_map.get(link['account_id'])
+            if user:
+                results.append({
+                    "account_id": str(user['_id']),
+                    "display_name": user.get('display_name'),
+                    "email": user.get('email'),
+                    "username": user.get('username'),
+                    "telegram_id": user.get('telegram_id'),
+                    "role": link.get('role'),
+                    "expires_at": link.get('expires_at'),
+                    "linked_at": link.get('linked_at')
+                })
+        return results
 
     # ---------------------------------------------------------
     # PAYMENT & TRANSACTIONS
     # ---------------------------------------------------------
 
-    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None):
+    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None, duration=None, ref_id=None):
+        """
+        Creates a pending transaction with optional subscription details.
+        """
         transaction_id = f"tx-{secrets.token_hex(8)}"
         doc = {
             "transaction_id": transaction_id,
@@ -355,6 +442,8 @@ class BifrostDB:
             "description": description,
             "status": "pending",
             "target_role": target_role,
+            "duration": duration,   # '1m', '1y'
+            "client_ref_id": ref_id, # External ID from client app
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
             "provider_ref": None
@@ -371,21 +460,22 @@ class BifrostDB:
             {"_id": tx['_id']},
             {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
         )
+
+        # Grant the role and Apply Duration
         if tx.get('target_role'):
-            # This calls link_user_to_app which triggers the webhook automatically
-            self.link_user_to_app(tx['account_id'], tx['app_id'], role=tx['target_role'])
+            self.link_user_to_app(
+                account_id=tx['account_id'],
+                app_id=tx['app_id'],
+                role=tx['target_role'],
+                duration_str=tx.get('duration')
+            )
 
         return True, "Transaction completed and role updated"
 
     # --- NEW: Universal Payment Listener Logic ---
 
     def save_pending_payment(self, trx_id, amount, currency, raw_text, payer_name):
-        """
-        Saves a payment message from the ABA Bot into the database.
-        Used by the Group Listener.
-        """
         try:
-            # Prevent duplicates
             if self.db.payment_logs.find_one({"trx_id": trx_id}):
                 return False
 
@@ -405,15 +495,6 @@ class BifrostDB:
             return False
 
     def claim_payment(self, trx_input, app_id, user_identity):
-        """
-        Universal Claim Logic.
-        Match a User (Tele/Email) to a Pending Payment.
-
-        :param trx_input: The Last 6 digits (or full ID) provided by user.
-        :param app_id: The App ID (ObjectId) to upgrade.
-        :param user_identity: Dict.
-        {'telegram_id': '...'} OR {'email': '...'}
-        """
         # 1. Resolve User
         user = None
         if 'account_id' in user_identity:
@@ -426,8 +507,7 @@ class BifrostDB:
         if not user:
             return False, "User account not found."
 
-        # 2. Fuzzy Match Payment (Suffix Search)
-        # Ensure we escape the input to prevent regex injection, though digits are safe.
+        # 2. Fuzzy Match Payment
         safe_input = str(trx_input).strip()
         regex_pattern = f"{safe_input}$"
 

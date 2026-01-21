@@ -1,51 +1,55 @@
+import sys
 import os
+
+# --- PATH FIX: Add project root to sys.path ---
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import logging
 import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
-from dotenv import load_dotenv
 
-# Absolute import
+# Import Central Config
+from config import Config
+
+# Absolute imports
 from bot.handlers import (
     start_command, receive_proof, cancel,
     admin_approve, admin_reject_menu, admin_reject_confirm, admin_restore_menu,
     WAITING_PROOF
 )
-# Import the new persistence class
 from bot.persistence import MongoPersistence
 
-load_dotenv()
-
+# Configure logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger("bifrost-bot")
 
-async def process_webhook_update(update_json):
+def create_bifrost_bot():
     """
-    Process a single update from Flask.
-    Uses MongoPersistence for scalable, concurrent state management.
+    Factory function to build the PTB Application.
+    Used by both Webhooks (Production) and Polling (Local).
     """
-    token = os.getenv("BIFROST_BOT_TOKEN")
-    mongo_uri = os.getenv("MONGO_URI")
-
-    if not token or not mongo_uri:
-        logger.critical("Missing BIFROST_BOT_TOKEN or MONGO_URI!")
-        return
+    if not Config.BIFROST_BOT_TOKEN or not Config.MONGO_URI:
+        logger.critical("Missing BIFROST_BOT_TOKEN or MONGO_URI in Config!")
+        return None
 
     # 1. Setup Persistence (MongoDB)
-    # This connects to your existing DB and stores states in 'bifrost_bot.conversations'
-    persistence = MongoPersistence(mongo_uri=mongo_uri)
+    persistence = MongoPersistence(mongo_uri=Config.MONGO_URI)
 
-    # 2. Build App (Ephemeral)
-    app = Application.builder().token(token).persistence(persistence).build()
+    # 2. Build App
+    app = Application.builder().token(Config.BIFROST_BOT_TOKEN).persistence(persistence).build()
 
     # 3. Register Handlers
     payment_conv = ConversationHandler(
-        entry_points=[CommandHandler("start", start_command)],
+        entry_points=[
+            CommandHandler("start", start_command), # Handles deep links
+            CommandHandler("pay", start_command)    # Handles manual commands
+        ],
         states={WAITING_PROOF: [MessageHandler(filters.PHOTO, receive_proof)]},
         fallbacks=[CommandHandler("cancel", cancel)],
         per_message=False,
         allow_reentry=True,
-        name="payment_flow",  # This ID is used as the Mongo Document ID
+        name="payment_flow",
         persistent=True
     )
 
@@ -55,7 +59,14 @@ async def process_webhook_update(update_json):
     app.add_handler(CallbackQueryHandler(admin_reject_confirm, pattern="^pay_reject_confirm_"))
     app.add_handler(CallbackQueryHandler(admin_restore_menu, pattern="^pay_restore_"))
 
-    # 4. Lifecycle
+    return app
+
+async def process_webhook_update(update_json):
+    """PRODUCTION ENTRY POINT (Flask)"""
+    app = create_bifrost_bot()
+    if not app:
+        return
+
     await app.initialize()
 
     try:
@@ -65,3 +76,15 @@ async def process_webhook_update(update_json):
         logger.error(f"Error processing update: {e}")
     finally:
         await app.shutdown()
+
+def run_polling():
+    """LOCAL DEV ENTRY POINT"""
+    app = create_bifrost_bot()
+    if not app:
+        return
+
+    logger.info("⚡ Starting Local Polling Mode... (Press Ctrl+C to stop)")
+    app.run_polling(drop_pending_updates=True, close_loop=False)
+
+if __name__ == "__main__":
+    run_polling()

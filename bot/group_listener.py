@@ -1,16 +1,12 @@
 import logging
 import re
-import os
 from telegram import Update
 from telegram.ext import ContextTypes
 from pymongo import MongoClient
 from datetime import datetime
 
-# Setup direct DB access
-MONGO_URI = os.getenv("MONGO_URI")
-DB_NAME = os.getenv("DB_NAME", "bifrost_db")
-
-PAYMENT_GROUP_ID = os.getenv("PAYMENT_GROUP_ID")
+# Central Config
+from config import Config
 
 # Regex: "$5.00 paid by Name... Trx. ID: 12345"
 ABA_PATTERN = re.compile(
@@ -21,31 +17,28 @@ ABA_PATTERN = re.compile(
 logger = logging.getLogger("bifrost-listener")
 
 def get_db():
-    client = MongoClient(MONGO_URI)
-    return client[DB_NAME]
+    client = MongoClient(Config.MONGO_URI)
+    return client[Config.DB_NAME]
 
 async def aba_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Listens to messages in the Payment Group.
-    If it looks like an ABA receipt, saves it to DB.
-    """
+    """Listens to messages in the Payment Group."""
     chat_id = str(update.effective_chat.id)
-    if PAYMENT_GROUP_ID and chat_id != PAYMENT_GROUP_ID:
-        # Silently ignore to prevent log spam from random groups
+
+    # Use Config to check if this is the correct group
+    if Config.PAYMENT_GROUP_ID and chat_id != str(Config.PAYMENT_GROUP_ID):
         return
 
     msg = update.effective_message.text
     if not msg:
         return
 
-    # 4. PARSE TRANSACTION ID (Regex)
     match = ABA_PATTERN.search(msg)
     if match:
         amount_str = match.group(1)
         payer_name = match.group(2)
-        trx_id = match.group(3)  # <--- This is the Trx ID
+        trx_id = match.group(3)
 
-        logger.info(f"💸 Detected Payment: {amount_str} from {payer_name} (ID: {trx_id}) in Group {chat_id}")
+        logger.info(f"💸 Detected Payment: {amount_str} from {payer_name} (ID: {trx_id})")
 
         try:
             db = get_db()
@@ -57,7 +50,7 @@ async def aba_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     "currency": "USD",
                     "payer_name": payer_name,
                     "raw_text": msg,
-                    "source_group_id": chat_id, # Save where it came from
+                    "source_group_id": chat_id,
                     "status": "unclaimed",
                     "claimed_by_account_id": None,
                     "created_at": datetime.utcnow()

@@ -31,23 +31,28 @@ def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    CORS(app, resources={r"/*": {"origins": "*"}})  # [cite: 3, 225]
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     app.json_provider_class = CustomJSONProvider
     app.json = app.json_provider_class(app)
 
-    mongo.init_app(app)  # [cite: 3]
+    mongo.init_app(app)
 
-    # Initialize Blueprints [cite: 4, 5, 224]
+    # Initialize Blueprints
     from .auth.ui import auth_ui_bp
     from .auth.api import auth_api_bp
     from .internal.routes import internal_bp
+    from .backoffice import backoffice_bp  # <--- NEW
 
     app.register_blueprint(auth_ui_bp)
     app.register_blueprint(auth_api_bp)
     app.register_blueprint(internal_bp)
+    app.register_blueprint(backoffice_bp)
+    from .scheduler import start_scheduler
+    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        start_scheduler(app)
 
-    # Initialize Admin Panel [cite: 5]
+    # Initialize Admin Panel (Legacy/Technical)
     from .admin_panel import init_admin
     try:
         init_admin(app, mongo)
@@ -60,9 +65,6 @@ def create_app(config_class):
             db_name = current_app.config.get('DB_NAME', 'bifrost_db')
             db = mongo.cx[db_name]
             apps = list(db.applications.find({}))
-
-            # We pass 'apps' for the list view and a 'portal_context'
-            # to prevent 'app' undefined errors in the shared layout.
             return render_template('index.html', apps=apps, app=None)
         except Exception as e:
             return jsonify(status="error", message=f"Portal error: {e}"), 500
@@ -70,9 +72,9 @@ def create_app(config_class):
     @app.route('/health')
     def health():
         try:
-            mongo.cx.admin.command('ping')  # [cite: 8]
-            return jsonify(status="ok", message="Bifrost IdP operational.")  # [cite: 8]
+            mongo.cx.admin.command('ping')
+            return jsonify(status="ok", message="Bifrost IdP operational.")
         except Exception as e:
-            return jsonify(status="error", message=f"Database error: {e}"), 500  # [cite: 8]
+            return jsonify(status="error", message=f"Database error: {e}"), 500
 
     return app

@@ -4,6 +4,44 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-01-22
+
+### Added
+- **Subscription Reaper**: Implemented `bifrost/scheduler.py`, a background cron job that runs every 60 minutes.
+  - Automatically finds users with `expires_at < NOW` who are still marked as `premium_user` or `admin`.
+  - Downgrades their role to `user`.
+  - Removes the `expires_at` field.
+- **Expiration Webhooks**: The Reaper now triggers an `account_role_change` webhook event to all client apps immediately upon downgrading a user. This ensures client apps (like Finance Bot) invalidate their local cache instantly.
+- **Scheduler Integration**: Updated `bifrost/__init__.py` to start the background scheduler thread when the Flask app launches.
+
+### Changed
+- **Dependencies**: Added `schedule` to `requirements.txt` to handle background task timing.
+
+## [1.5.0] - 2026-01-22
+
+### Added
+- **Tenant Dashboard**: Created `bifrost/backoffice.py` to allow App Admins to manage their specific users.
+- **Role Hierarchy**:
+  - **Super Admin**: Full access to all apps via Backoffice login.
+  - **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
+- **User Management UI**: Added `app_users.html` allowing Admins to manually change user roles (e.g., grant Premium) and extend subscription duration.
+- **Security**: Added `login_required` decorator and role-based checks (`get_managed_apps`) to isolate tenant data.
+
+### Changed
+- **Models**: Added `get_managed_apps(account_id)` and `get_app_users(app_id)` to `BifrostDB` to support the dashboard views.
+- **Blueprint Registration**: Registered `backoffice_bp` in `bifrost/__init__.py`.
+
+## [1.4.0] - 2026-01-22
+
+### Added
+- **Subscription Expiration**: Updated `BifrostDB` models to support `expires_at` for app links.
+- **Dynamic Pricing**: Bifrost Bot now parses `duration` (e.g., '1m', '1y') and `client_ref_id` from the payment payload.
+- **Improved Parsing**: Added support for `/pay` command and complex deep-link payloads (format: `client_id__price__duration__role__ref`).
+- **App Branding**: The Payment Bot now looks up and displays the actual "App Name" (e.g., "Finance Bot") during the payment flow instead of the raw client ID.
+
+### Changed
+- **Transaction Model**: Added `duration` and `client_ref_id` fields to the Transaction schema.
+
 ## [1.3.1] - 2026-01-21
 
 ### Changed
