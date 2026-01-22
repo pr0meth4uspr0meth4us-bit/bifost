@@ -62,7 +62,6 @@ def login():
 
     return render_template('auth/login.html', app=app_config)
 
-# bifrost/auth/ui.py
 
 @auth_ui_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -72,16 +71,18 @@ def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email').strip().lower()
         user = db.find_account_by_email(email)
+
         if user:
-            # Create OTP and get a verification session ID [cite: 133, 170]
+            # Create OTP and get verification ID
             otp, ver_id = db.create_otp(email, channel='email', account_id=user['_id'])
 
-            # Construct the link specifically to the OTP verification page
+            # Build the URL to the OTP entry page
             verify_url = url_for('auth_ui.verify_otp',
                                  verification_id=ver_id,
                                  client_id=client_id,
                                  _external=True)
 
+            # Send email with OTP
             send_otp_email(
                 to_email=email,
                 otp=otp,
@@ -89,11 +90,14 @@ def forgot_password():
                 logo_url=app_config.get('app_logo_url'),
                 app_url=verify_url
             )
-            # Redirect browser to the verification page immediately
+
+            # Redirect to OTP entry page
             return redirect(verify_url)
 
         flash("If an account exists, a reset code has been sent.", "info")
+
     return render_template('auth/forgot_password.html', app=app_config)
+
 
 @auth_ui_bp.route('/verify-otp', methods=['GET', 'POST'])
 def verify_otp():
@@ -104,8 +108,9 @@ def verify_otp():
     if request.method == 'POST':
         code = request.form.get('otp')
         record = db.verify_otp(verification_id=ver_id, code=code)
+
         if record:
-            # Generate a temporary proof token for the password reset page
+            # Generate proof token for password reset
             proof_payload = {
                 "email": record['identifier'],
                 "scope": "credential_change",
@@ -117,6 +122,7 @@ def verify_otp():
             flash("Invalid or expired code.", "danger")
 
     return render_template('auth/verify_otp.html', app=app_config, verification_id=ver_id)
+
 
 @auth_ui_bp.route('/reset-password', methods=['GET', 'POST'])
 def reset_password():
@@ -138,3 +144,47 @@ def reset_password():
         return redirect(url_for('auth_ui.login', client_id=client_id))
 
     return render_template('auth/reset_password.html', app=app_config, proof_token=proof_token)
+
+
+@auth_ui_bp.route('/set-password', methods=['GET', 'POST'])
+def set_password():
+    """
+    NEW ROUTE: For invited users to activate their account.
+    They enter the OTP they received and set their password in one form.
+    """
+    ver_id = request.args.get('verification_id')
+    client_id = request.args.get('client_id')
+
+    db, app_config = get_app_config(client_id)
+
+    if not ver_id or not app_config:
+        return render_template('auth/error.html', error="Invalid invite link")
+
+    if request.method == 'POST':
+        otp = request.form.get('otp')
+        password = request.form.get('password')
+
+        # Verify OTP
+        record = db.verify_otp(verification_id=ver_id, code=otp)
+
+        if record:
+            email = record['identifier']
+            user = db.find_account_by_email(email)
+
+            if user:
+                # User exists - just set password
+                db.update_password(email, password)
+                db.link_user_to_app(user['_id'], app_config['_id'])
+
+                # Log them in automatically
+                token = create_session_token(user, client_id)
+                callback_url = app_config.get('app_callback_url')
+                separator = '&' if '?' in callback_url else '?'
+                flash("Account activated! Welcome.", "success")
+                return redirect(f"{callback_url}{separator}token={token}")
+            else:
+                flash("Account setup error. Please contact support.", "danger")
+        else:
+            flash("Invalid or expired code.", "danger")
+
+    return render_template('auth/set_password.html', app=app_config, verification_id=ver_id)

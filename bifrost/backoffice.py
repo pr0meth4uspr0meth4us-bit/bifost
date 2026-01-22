@@ -109,28 +109,28 @@ def create_app():
 
         # 2. Handle Initial Admin (Invite Flow)
         if admin_email:
-            # Need App Object ID (creds only returns secrets strings)
             app_doc = db.get_app_by_client_id(creds['client_id'])
             user = db.find_account_by_email(admin_email)
 
             if not user:
-                # -- INVITE FLOW --
+                # Create placeholder account
                 new_id = db.create_account({
                     "email": admin_email,
                     "display_name": admin_email.split('@')[0],
                     "auth_providers": ["email"]
                 })
 
-                # Generate OTP & Send Email
-                otp, _ = db.create_otp(admin_email, channel="email")
-                login_url = f"{current_app.config['BIFROST_PUBLIC_URL']}/auth/ui/login?client_id={creds['client_id']}"
+                # Generate OTP
+                otp, verification_id = db.create_otp(admin_email, channel="email")
 
+                # Send invite with link to set-password page
                 send_invite_email(
                     to_email=admin_email,
                     otp=otp,
                     app_name=app_name,
-                    login_url=login_url,
-                    logo_url=logo_url # Pass the specific app logo
+                    verification_id=verification_id,
+                    client_id=creds['client_id'],
+                    logo_url=logo_url
                 )
 
                 user_id = new_id
@@ -188,7 +188,7 @@ def update_user_role(app_id, user_id):
             return "Unauthorized", 403
 
     new_role = request.form.get('role')
-    duration = request.form.get('duration') # Optional: '1m', '1y' or manual date
+    duration = request.form.get('duration')
 
     if new_role:
         db.link_user_to_app(user_id, app_id, role=new_role, duration_str=duration)
@@ -211,30 +211,31 @@ def add_user_to_app(app_id):
     email = request.form.get('email').strip().lower()
     role = request.form.get('role')
 
-    # 1. Find App Details (for email branding)
+    # 1. Find App Details
     app = db.db.applications.find_one({"_id": ObjectId(app_id)})
 
     # 2. Find or Create User
     user = db.find_account_by_email(email)
 
     if not user:
-        # -- INVITE FLOW --
+        # Create placeholder
         new_id = db.create_account({
             "email": email,
             "display_name": email.split('@')[0],
             "auth_providers": ["email"]
         })
 
-        # Generate Code & Send Email
-        otp, _ = db.create_otp(email, channel="email")
-        login_url = f"{current_app.config['BIFROST_PUBLIC_URL']}/auth/ui/login?client_id={app['client_id']}"
+        # Generate OTP
+        otp, verification_id = db.create_otp(email, channel="email")
 
+        # Send invite email with link to set-password page
         send_invite_email(
             to_email=email,
             otp=otp,
             app_name=app['app_name'],
-            login_url=login_url,
-            logo_url=app.get('app_logo_url') # Pass specific app logo
+            verification_id=verification_id,
+            client_id=app['client_id'],
+            logo_url=app.get('app_logo_url')
         )
 
         user_id = new_id

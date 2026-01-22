@@ -43,14 +43,12 @@ def send_email(to_email, subject, html_content, text_content, app_name):
         log.error(f"Email failed: {e}")
         return False
 
-# bifrost/services/email_service.py
 
 def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, app_url="#"):
     """Sends a standard OTP verification email."""
     html_template = load_email_template('verification_email.html')
     final_logo = logo_url if logo_url else get_default_logo_url()
 
-    # Clean string replacement to prevent raw logic tags from appearing
     html_content = html_template.replace("{OTP_CODE}", str(otp)) \
         .replace("{APP_NAME}", app_name) \
         .replace("{LOGO_URL}", final_logo) \
@@ -61,18 +59,25 @@ def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, ap
     text_content = f"Your {app_name} code is: {otp}"
     return send_email(to_email, f"🔐 {app_name} Code", html_content, text_content, app_name)
 
-def send_invite_email(to_email, otp, app_name, login_url, logo_url=None):
-    """Sends an invitation email with a link to the verification page."""
+
+def send_invite_email(to_email, otp, app_name, verification_id, client_id, logo_url=None):
+    """
+    Sends an invitation email with a direct link to the password setup page.
+    The link includes the verification_id so the user can enter their OTP and set a password.
+    """
     html_template = load_email_template('verification_email.html')
     final_logo = logo_url if logo_url else get_default_logo_url()
 
-    # Optimized for invite flow: Link now points to the OTP verification page
+    # Build the complete URL to the set-password page
+    base_url = current_app.config.get('BIFROST_PUBLIC_URL', 'http://localhost:5000')
+    setup_url = f"{base_url}/auth/ui/set-password?verification_id={verification_id}&client_id={client_id}"
+
     html_content = html_template.replace("{OTP_CODE}", str(otp)) \
         .replace("{APP_NAME}", app_name) \
         .replace("{LOGO_URL}", final_logo) \
-        .replace("{APP_URL}", login_url) \
+        .replace("{APP_URL}", setup_url) \
         .replace("{TITLE}", "You've been invited!") \
-        .replace("{SUBTITLE}", f"You have been granted access to <b>{app_name}</b>. Use this code to set your password.")
+        .replace("{SUBTITLE}", f"You have been granted access to <b>{app_name}</b>. Click below to activate your account.")
 
-    text_content = f"Invite to {app_name}. Code: {otp}"
+    text_content = f"You've been invited to {app_name}! Your activation code is: {otp}\nVisit: {setup_url}"
     return send_email(to_email, f"👋 Welcome to {app_name}", html_content, text_content, app_name)
