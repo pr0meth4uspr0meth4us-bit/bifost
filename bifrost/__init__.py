@@ -64,6 +64,11 @@ def create_app(config_class):
         except Exception as e:
             return jsonify(status="error", message=f"Portal error: {e}"), 500
 
+    @app.route('/docs')
+    def documentation():
+        """Serves the Developer Documentation Portal."""
+        return render_template('docs.html')
+
     @app.route('/health')
     def health():
         try:
