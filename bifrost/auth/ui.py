@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, flash, current_app, url_for
+from flask import Blueprint, render_template, request, redirect, flash, current_app, url_for, session
 from werkzeug.security import check_password_hash
 import jwt
 import datetime
@@ -25,7 +25,7 @@ def create_session_token(user, client_id):
         "exp": datetime.datetime.now(UTC) + datetime.timedelta(days=7),
         "email": user.get('email'),
         "name": user.get('display_name'),
-        "role": "user"  # Default role context (refreshed by API validation later)
+        "role": "user"
     }
     return jwt.encode(
         token_payload,
@@ -44,104 +44,80 @@ def login():
         return render_template('auth/error.html', error="Invalid client_id")
 
     if request.method == 'POST':
-        identifier = request.form.get('email') # Can be email or username
+        identifier = request.form.get('email')
         password = request.form.get('password')
 
-        # 1. Try Email
         user = db.find_account_by_email(identifier)
-        # 2. Try Username
         if not user:
             user = db.find_account_by_username(identifier)
 
         if user and user.get('password_hash') and check_password_hash(user['password_hash'], password):
-            # Link User to App if not already linked
             db.link_user_to_app(user['_id'], app_config['_id'])
-
-            # Generate Token & Redirect
             token = create_session_token(user, client_id)
             callback_url = app_config.get('app_callback_url')
-
             separator = '&' if '?' in callback_url else '?'
             return redirect(f"{callback_url}{separator}token={token}")
         else:
             flash("Invalid email or password", "danger")
 
-    return render_template('auth/login.html', app=app_config, api_base=request.url_root.rstrip('/'))
-
-@auth_ui_bp.route('/register', methods=['GET', 'POST'])
-def register():
-    client_id = request.args.get('client_id')
-    if not client_id:
-        return render_template('auth/error.html', error="Missing client_id")
-
-    db, app_config = get_app_config(client_id)
-    if not app_config:
-        return render_template('auth/error.html', error="Invalid client_id")
-
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        display_name = request.form.get('display_name')
-
-        # 1. Check if user exists
-        existing_user = db.find_account_by_email(email)
-        if existing_user:
-            flash("Email already registered. Please login.", "warning")
-            return redirect(url_for('auth_ui.login', client_id=client_id))
-
-        # 2. Create Account
-        new_account = {
-            "email": email,
-            "password": password, # db.create_account handles hashing
-            "display_name": display_name,
-            "auth_providers": ["email"]
-        }
-        user_id = db.create_account(new_account)
-
-        # 3. Link & Redirect
-        db.link_user_to_app(user_id, app_config['_id'])
-
-        # Refetch user to get full object for token
-        user = db.find_account_by_id(user_id)
-        token = create_session_token(user, client_id)
-
-        callback_url = app_config.get('app_callback_url')
-        separator = '&' if '?' in callback_url else '?'
-        return redirect(f"{callback_url}{separator}token={token}")
-
-    return render_template('auth/register.html', app=app_config)
+    return render_template('auth/login.html', app=app_config)
 
 @auth_ui_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     client_id = request.args.get('client_id')
-    if not client_id:
-        return render_template('auth/error.html', error="Missing client_id")
-
     db, app_config = get_app_config(client_id)
-    if not app_config:
-        return render_template('auth/error.html', error="Invalid client_id")
 
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = request.form.get('email').strip().lower()
         user = db.find_account_by_email(email)
-
         if user:
-            # Generate OTP
             otp, ver_id = db.create_otp(email, channel='email', account_id=user['_id'])
+            send_otp_email(to_email=email, otp=otp, app_name=app_config.get('app_name', 'Bifrost'), logo_url=app_config.get('app_logo_url'))
+            return redirect(url_for('auth_ui.verify_otp', verification_id=ver_id, client_id=client_id))
 
-            # Send Email with App Branding (Logo + Name)
-            send_otp_email(
-                to_email=email,
-                otp=otp,
-                app_name=app_config.get('app_name', 'Bifrost'),
-                logo_url=app_config.get('app_logo_url')  # <--- NEW: Inject App Logo
-            )
-            flash("If an account exists, a reset code has been sent.", "info")
-
-            # In a real flow, you'd redirect to a verify-otp page here
-            # For now, we stay on page or redirect to login
-        else:
-            # Fake success to prevent enumeration
-            flash("If an account exists, a reset code has been sent.", "info")
-
+        flash("If an account exists, a reset code has been sent.", "info")
     return render_template('auth/forgot_password.html', app=app_config)
+
+@auth_ui_bp.route('/verify-otp', methods=['GET', 'POST'])
+def verify_otp():
+    ver_id = request.args.get('verification_id')
+    client_id = request.args.get('client_id')
+    db, app_config = get_app_config(client_id)
+
+    if request.method == 'POST':
+        code = request.form.get('otp')
+        record = db.verify_otp(verification_id=ver_id, code=code)
+        if record:
+            # Generate a temporary proof token for the password reset page
+            proof_payload = {
+                "email": record['identifier'],
+                "scope": "credential_change",
+                "exp": datetime.datetime.now(UTC) + datetime.timedelta(minutes=10)
+            }
+            proof_token = jwt.encode(proof_payload, current_app.config['JWT_SECRET_KEY'], algorithm="HS256")
+            return redirect(url_for('auth_ui.reset_password', proof_token=proof_token, client_id=client_id))
+        else:
+            flash("Invalid or expired code.", "danger")
+
+    return render_template('auth/verify_otp.html', app=app_config, verification_id=ver_id)
+
+@auth_ui_bp.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    proof_token = request.args.get('proof_token')
+    client_id = request.args.get('client_id')
+    db, app_config = get_app_config(client_id)
+
+    try:
+        payload = jwt.decode(proof_token, current_app.config['JWT_SECRET_KEY'], algorithms=["HS256"])
+        email = payload['email']
+    except:
+        flash("Session expired. Please start over.", "danger")
+        return redirect(url_for('auth_ui.forgot_password', client_id=client_id))
+
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        db.update_password(email, new_password)
+        flash("Password updated successfully. Please login.", "success")
+        return redirect(url_for('auth_ui.login', client_id=client_id))
+
+    return render_template('auth/reset_password.html', app=app_config, proof_token=proof_token)

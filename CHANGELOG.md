@@ -3,7 +3,18 @@
 All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Changelog
+[Added] bifrost/templates/auth/verify_otp.html: New screen to enter the 6-digit code received via email.
 
+[Added] bifrost/templates/auth/reset_password.html: New screen to set a new password after successful OTP verification.
+
+[Changed] bifrost/auth/ui.py: Added logic to handle the multi-step flow (Forgot Password -> Verify OTP -> Reset Password).
+
+
+[Changed] bifrost/templates/auth/login.html & forgot_password.html: Completely redesigned with modern Tailwind CSS and improved UX.
+
+
+[Fixed] bifrost/services/email_service.py: Cleaned up template string replacement to prevent raw logic tags from appearing in user emails.
 - [Fixed] `validate_token` endpoint now returns `telegram_id` in the JSON response.
 - [Added] `account_update` webhooks now include changed fields (telegram_id, email, username) in the `extra_data` payload.
 
