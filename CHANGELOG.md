@@ -4,6 +4,10 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changelog
+Fixed: The validate_token endpoint in bifrost/internal/routes.py now explicitly returns the telegram_id in its JSON response.
+
+
+Added: Enhanced account_update webhooks in bifrost/models/auth.py to include changed identity fields (telegram_id, email, username) in the extra_data payload .
 [Added] bifrost/templates/auth/verify_otp.html: New screen to enter the 6-digit code received via email.
 
 [Added] bifrost/templates/auth/reset_password.html: New screen to set a new password after successful OTP verification.

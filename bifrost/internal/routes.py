@@ -145,7 +145,8 @@ def validate_token():
             "app_specific_role": final_role,
             "email": user.get('email'),
             "username": user.get('username'),
-            "display_name": user.get('display_name')
+            "display_name": user.get('display_name'),
+            "telegram_id": user.get('telegram_id')
         })
 
     except Exception as e:
@@ -258,7 +259,8 @@ def get_user_info(user_id):
         "id": str(user['_id']),
         "email": user.get('email'),
         "username": user.get('username'),
-        "display_name": user.get('display_name')
+        "display_name": user.get('display_name'),
+        "telegram_id": user.get('telegram_id')
     }), 200
 
 
