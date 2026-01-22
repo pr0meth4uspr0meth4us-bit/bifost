@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+<div class="max-w-2xl mx-auto w-full px-6 py-12">
+    <a href="{{ url_for('backoffice.dashboard') }}" class="text-slate-500 font-bold text-sm mb-6 inline-block hover:text-indigo-600">← Back to Dashboard</a>
+
+    <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+        <div class="p-8 sm:p-10">
+            <h1 class="text-2xl font-extrabold text-slate-900 mb-2">Register New Application</h1>
+            <p class="text-slate-500 mb-8 text-sm">Create credentials for a new service in the Helm ecosystem.</p>
+
+            <form method="POST" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Application Name</label>
+                    <input type="text" name="app_name" required placeholder="e.g. Finance Bot" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Web URL (Frontend)</label>
+                        <input type="url" name="web_url" placeholder="https://app.helm.com" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">API URL (Backend)</label>
+                        <input type="url" name="api_url" placeholder="https://api.helm.com" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none">
+                        <p class="text-xs text-slate-400 mt-1">Used for webhook delivery.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Callback URL</label>
+                    <input type="url" name="callback_url" required placeholder="https://app.helm.com/auth/callback" class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Logo URL (Optional)</label>
+                    <input type="url" name="logo_url" placeholder="https://..." class="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none">
+                </div>
+
+                <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-extrabold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 mt-4">
+                    Create Application
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -14,7 +14,9 @@ class AppMixin:
     # ---------------------------------------------------------
     def register_application(self, app_name, callback_url, web_url=None, logo_url=None, allowed_methods=None,
                              api_url=None):
-        client_id = f"{app_name.lower().replace(' ', '_')}_{secrets.token_hex(4)}"
+        """Creates a new application document."""
+        safe_name = app_name.lower().replace(' ', '_')
+        client_id = f"{safe_name}_{secrets.token_hex(4)}"
         client_secret = secrets.token_urlsafe(32)
         webhook_secret = secrets.token_hex(24)
 
@@ -23,7 +25,7 @@ class AppMixin:
             "client_id": client_id,
             "client_secret_hash": generate_password_hash(client_secret),
             "webhook_secret": webhook_secret,
-            "app_logo_url": logo_url or "/static/default_logo.png",
+            "app_logo_url": logo_url or "",
             "app_web_url": web_url,
             "app_callback_url": callback_url,
             "app_api_url": api_url,
@@ -32,7 +34,22 @@ class AppMixin:
             "created_at": datetime.now(UTC)
         }
         self.db.applications.insert_one(app_doc)
-        return client_id, client_secret, webhook_secret
+
+        # Return raw secrets only once
+        return {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "webhook_secret": webhook_secret
+        }
+
+    def rotate_app_secret(self, app_id):
+        """Regenerates the Client Secret for an App."""
+        new_secret = secrets.token_urlsafe(32)
+        self.db.applications.update_one(
+            {"_id": ObjectId(app_id)},
+            {"$set": {"client_secret_hash": generate_password_hash(new_secret)}}
+        )
+        return new_secret
 
     def get_app_by_client_id(self, client_id):
         return self.db.applications.find_one({"client_id": client_id})

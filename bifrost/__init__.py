@@ -4,6 +4,7 @@ from flask.json.provider import JSONProvider
 from flask_cors import CORS
 import json
 import datetime
+import os
 from bson import ObjectId
 
 # Globally accessible PyMongo instance
@@ -42,22 +43,16 @@ def create_app(config_class):
     from .auth.ui import auth_ui_bp
     from .auth.api import auth_api_bp
     from .internal.routes import internal_bp
-    from .backoffice import backoffice_bp  # <--- NEW
+    from .backoffice import backoffice_bp
 
     app.register_blueprint(auth_ui_bp)
     app.register_blueprint(auth_api_bp)
     app.register_blueprint(internal_bp)
     app.register_blueprint(backoffice_bp)
+
     from .scheduler import start_scheduler
     if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         start_scheduler(app)
-
-    # Initialize Admin Panel (Legacy/Technical)
-    from .admin_panel import init_admin
-    try:
-        init_admin(app, mongo)
-    except Exception as e:
-        print(f"Warning: Admin panel init skipped: {e}")
 
     @app.route('/')
     def index():

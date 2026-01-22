@@ -18,23 +18,36 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def super_admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('is_super_admin'):
+            flash("Super Admin privileges required.", "danger")
+            return redirect(url_for('backoffice.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @backoffice_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email')
+        identifier = request.form.get('email').strip() # Can be email or user
         password = request.form.get('password')
         db = get_db()
 
-        # 1. Check Super Admin (God Mode)
-        super_admin = db.db.admins.find_one({"email": email})
+        # 1. Check Super Admin (God Mode) - Email Only usually
+        super_admin = db.db.admins.find_one({"email": identifier.lower()})
         if super_admin and check_password_hash(super_admin['password_hash'], password):
             session['backoffice_user'] = str(super_admin['_id'])
             session['is_super_admin'] = True
             session['role'] = 'Super Admin'
             return redirect(url_for('backoffice.dashboard'))
 
-        # 2. Check App Admin (Tenant Mode)
-        user = db.find_account_by_email(email)
+        # 2. Check App Admin (Tenant Mode) - Email or Username
+        user = db.find_account_by_email(identifier)
+        if not user:
+            user = db.find_account_by_username(identifier)
+
         if user and user.get('password_hash') and check_password_hash(user['password_hash'], password):
             # Verify they manage at least one app
             managed_apps = db.get_managed_apps(user['_id'])
@@ -68,6 +81,44 @@ def dashboard():
         title = "Tenant Dashboard"
 
     return render_template('backoffice/dashboard.html', apps=apps, title=title)
+
+# --- SUPER ADMIN FUNCTIONS ---
+
+@backoffice_bp.route('/apps/create', methods=['GET', 'POST'])
+@login_required
+@super_admin_required
+def create_app():
+    if request.method == 'POST':
+        db = get_db()
+        app_name = request.form.get('app_name')
+        callback_url = request.form.get('callback_url')
+        api_url = request.form.get('api_url')
+        web_url = request.form.get('web_url')
+        logo_url = request.form.get('logo_url')
+
+        creds = db.register_application(
+            app_name=app_name,
+            callback_url=callback_url,
+            web_url=web_url,
+            api_url=api_url,
+            logo_url=logo_url
+        )
+
+        flash(f"App Created! Client ID: {creds['client_id']} | SECRET: {creds['client_secret']}", "success")
+        return redirect(url_for('backoffice.dashboard'))
+
+    return render_template('backoffice/create_app.html')
+
+@backoffice_bp.route('/app/<app_id>/rotate-secret', methods=['POST'])
+@login_required
+@super_admin_required
+def rotate_secret(app_id):
+    db = get_db()
+    new_secret = db.rotate_app_secret(app_id)
+    flash(f"SECRET ROTATED! Copy immediately: {new_secret}", "warning")
+    return redirect(url_for('backoffice.view_app', app_id=app_id))
+
+# --- APP MANAGEMENT ---
 
 @backoffice_bp.route('/app/<app_id>')
 @login_required
@@ -111,7 +162,7 @@ def update_user_role(app_id, user_id):
 def add_user_to_app(app_id):
     db = get_db()
 
-    # Security: Ensure Tenant owns this app (or is Super Admin)
+    # Security Check
     if not session.get('is_super_admin'):
         owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
         if app_id not in owned_apps:
@@ -123,11 +174,20 @@ def add_user_to_app(app_id):
 
     # 1. Find the User
     user = db.find_account_by_email(email)
-    if not user:
-        flash(f"User with email '{email}' not found. They must register with Bifrost first.", "warning")
-        return redirect(url_for('backoffice.view_app', app_id=app_id))
 
-    # 2. Link them (Force the role)
+    # 2. Create if not exists (Invite Flow)
+    if not user:
+        # We create a placeholder account. User must use Forgot Password to claim it.
+        # Or we could implement an invitation email here.
+        new_id = db.create_account({
+            "email": email,
+            "display_name": email.split('@')[0],
+            "auth_providers": ["email"]
+        })
+        user = db.find_account_by_id(new_id)
+        flash(f"User {email} created as placeholder. They must reset password to login.", "info")
+
+    # 3. Link them
     db.link_user_to_app(user['_id'], app_id, role=role, duration_str="lifetime")
 
     flash(f"✅ User {email} added as {role}!", "success")

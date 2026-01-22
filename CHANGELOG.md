@@ -4,6 +4,28 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-01-22
+
+### Fixed
+- **Missing Webhook**: Fixed an issue where Admin Approval via the Bot triggered `account_role_change` instead of `subscription_success`.
+- **Transaction Completion**: The `call_grant_premium` service now attempts to find and complete a pending transaction record before falling back to a manual role grant. This ensures the client app receives the transaction ID and amount in the webhook payload.
+
+## [2.0.0] - 2026-01-22
+
+### Removed
+- **Legacy Admin**: Removed `bifrost/admin_panel.py` and the `flask-admin` dependency. All administration is now handled via the custom `backoffice` blueprint.
+
+### Added
+- **Unified Portal**: The `/backoffice` now serves as the single portal for both Super Admins and App Admins.
+- **App Management**: Super Admins can now **Create Applications** via the UI.
+- **Secret Management**: Added "Regenerate Secret" functionality in the App Details view.
+- **Passkey Prep**: Database models now support `webauthn_credentials` field (placeholder for future implementation).
+
+### Changed
+- **UI Overhaul**: Migrated all Admin views to **Tailwind CSS**.
+- **Authentication**: Login endpoints now explicitly check `username` OR `email` for all users.
+- **Documentation**: Added comprehensive `README.md` with integration snippets.
+
 ## [1.9.8] - 2026-01-22
 
 ### Added

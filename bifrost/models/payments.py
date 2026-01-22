@@ -140,7 +140,7 @@ class PaymentMixin:
             return False, "Error: Payment claimed by someone else."
 
         # 4. Grant Premium Role
-        self.link_user_to_app(user['_id'], app_id, role="premium_user")
+        self.link_user_to_app(user['_id'], app_id, role="premium_user", suppress_webhook=True)
 
         # 5. Send Success Webhook for Claims
         self._trigger_event_for_user(

@@ -4,93 +4,141 @@
     <meta charset="UTF-8">
     <title>Manage {{ app.app_name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-<nav class="bg-white border-b border-gray-200 px-6 py-4 mb-8">
+<body class="bg-slate-50 min-h-screen">
+<nav class="bg-white border-b border-slate-200 px-6 py-4 mb-8">
     <div class="max-w-7xl mx-auto flex items-center space-x-4">
-        <a href="{{ url_for('backoffice.dashboard') }}" class="text-gray-500 hover:text-gray-900">← Back</a>
-        <h1 class="text-xl font-bold">{{ app.app_name }} <span class="text-gray-400 font-normal">| User Management</span></h1>
+        <a href="{{ url_for('backoffice.dashboard') }}" class="text-slate-500 hover:text-slate-900 font-bold">← Back</a>
+        <div class="h-6 w-px bg-slate-200"></div>
+        <h1 class="text-xl font-bold text-slate-900">{{ app.app_name }} <span class="text-slate-400 font-normal">| User Management</span></h1>
     </div>
 </nav>
 
-<div class="max-w-7xl mx-auto px-6">
+<div class="max-w-7xl mx-auto px-6 pb-12">
+
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    {% for category, message in messages %}
-    <div class="mb-6 p-4 rounded-lg
-                    {% if category == 'success' %}bg-green-50 text-green-700 border-green-200
-                    {% elif category == 'danger' %}bg-red-50 text-red-700 border-red-200
-                    {% else %}bg-yellow-50 text-yellow-700 border-yellow-200{% endif %} border">
-        {{ message }}
+    <div class="mb-6 space-y-2">
+        {% for category, message in messages %}
+        <div class="p-4 rounded-xl text-sm font-bold
+                    {% if category == 'success' %}bg-green-100 text-green-700
+                    {% elif category == 'danger' %}bg-red-100 text-red-700
+                    {% elif category == 'warning' %}bg-amber-100 text-amber-800 break-all
+                    {% else %}bg-slate-100 text-slate-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
     {% endif %}
     {% endwith %}
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-        <h3 class="font-bold text-gray-800 mb-4">Add New Member</h3>
-        <form action="{{ url_for('backoffice.add_user_to_app', app_id=app._id) }}" method="POST" class="flex flex-col md:flex-row gap-4">
-            <input type="email" name="email" placeholder="User Email Address (must exist in Bifrost)" class="flex-1 p-2 border border-gray-300 rounded outline-none focus:border-indigo-500" required>
-            <select name="role" class="p-2 border border-gray-300 rounded outline-none focus:border-indigo-500">
-                <option value="user">Regular User</option>
-                <option value="premium_user">Premium User</option>
-                <option value="admin">App Admin</option>
-            </select>
-            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded transition">
-                + Add User
-            </button>
-        </form>
-    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-            <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-            {% for user in users %}
-            <tr>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">{{ user.display_name }}</div>
-                    <div class="text-sm text-gray-500">{{ user.email or user.telegram_id }}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                {% if user.role == 'admin' %}bg-purple-100 text-purple-800
-                                {% elif user.role == 'premium_user' %}bg-green-100 text-green-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ user.role }}
-                            </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {{ user.expires_at.strftime('%Y-%m-%d') if user.expires_at else 'Lifetime' }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <form action="{{ url_for('backoffice.update_user_role', app_id=app._id, user_id=user.account_id) }}" method="POST" class="flex space-x-2">
-                        <select name="role" class="text-sm border border-gray-300 rounded px-2 py-1">
-                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
-                            <option value="premium_user" {% if user.role == 'premium_user' %}selected{% endif %}>Premium</option>
-                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                            <option value="banned" {% if user.role == 'banned' %}selected{% endif %}>Ban</option>
-                        </select>
-                        <select name="duration" class="text-sm border border-gray-300 rounded px-2 py-1">
-                            <option value="">No Change</option>
-                            <option value="1m">+1 Month</option>
-                            <option value="1y">+1 Year</option>
-                            <option value="lifetime">Lifetime</option>
-                        </select>
-                        <button type="submit" class="text-indigo-600 hover:text-indigo-900">Save</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-900 mb-4 flex items-center">
+                    <span class="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3">👤</span> Add Member
+                </h3>
+                <form action="{{ url_for('backoffice.add_user_to_app', app_id=app._id) }}" method="POST" class="flex flex-col md:flex-row gap-4">
+                    <input type="email" name="email" placeholder="User Email (Invites if new)" class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50" required>
+                    <select name="role" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600">
+                        <option value="user">User</option>
+                        <option value="premium_user">Premium</option>
+                        <option value="admin">App Admin</option>
+                    </select>
+                    <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-slate-200">
+                        Add User
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <h3 class="font-bold text-slate-700">User Directory</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-100">
+                        <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">User</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Expires</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-100">
+                        {% for user in users %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-bold text-slate-900">{{ user.display_name or 'No Name' }}</div>
+                                <div class="text-xs text-slate-400">{{ user.email or user.telegram_id }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-bold rounded-md
+                                                {% if user.role == 'admin' %}bg-purple-100 text-purple-700
+                                                {% elif user.role == 'premium_user' %}bg-green-100 text-green-700
+                                                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ user.role }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-medium">
+                                {{ user.expires_at.strftime('%Y-%m-%d') if user.expires_at else 'Lifetime' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <form action="{{ url_for('backoffice.update_user_role', app_id=app._id, user_id=user.account_id) }}" method="POST" class="flex space-x-2">
+                                    <select name="role" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                                        <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+                                        <option value="premium_user" {% if user.role == 'premium_user' %}selected{% endif %}>Premium</option>
+                                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                        <option value="banned" {% if user.role == 'banned' %}selected{% endif %}>Ban</option>
+                                    </select>
+                                    <select name="duration" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                                        <option value="">--</option>
+                                        <option value="1m">+1 Mo</option>
+                                        <option value="1y">+1 Yr</option>
+                                        <option value="lifetime">Forever</option>
+                                    </select>
+                                    <button type="submit" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs">Save</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if session['is_super_admin'] %}
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-900 mb-4">Technical Details</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase">Client ID</label>
+                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all">{{ app.client_id }}</code>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase">Webhook Secret</label>
+                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all">{{ app.webhook_secret }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-red-50 p-6 rounded-2xl border border-red-100">
+                <h3 class="font-bold text-red-900 mb-2">Danger Zone</h3>
+                <p class="text-xs text-red-600 mb-4">Rotating the secret will immediately break all active sessions and API calls for this app.</p>
+                <form action="{{ url_for('backoffice.rotate_secret', app_id=app._id) }}" method="POST" onsubmit="return confirm('Are you strictly sure? This will break the running app.');">
+                    <button type="submit" class="w-full bg-white border border-red-200 text-red-600 font-bold py-2 px-4 rounded-xl hover:bg-red-600 hover:text-white transition">
+                        Rotate Client Secret
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 </body>

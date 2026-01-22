@@ -4,6 +4,7 @@ from requests.auth import HTTPBasicAuth
 from bson import ObjectId
 from .config import Config
 from .database import get_db
+import pymongo
 
 # Import the logic directly from the Backend
 # We use a try/except import to allow this file to run in standalone contexts if needed
@@ -17,16 +18,16 @@ log = logging.getLogger(__name__)
 def call_grant_premium(user_telegram_id, target_client_id):
     """
     Directly accesses the database to grant premium.
-    Replaces the HTTP call to avoid Gunicorn Deadlocks.
+    Attempts to complete a PENDING transaction to trigger 'subscription_success'.
+    Falls back to simple role grant if no transaction is found.
     """
     try:
         if BifrostDB is None:
             log.error("CRITICAL: BifrostDB model not found. Cannot grant premium.")
             return False
 
-        # 1. Get a DB connection
+        # 1. Get a DB connection and Logic Handle
         db_instance = get_db()
-        # Create the logic handler (passing the client and db_name)
         logic = BifrostDB(db_instance.client, Config.DB_NAME)
 
         # 2. Find User
@@ -41,9 +42,39 @@ def call_grant_premium(user_telegram_id, target_client_id):
             log.error(f"App {target_client_id} not found.")
             return False
 
-        # 4. Perform the Link (Grant Role)
+        # 4. LOOK FOR PENDING TRANSACTION
+        # We look for the most recent 'pending' transaction for this user+app.
+        # This allows us to fire the 'subscription_success' webhook with the correct Amount/Currency.
+        pending_tx = logic.db.transactions.find_one(
+            {
+                "account_id": user['_id'],
+                "app_id": app_doc['_id'],
+                "status": "pending"
+            },
+            sort=[("created_at", pymongo.DESCENDING)]
+        )
+
+        if pending_tx:
+            log.info(f"🔄 Found pending transaction {pending_tx['transaction_id']}. Completing...")
+            # complete_transaction() handles:
+            # 1. Updating status to 'completed'
+            # 2. Linking User to App (Grant Role + Duration)
+            # 3. Firing 'subscription_success' Webhook (The Fix)
+            success, msg = logic.complete_transaction(pending_tx['transaction_id'])
+
+            if success:
+                log.info(f"✅ Transaction {pending_tx['transaction_id']} completed successfully.")
+                return True
+            else:
+                log.error(f"❌ Failed to complete transaction: {msg}")
+                # Don't return false yet, attempt manual fallback
+
+        # 5. FALLBACK: Manual Link (Legacy or No Transaction found)
+        # This will fire 'account_role_change' but NOT 'subscription_success'
+        log.info(f"⚠️ No pending transaction found or completion failed. Falling back to manual grant.")
         logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user")
-        log.info(f"✅ Directly granted premium to {user_telegram_id} for {target_client_id}")
+
+        log.info(f"✅ Manually granted premium to {user_telegram_id} for {target_client_id}")
         return True
 
     except Exception as e:
