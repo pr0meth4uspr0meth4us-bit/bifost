@@ -4,6 +4,17 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-01-22
+
+### Added
+- **User Invite Flow**: Implemented a system to invite new users via email when adding them to an App or assigning them as an App Admin during creation.
+- **Email Service**: Added `send_invite_email` to `bifrost/services/email_service.py`.
+- **UI**: Added "Initial Administrator" field to the Create App form in the Backoffice.
+
+### Changed
+- **Email Templates**: Refactored `verification_email.html` into a universal template supporting dynamic Titles, Subtitles, and Call-to-Action buttons.
+- **Backoffice Logic**: Updated `create_app` and `add_user_to_app` to detect non-existent users, create placeholder accounts, and trigger invitation emails automatically.
+
 ## [2.1.0] - 2026-01-22
 
 ### Added
