@@ -1,21 +1,30 @@
 import secrets
-import logging
 from datetime import datetime
-from bson import ObjectId
 from zoneinfo import ZoneInfo
+from bson import ObjectId
+import logging
 
-UTC = ZoneInfo("UTC")
 log = logging.getLogger(__name__)
+UTC = ZoneInfo("UTC")
 
-class PaymentsMixin:
-    """Handles Transactions, Payment Logs, and Claims."""
 
-    def create_transaction(self, account_id, app_id, amount, currency, description, target_role=None, duration=None, ref_id=None):
+class PaymentMixin:
+    # ---------------------------------------------------------
+    # PAYMENT & TRANSACTIONS
+    # ---------------------------------------------------------
+    def create_transaction(self, account_id, app_id, app_name, amount, currency, description, target_role=None,
+                           duration=None,
+                           ref_id=None):
+        """
+        Creates a pending transaction.
+        Stores app_name directly to prevent lookup failures later.
+        """
         transaction_id = f"tx-{secrets.token_hex(8)}"
         doc = {
             "transaction_id": transaction_id,
             "account_id": ObjectId(account_id) if account_id else None,
             "app_id": ObjectId(app_id),
+            "app_name": app_name,
             "amount": amount,
             "currency": currency,
             "description": description,
@@ -30,37 +39,43 @@ class PaymentsMixin:
         self.db.transactions.insert_one(doc)
         return transaction_id
 
-    def complete_transaction(self, transaction_id, provider_ref=None):
-        tx = self.db.transactions.find_one({"transaction_id": transaction_id})
-        if not tx: return False, "Transaction not found"
-        if tx['status'] == 'completed': return True, "Already completed"
+def complete_transaction(self, transaction_id, provider_ref=None):
+    tx = self.db.transactions.find_one({"transaction_id": transaction_id})
+    if not tx: return False, "Transaction not found"
+    if tx['status'] == 'completed': return True, "Already completed"
 
-        # 1. Mark as Completed
-        self.db.transactions.update_one(
-            {"_id": tx['_id']},
-            {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
+    self.db.transactions.update_one(
+        {"_id": tx['_id']},
+        {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
+    )
+
+    # Grant the role and Apply Duration
+    if tx.get('target_role') and tx.get('account_id'):
+        # 1. Update DB Link (SUPPRESS generic event)
+        self.link_user_to_app(
+            account_id=tx['account_id'],
+            app_id=tx['app_id'],
+            role=tx['target_role'],
+            duration_str=tx.get('duration'),
+            suppress_webhook=True  # <--- SILENCE GENERIC
         )
 
-        # 2. Grant Role & Trigger Events
-        if tx.get('target_role') and tx.get('account_id'):
-            # This triggers 'account_role_change' automatically if the role changes
-            self.link_user_to_app(
-                account_id=tx['account_id'],
-                app_id=tx['app_id'],
-                role=tx['target_role'],
-                duration_str=tx.get('duration')
-            )
+        # 2. Trigger Specific Payment Success Webhook
+        log.info(f"🚀 Triggering subscription_success for TX {transaction_id}")
+        self._trigger_event_for_user(
+            account_id=tx['account_id'],
+            event_type="subscription_success",
+            specific_app_id=tx['app_id'],
+            extra_data={
+                "transaction_id": transaction_id,
+                "amount": tx['amount'],
+                "currency": tx['currency'],
+                "role": tx['target_role'],
+                "client_ref_id": tx.get('client_ref_id')
+            }
+        )
 
-            # --- NEW: Explicitly trigger 'subscription_success' ---
-            # This ensures your bot gets the specific payment event it is waiting for
-            log.info(f"🚀 Triggering subscription_success for TX {transaction_id}")
-            self._trigger_event_for_user(
-                account_id=tx['account_id'],
-                event_type="subscription_success",
-                specific_app_id=tx['app_id']
-            )
-
-        return True, "Transaction completed and role updated"
+    return True, "Transaction completed and role updated"
 
     def save_pending_payment(self, trx_id, amount, currency, raw_text, payer_name):
         try:
@@ -83,6 +98,7 @@ class PaymentsMixin:
             return False
 
     def claim_payment(self, trx_input, app_id, user_identity):
+        # 1. Resolve User
         user = None
         if 'account_id' in user_identity:
             user = self.find_account_by_id(user_identity['account_id'])
@@ -94,6 +110,7 @@ class PaymentsMixin:
         if not user:
             return False, "User account not found."
 
+        # 2. Fuzzy Match Payment
         safe_input = str(trx_input).strip()
         regex_pattern = f"{safe_input}$"
 
@@ -105,6 +122,7 @@ class PaymentsMixin:
         if not payment:
             return False, "Transaction ID not found or already claimed."
 
+        # 3. Atomic Claim
         result = self.db.payment_logs.update_one(
             {"_id": payment['_id'], "status": "unclaimed"},
             {
@@ -121,14 +139,21 @@ class PaymentsMixin:
         if result.modified_count == 0:
             return False, "Error: Payment claimed by someone else."
 
-        # Grant Role & Trigger Event
+        # 4. Grant Premium Role
         self.link_user_to_app(user['_id'], app_id, role="premium_user")
 
-        # Also trigger explicit success here for claimed payments
+        # 5. Send Success Webhook for Claims
         self._trigger_event_for_user(
             account_id=user['_id'],
             event_type="subscription_success",
-            specific_app_id=app_id
+            specific_app_id=app_id,
+            extra_data={
+                "transaction_id": payment['trx_id'],
+                "amount": payment['amount'],
+                "currency": payment['currency'],
+                "role": "premium_user",
+                "method": "claim"
+            }
         )
 
         return True, f"Success! ${payment['amount']} claimed."

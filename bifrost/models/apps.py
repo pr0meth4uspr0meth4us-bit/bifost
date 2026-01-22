@@ -43,51 +43,46 @@ class AppMixin:
             return False
         return check_password_hash(app["client_secret_hash"], provided_secret)
 
-    def link_user_to_app(self, account_id, app_id, role="user", duration_str=None):
-        """
-        Links a user to an app, optionally calculating an expiration date.
-        duration_str examples: '1m' (month), '1y' (year), 'lifetime'
-        """
-        current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
-        old_role = current_link.get('role') if current_link else None
+def link_user_to_app(self, account_id, app_id, role="user", duration_str=None, suppress_webhook=False):
+    """
+    Links a user to an app.
+    Added suppress_webhook=True to prevent firing 'account_role_change'
+    when we want to fire a more specific event (like 'subscription_success') instead.
+    """
+    current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
+    old_role = current_link.get('role') if current_link else None
 
-        update_doc = {
-            "last_login": datetime.now(UTC),
-            "role": role
-        }
+    update_doc = {
+        "last_login": datetime.now(UTC),
+        "role": role
+    }
 
-        if duration_str and duration_str != 'lifetime':
-            now = datetime.now(UTC)
-            expires_at = None
+    if duration_str and duration_str != 'lifetime':
+        now = datetime.now(UTC)
+        expires_at = None
+        if duration_str == '1m': expires_at = now + timedelta(days=30)
+        elif duration_str == '3m': expires_at = now + timedelta(days=90)
+        elif duration_str == '6m': expires_at = now + timedelta(days=180)
+        elif duration_str == '1y': expires_at = now + timedelta(days=365)
 
-            if duration_str == '1m':
-                expires_at = now + timedelta(days=30)
-            elif duration_str == '3m':
-                expires_at = now + timedelta(days=90)
-            elif duration_str == '6m':
-                expires_at = now + timedelta(days=180)
-            elif duration_str == '1y':
-                expires_at = now + timedelta(days=365)
+        if expires_at:
+            update_doc["expires_at"] = expires_at
 
-            if expires_at:
-                update_doc["expires_at"] = expires_at
+    if duration_str == 'lifetime':
+        update_doc["expires_at"] = None
 
-        # If 'lifetime', explicitly remove expiration
-        if duration_str == 'lifetime':
-            update_doc["expires_at"] = None
+    self.db.app_links.update_one(
+        {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
+        {
+            "$set": update_doc,
+            "$setOnInsert": {"linked_at": datetime.now(UTC)}
+        },
+        upsert=True
+    )
 
-        self.db.app_links.update_one(
-            {"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)},
-            {
-                "$set": update_doc,
-                "$setOnInsert": {"linked_at": datetime.now(UTC)}
-            },
-            upsert=True
-        )
-
-        # Trigger Webhook if role changed
-        if old_role != role:
-            self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
+    # Trigger Webhook ONLY if role changed AND not suppressed
+    if old_role != role and not suppress_webhook:
+        self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
 
     def get_user_role_for_app(self, account_id, app_id):
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
