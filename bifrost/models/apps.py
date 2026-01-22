@@ -8,6 +8,7 @@ import logging
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
 
+
 class AppMixin:
     # ---------------------------------------------------------
     # CLIENT APP MANAGEMENT
@@ -41,6 +42,19 @@ class AppMixin:
             "client_secret": client_secret,
             "webhook_secret": webhook_secret
         }
+
+    def update_app_details(self, app_id, data):
+        """Updates non-sensitive app details."""
+        allowed_fields = ['app_name', 'app_callback_url', 'app_web_url', 'app_api_url', 'app_logo_url']
+        updates = {k: v for k, v in data.items() if k in allowed_fields}
+
+        if updates:
+            self.db.applications.update_one(
+                {"_id": ObjectId(app_id)},
+                {"$set": updates}
+            )
+            return True
+        return False
 
     def rotate_app_secret(self, app_id):
         """Regenerates the Client Secret for an App."""
@@ -77,10 +91,14 @@ class AppMixin:
         if duration_str and duration_str != 'lifetime':
             now = datetime.now(UTC)
             expires_at = None
-            if duration_str == '1m': expires_at = now + timedelta(days=30)
-            elif duration_str == '3m': expires_at = now + timedelta(days=90)
-            elif duration_str == '6m': expires_at = now + timedelta(days=180)
-            elif duration_str == '1y': expires_at = now + timedelta(days=365)
+            if duration_str == '1m':
+                expires_at = now + timedelta(days=30)
+            elif duration_str == '3m':
+                expires_at = now + timedelta(days=90)
+            elif duration_str == '6m':
+                expires_at = now + timedelta(days=180)
+            elif duration_str == '1y':
+                expires_at = now + timedelta(days=365)
 
             if expires_at:
                 update_doc["expires_at"] = expires_at

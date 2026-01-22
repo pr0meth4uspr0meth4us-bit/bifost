@@ -12,7 +12,7 @@
     <div class="max-w-7xl mx-auto flex items-center space-x-4">
         <a href="{{ url_for('backoffice.dashboard') }}" class="text-slate-500 hover:text-slate-900 font-bold">← Back</a>
         <div class="h-6 w-px bg-slate-200"></div>
-        <h1 class="text-xl font-bold text-slate-900">{{ app.app_name }} <span class="text-slate-400 font-normal">| User Management</span></h1>
+        <h1 class="text-xl font-bold text-slate-900">{{ app.app_name }} <span class="text-slate-400 font-normal">| App Management</span></h1>
     </div>
 </nav>
 
@@ -111,18 +111,45 @@
             </div>
         </div>
 
-        {% if session['is_super_admin'] %}
         <div class="space-y-6">
+
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="font-bold text-slate-900 mb-4">Technical Details</h3>
+                <h3 class="font-bold text-slate-900 mb-4">General Settings</h3>
+                <form action="{{ url_for('backoffice.update_app_settings', app_id=app._id) }}" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">App Name</label>
+                        <input type="text" name="app_name" value="{{ app.app_name }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Frontend URL</label>
+                        <input type="url" name="web_url" value="{{ app.app_web_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Callback URL</label>
+                        <input type="url" name="callback_url" value="{{ app.app_callback_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">API URL (Webhook)</label>
+                        <input type="url" name="api_url" value="{{ app.app_api_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Logo URL</label>
+                        <input type="url" name="logo_url" value="{{ app.app_logo_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
+                    </div>
+                    <button type="submit" class="w-full bg-slate-800 text-white font-bold py-2 rounded-lg text-sm hover:bg-slate-900 transition">Update Settings</button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-900 mb-4">API Credentials</h3>
                 <div class="space-y-4">
                     <div>
                         <label class="text-xs font-bold text-slate-400 uppercase">Client ID</label>
-                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all">{{ app.client_id }}</code>
+                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all select-all">{{ app.client_id }}</code>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-400 uppercase">Webhook Secret</label>
-                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all">{{ app.webhook_secret }}</code>
+                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all select-all">{{ app.webhook_secret }}</code>
                     </div>
                 </div>
             </div>
@@ -131,13 +158,13 @@
                 <h3 class="font-bold text-red-900 mb-2">Danger Zone</h3>
                 <p class="text-xs text-red-600 mb-4">Rotating the secret will immediately break all active sessions and API calls for this app.</p>
                 <form action="{{ url_for('backoffice.rotate_secret', app_id=app._id) }}" method="POST" onsubmit="return confirm('Are you strictly sure? This will break the running app.');">
-                    <button type="submit" class="w-full bg-white border border-red-200 text-red-600 font-bold py-2 px-4 rounded-xl hover:bg-red-600 hover:text-white transition">
+                    <button type="submit" class="w-full bg-white border border-red-200 text-red-600 font-bold py-2 px-4 rounded-xl hover:bg-red-600 hover:text-white transition text-sm">
                         Rotate Client Secret
                     </button>
                 </form>
             </div>
+
         </div>
-        {% endif %}
 
     </div>
 </div>

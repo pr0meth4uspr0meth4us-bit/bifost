@@ -1,26 +1,23 @@
 # Changelog
 
 All notable changes to the `bifrost` project will be documented in this file.
-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Changelog
-Fixed: The validate_token endpoint in bifrost/internal/routes.py now explicitly returns the telegram_id in its JSON response.
 
+## [2.3.0] - 2026-01-23
 
-Added: Enhanced account_update webhooks in bifrost/models/auth.py to include changed identity fields (telegram_id, email, username) in the extra_data payload .
-[Added] bifrost/templates/auth/verify_otp.html: New screen to enter the 6-digit code received via email.
+### Changed
+- **Backoffice Permissions**: Restored App Management capabilities for App Admins (Tenants). They can now view and edit their own application details.
+- **App Management**: Added a "General Settings" form to the App Details view allowing updates to App Name, URLs (Callback/Web/API), and Logo.
+- **Technical Details**: Exposed `client_id`, `webhook_secret`, and `rotate_secret` functionality to App Admins for their owned applications.
 
-[Added] bifrost/templates/auth/reset_password.html: New screen to set a new password after successful OTP verification.
+### Added
+- **API**: Added `update_app_details` method to `BifrostDB` and a corresponding `POST /backoffice/app/<id>/update` route.
 
-[Changed] bifrost/auth/ui.py: Added logic to handle the multi-step flow (Forgot Password -> Verify OTP -> Reset Password).
+## [2.2.1] - 2026-01-23
 
-
-[Changed] bifrost/templates/auth/login.html & forgot_password.html: Completely redesigned with modern Tailwind CSS and improved UX.
-
-
-[Fixed] bifrost/services/email_service.py: Cleaned up template string replacement to prevent raw logic tags from appearing in user emails.
-- [Fixed] `validate_token` endpoint now returns `telegram_id` in the JSON response.
-- [Added] `account_update` webhooks now include changed fields (telegram_id, email, username) in the `extra_data` payload.
+### Fixed
+- **API Response**: The `validate_token` endpoint in `bifrost/internal/routes.py` now explicitly returns the `telegram_id` in its JSON response.
+- **Webhooks**: Enhanced `account_update` webhooks in `bifrost/models/auth.py` to include changed identity fields (`telegram_id`, `email`, `username`) in the `extra_data` payload.
 
 ## [2.2.0] - 2026-01-22
 
@@ -56,12 +53,14 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
 
 ### Fixed
 - **Missing Webhook**: Fixed an issue where Admin Approval via the Bot triggered `account_role_change` instead of `subscription_success`.
-- **Transaction Completion**: The `call_grant_premium` service now attempts to find and complete a pending transaction record before falling back to a manual role grant. This ensures the client app receives the transaction ID and amount in the webhook payload.
+- **Transaction Completion**: The `call_grant_premium` service now attempts to find and complete a pending transaction record before falling back to a manual role grant.
+  This ensures the client app receives the transaction ID and amount in the webhook payload.
 
 ## [2.0.0] - 2026-01-22
 
 ### Removed
-- **Legacy Admin**: Removed `bifrost/admin_panel.py` and the `flask-admin` dependency. All administration is now handled via the custom `backoffice` blueprint.
+- **Legacy Admin**: Removed `bifrost/admin_panel.py` and the `flask-admin` dependency.
+  All administration is now handled via the custom `backoffice` blueprint.
 
 ### Added
 - **Unified Portal**: The `/backoffice` now serves as the single portal for both Super Admins and App Admins.
@@ -81,6 +80,7 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
 - **Subscription Events**:
   - `subscription_success`: Fired when a payment completes. Payload includes `transaction_id`, `amount`, `currency`, and `role`.
   - `subscription_expired`: Fired by the Reaper when a subscription expires.
+
 ### Changed
 - **Scheduler**: The subscription reaper now sends `subscription_expired` instead of the generic `account_role_change` event for better clarity in client apps.
 
@@ -92,23 +92,28 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
 ## [1.9.6] - 2026-01-22
 
 ### Fixed
-- **Admin Approval**: Fixed a bug where the Admin Approve button failed with "App lookup_skipped not found". The bot now correctly fetches the `client_id` from the database during the `/start` command instead of relying on a placeholder.
+- **Admin Approval**: Fixed a bug where the Admin Approve button failed with "App lookup_skipped not found".
+  The bot now correctly fetches the `client_id` from the database during the `/start` command instead of relying on a placeholder.
 
 ## [1.9.5] - 2026-01-22
 
 ### Fixed
-- **Critical Deadlock**: Replaced the HTTP call in `call_grant_premium` with a direct database operation. Previously, the bot tried to call its own API via HTTP, causing the server worker to freeze (waiting for itself) and timeout.
+- **Critical Deadlock**: Replaced the HTTP call in `call_grant_premium` with a direct database operation.
+  Previously, the bot tried to call its own API via HTTP, causing the server worker to freeze (waiting for itself) and timeout.
 
 ## [1.9.4] - 2026-01-22
 
 ### Fixed
-- **Persistence**: Fixed a critical bug where `user_data` (containing the payment amount and app name) was lost upon bot restart. The `MongoPersistence` class now correctly reads/writes user data to the `user_data` collection.
-- **Payment Flow**: Added a fallback in `receive_proof`. If the bot has forgotten the payment details (e.g., from a pre-fix session), it now asks the user to click the payment link again instead of forwarding "Unknown" to the admin.
+- **Persistence**: Fixed a critical bug where `user_data` (containing the payment amount and app name) was lost upon bot restart.
+  The `MongoPersistence` class now correctly reads/writes user data to the `user_data` collection.
+- **Payment Flow**: Added a fallback in `receive_proof`.
+  If the bot has forgotten the payment details (e.g., from a pre-fix session), it now asks the user to click the payment link again instead of forwarding "Unknown" to the admin.
 
 ## [1.9.1] - 2026-01-22
 
 ### Refactored
-- **Payment Logic**: To prevent "Unknown App" errors, the `app_name` is now stored directly in the `transactions` collection at the time of creation. This removes the reliance on a secondary lookup by the Bot.
+- **Payment Logic**: To prevent "Unknown App" errors, the `app_name` is now stored directly in the `transactions` collection at the time of creation.
+  This removes the reliance on a secondary lookup by the Bot.
 - **Bot Services**: Added `bson.ObjectId` handling to `bot/services.py` to ensure robust database queries even if IDs are stored as strings.
 
 ## [1.9.0] - 2026-01-22
@@ -118,6 +123,7 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
   - `handlers/`: Split monolithic logic into `commands.py` (User inputs), `payment.py` (Proof processing), and `admin.py` (Approval flows).
   - `database.py`: Centralized MongoDB connection logic, removing it from `group_listener.py`.
   - `services.py`: Isolated external API calls to Bifrost Internal API and internal DB helper functions.
+
 ### Fixed
 - **Configuration**: `config.py` now uses `pathlib` to traverse up the directory tree to find the `.env` file, resolving issues where environment variables failed to load locally.
 
@@ -134,7 +140,7 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
 - **Enterprise Payment Flow**: Implemented "Intent-Based" payments to prevent parameter tampering.
   - New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
   - Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
-  - **Security**: The bot now fetches price, duration, and role directly from the MongoDB `transactions` collection instead of trusting the URL parameters.
+- **Security**: The bot now fetches price, duration, and role directly from the MongoDB `transactions` collection instead of trusting the URL parameters.
 
 ### Changed
 - **Models**: Updated `create_transaction` in `BifrostDB` to accept `None` for `account_id`, allowing transactions to be created before a user is identified.
@@ -154,7 +160,8 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
 
 ### Fixed
 - **Webhook Crash**: Resolved `RuntimeError: Install Flask with the 'async' extra` by converting the `/telegram-webhook` route to a synchronous wrapper.
-- **Worker Compatibility**: Implemented a manual `asyncio` event loop within the webhook route. This allows the async Telegram Bot logic to run safely inside standard synchronous Gunicorn workers without requiring ASGI or additional dependencies.
+- **Worker Compatibility**: Implemented a manual `asyncio` event loop within the webhook route.
+  This allows the async Telegram Bot logic to run safely inside standard synchronous Gunicorn workers without requiring ASGI or additional dependencies.
 
 ## [1.6.0] - 2026-01-22 
 
@@ -163,7 +170,8 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
   - Automatically finds users with `expires_at < NOW` who are still marked as `premium_user` or `admin`.
   - Downgrades their role to `user`.
   - Removes the `expires_at` field.
-- **Expiration Webhooks**: The Reaper now triggers an `account_role_change` webhook event to all client apps immediately upon downgrading a user. This ensures client apps (like Finance Bot) invalidate their local cache instantly.
+- **Expiration Webhooks**: The Reaper now triggers an `account_role_change` webhook event to all client apps immediately upon downgrading a user.
+  This ensures client apps (like Finance Bot) invalidate their local cache instantly.
 - **Scheduler Integration**: Updated `bifrost/__init__.py` to start the background scheduler thread when the Flask app launches.
 
 ### Changed
@@ -198,8 +206,10 @@ Added: Enhanced account_update webhooks in bifrost/models/auth.py to include cha
 
 ### Changed
 - **Bot Architecture**: Migrated from Long Polling to Webhooks for cost efficiency and scalability on serverless platforms (Koyeb).
-- **Process Management**: Updated `run.sh` to exclusively run the Gunicorn Web Server. The Bot process is now triggered internally via the `/telegram-webhook` route.
-- **State Management**: Replaced local file storage (`PicklePersistence`) with `MongoPersistence` (`bot/persistence.py`) to store conversation states in MongoDB. This enables stateless, concurrent webhook workers to handle multiple users simultaneously without race conditions.
+- **Process Management**: Updated `run.sh` to exclusively run the Gunicorn Web Server.
+  The Bot process is now triggered internally via the `/telegram-webhook` route.
+- **State Management**: Replaced local file storage (`PicklePersistence`) with `MongoPersistence` (`bot/persistence.py`) to store conversation states in MongoDB.
+  This enables stateless, concurrent webhook workers to handle multiple users simultaneously without race conditions.
 
 ### Fixed
 - **Concurrency Crash**: Resolved `RuntimeError: Event loop is closed` by creating an ephemeral `Application` instance for each incoming webhook request.
