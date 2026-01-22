@@ -7,7 +7,6 @@ from .database import get_db
 import pymongo
 
 # Import the logic directly from the Backend
-# We use a try/except import to allow this file to run in standalone contexts if needed
 try:
     from bifrost.models import BifrostDB
 except ImportError:
@@ -43,8 +42,6 @@ def call_grant_premium(user_telegram_id, target_client_id):
             return False
 
         # 4. LOOK FOR PENDING TRANSACTION
-        # We look for the most recent 'pending' transaction for this user+app.
-        # This allows us to fire the 'subscription_success' webhook with the correct Amount/Currency.
         pending_tx = logic.db.transactions.find_one(
             {
                 "account_id": user['_id'],
@@ -56,23 +53,33 @@ def call_grant_premium(user_telegram_id, target_client_id):
 
         if pending_tx:
             log.info(f"🔄 Found pending transaction {pending_tx['transaction_id']}. Completing...")
-            # complete_transaction() handles:
-            # 1. Updating status to 'completed'
-            # 2. Linking User to App (Grant Role + Duration)
-            # 3. Firing 'subscription_success' Webhook (The Fix)
             success, msg = logic.complete_transaction(pending_tx['transaction_id'])
-
             if success:
                 log.info(f"✅ Transaction {pending_tx['transaction_id']} completed successfully.")
                 return True
             else:
                 log.error(f"❌ Failed to complete transaction: {msg}")
-                # Don't return false yet, attempt manual fallback
 
         # 5. FALLBACK: Manual Link (Legacy or No Transaction found)
-        # This will fire 'account_role_change' but NOT 'subscription_success'
+        # Fix: Suppress the generic event and manually fire the correct one.
         log.info(f"⚠️ No pending transaction found or completion failed. Falling back to manual grant.")
-        logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user")
+
+        # Link without firing account_role_change
+        logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user", suppress_webhook=True)
+
+        # Manually trigger subscription_success so the client app reacts correctly
+        logic._trigger_event_for_user(
+            account_id=user['_id'],
+            event_type="subscription_success",
+            specific_app_id=app_doc['_id'],
+            extra_data={
+                "transaction_id": "manual-grant",
+                "amount": 0,
+                "currency": "USD",
+                "role": "premium_user",
+                "method": "admin_manual"
+            }
+        )
 
         log.info(f"✅ Manually granted premium to {user_telegram_id} for {target_client_id}")
         return True
