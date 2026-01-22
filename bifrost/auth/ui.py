@@ -62,6 +62,8 @@ def login():
 
     return render_template('auth/login.html', app=app_config)
 
+# bifrost/auth/ui.py
+
 @auth_ui_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     client_id = request.args.get('client_id')
@@ -71,9 +73,24 @@ def forgot_password():
         email = request.form.get('email').strip().lower()
         user = db.find_account_by_email(email)
         if user:
+            # Create OTP and get a verification session ID [cite: 133, 170]
             otp, ver_id = db.create_otp(email, channel='email', account_id=user['_id'])
-            send_otp_email(to_email=email, otp=otp, app_name=app_config.get('app_name', 'Bifrost'), logo_url=app_config.get('app_logo_url'))
-            return redirect(url_for('auth_ui.verify_otp', verification_id=ver_id, client_id=client_id))
+
+            # Construct the link specifically to the OTP verification page
+            verify_url = url_for('auth_ui.verify_otp',
+                                 verification_id=ver_id,
+                                 client_id=client_id,
+                                 _external=True)
+
+            send_otp_email(
+                to_email=email,
+                otp=otp,
+                app_name=app_config.get('app_name', 'Bifrost'),
+                logo_url=app_config.get('app_logo_url'),
+                app_url=verify_url
+            )
+            # Redirect browser to the verification page immediately
+            return redirect(verify_url)
 
         flash("If an account exists, a reset code has been sent.", "info")
     return render_template('auth/forgot_password.html', app=app_config)

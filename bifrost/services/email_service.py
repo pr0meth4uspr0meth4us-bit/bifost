@@ -43,11 +43,14 @@ def send_email(to_email, subject, html_content, text_content, app_name):
         log.error(f"Email failed: {e}")
         return False
 
+# bifrost/services/email_service.py
+
 def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, app_url="#"):
+    """Sends a standard OTP verification email."""
     html_template = load_email_template('verification_email.html')
     final_logo = logo_url if logo_url else get_default_logo_url()
 
-    # Perform clean replacements
+    # Clean string replacement to prevent raw logic tags from appearing
     html_content = html_template.replace("{OTP_CODE}", str(otp)) \
         .replace("{APP_NAME}", app_name) \
         .replace("{LOGO_URL}", final_logo) \
@@ -59,9 +62,11 @@ def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, ap
     return send_email(to_email, f"🔐 {app_name} Code", html_content, text_content, app_name)
 
 def send_invite_email(to_email, otp, app_name, login_url, logo_url=None):
+    """Sends an invitation email with a link to the verification page."""
     html_template = load_email_template('verification_email.html')
     final_logo = logo_url if logo_url else get_default_logo_url()
 
+    # Optimized for invite flow: Link now points to the OTP verification page
     html_content = html_template.replace("{OTP_CODE}", str(otp)) \
         .replace("{APP_NAME}", app_name) \
         .replace("{LOGO_URL}", final_logo) \

@@ -4,46 +4,32 @@
     <meta charset="UTF-8">
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9fafb; padding: 40px 20px; margin: 0; }
-        .container { max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; }
-        .header { padding: 32px 20px; text-align: center; background-color: #ffffff; border-bottom: 1px solid #f3f4f6; }
+        .container { max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .header { padding: 32px 20px; text-align: center; border-bottom: 1px solid #f3f4f6; }
         .logo { max-height: 48px; margin-bottom: 12px; }
         .content { padding: 40px; text-align: center; }
         .title { color: #111827; font-size: 24px; font-weight: 700; margin-bottom: 8px; }
         .subtitle { color: #6b7280; font-size: 16px; line-height: 1.5; margin-bottom: 32px; }
-        .code-box { background-color: #eff6ff; border-radius: 12px; padding: 24px; margin-bottom: 32px; letter-spacing: 8px; font-size: 32px; font-weight: 800; color: #4f46e5; border: 2px dashed #c7d2fe; display: inline-block; min-width: 200px; }
-        .btn { display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-bottom: 24px; }
-        .footer { padding: 24px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb; }
-        .footer-text { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+        .code-box { background-color: #eff6ff; border-radius: 12px; padding: 24px; letter-spacing: 8px; font-size: 32px; font-weight: 800; color: #4f46e5; border: 2px dashed #c7d2fe; display: inline-block; }
+        .btn { display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 24px; }
+        .footer { padding: 24px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        {% if "{LOGO_URL}" != "" %}
-        <img src="{LOGO_URL}" alt="{APP_NAME}" class="logo">
-        {% else %}
-        <h2 style="margin:0; color:#4f46e5; font-size: 20px;">{APP_NAME}</h2>
-        {% endif %}
+        <img src="{LOGO_URL}" alt="{APP_NAME}" class="logo" onerror="this.style.display='none'">
+        <div style="font-weight: bold; color: #4f46e5;">{APP_NAME}</div>
     </div>
     <div class="content">
         <div class="title">{TITLE}</div>
         <p class="subtitle">{SUBTITLE}</p>
-
         <div class="code-box">{OTP_CODE}</div>
-
-        {% if "{APP_URL}" != "#" %}
         <div>
-            <a href="{APP_URL}" class="btn">Login to {APP_NAME}</a>
+            <a href="{APP_URL}" class="btn">Verify It's Me</a>
         </div>
-        {% endif %}
-
-        <p style="font-size: 14px; color: #9ca3af; margin: 0;">
-            If you did not request this, you can safely ignore this email.
-        </p>
     </div>
-    <div class="footer">
-        <div class="footer-text">Secured by Bifrost Identity Platform</div>
-    </div>
+    <div class="footer">Secured by Bifrost Identity Platform</div>
 </div>
 </body>
 </html>
