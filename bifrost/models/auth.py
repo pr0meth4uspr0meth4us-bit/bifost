@@ -141,7 +141,12 @@ class AuthMixin:
         )
 
         if result.modified_count > 0:
-            self._trigger_event_for_user(account_id, "account_update")
+            # SEND UPDATED DATA IN WEBHOOK
+            self._trigger_event_for_user(
+                account_id,
+                "account_update",
+                extra_data={"email": email}
+            )
             return True, "Account linked successfully."
         else:
             return False, "Account not found."
@@ -162,7 +167,12 @@ class AuthMixin:
         )
 
         if result.modified_count > 0:
-            self._trigger_event_for_user(account_id, "account_update")
+            # SEND UPDATED DATA IN WEBHOOK
+            self._trigger_event_for_user(
+                account_id,
+                "account_update",
+                extra_data={"telegram_id": telegram_id}
+            )
             return True, "Telegram linked."
         else:
             return False, "Account not found."
@@ -184,7 +194,12 @@ class AuthMixin:
         result = self.db.accounts.update_one({"_id": ObjectId(account_id)}, {"$set": updates})
 
         if result.matched_count > 0:
-            self._trigger_event_for_user(account_id, "account_update")
+            # SEND UPDATED DATA IN WEBHOOK
+            self._trigger_event_for_user(
+                account_id,
+                "account_update",
+                extra_data=updates
+            )
             return True, "Profile updated."
         else:
             return False, "Account not found."
