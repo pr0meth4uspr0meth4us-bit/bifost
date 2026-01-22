@@ -39,43 +39,43 @@ class PaymentMixin:
         self.db.transactions.insert_one(doc)
         return transaction_id
 
-def complete_transaction(self, transaction_id, provider_ref=None):
-    tx = self.db.transactions.find_one({"transaction_id": transaction_id})
-    if not tx: return False, "Transaction not found"
-    if tx['status'] == 'completed': return True, "Already completed"
+    def complete_transaction(self, transaction_id, provider_ref=None):
+        tx = self.db.transactions.find_one({"transaction_id": transaction_id})
+        if not tx: return False, "Transaction not found"
+        if tx['status'] == 'completed': return True, "Already completed"
 
-    self.db.transactions.update_one(
-        {"_id": tx['_id']},
-        {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
-    )
-
-    # Grant the role and Apply Duration
-    if tx.get('target_role') and tx.get('account_id'):
-        # 1. Update DB Link (SUPPRESS generic event)
-        self.link_user_to_app(
-            account_id=tx['account_id'],
-            app_id=tx['app_id'],
-            role=tx['target_role'],
-            duration_str=tx.get('duration'),
-            suppress_webhook=True  # <--- SILENCE GENERIC
+        self.db.transactions.update_one(
+            {"_id": tx['_id']},
+            {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
         )
 
-        # 2. Trigger Specific Payment Success Webhook
-        log.info(f"🚀 Triggering subscription_success for TX {transaction_id}")
-        self._trigger_event_for_user(
-            account_id=tx['account_id'],
-            event_type="subscription_success",
-            specific_app_id=tx['app_id'],
-            extra_data={
-                "transaction_id": transaction_id,
-                "amount": tx['amount'],
-                "currency": tx['currency'],
-                "role": tx['target_role'],
-                "client_ref_id": tx.get('client_ref_id')
-            }
-        )
+        # Grant the role and Apply Duration
+        if tx.get('target_role') and tx.get('account_id'):
+            # 1. Update DB Link (SUPPRESS generic event)
+            self.link_user_to_app(
+                account_id=tx['account_id'],
+                app_id=tx['app_id'],
+                role=tx['target_role'],
+                duration_str=tx.get('duration'),
+                suppress_webhook=True  # <--- SILENCE GENERIC
+            )
 
-    return True, "Transaction completed and role updated"
+            # 2. Trigger Specific Payment Success Webhook
+            log.info(f"🚀 Triggering subscription_success for TX {transaction_id}")
+            self._trigger_event_for_user(
+                account_id=tx['account_id'],
+                event_type="subscription_success",
+                specific_app_id=tx['app_id'],
+                extra_data={
+                    "transaction_id": transaction_id,
+                    "amount": tx['amount'],
+                    "currency": tx['currency'],
+                    "role": tx['target_role'],
+                    "client_ref_id": tx.get('client_ref_id')
+                }
+            )
+
+        return True, "Transaction completed and role updated"
 
     def save_pending_payment(self, trx_id, amount, currency, raw_text, payer_name):
         try:
