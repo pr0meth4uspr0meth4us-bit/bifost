@@ -4,6 +4,19 @@ All notable changes to the `bifrost` project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-22
+
+### Added
+- **Branding**: Implemented global support for `logo.png` and `favicon.ico` across the entire platform.
+- **Email Branding**: Updated `bifrost/services/email_service.py` to inject the specific App's logo (or the Bifrost system logo) into invitation and OTP emails.
+- **Dynamic Assets**: Added `get_default_logo_url` helper to resolve static assets via the `BIFROST_PUBLIC_URL`.
+
+### Changed
+- **UI Design**: Completely redesigned `backoffice/login.html` with a modern Tailwind glassmorphism aesthetic.
+- **Backoffice**: Updated `create_app` and `add_user_to_app` logic to pass the specific `logo_url` to the email service during user invites.
+- **Auth UI**: Updated `forgot_password` route to include branding in password reset emails.
+- **Templates**: Updated `dashboard.html` and `index.html` to display the custom logo and favicon.
+
 ## [2.1.1] - 2026-01-22
 
 ### Added

@@ -3,9 +3,17 @@ import os
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import current_app
+from flask import current_app, url_for
 
 log = logging.getLogger(__name__)
+
+def get_default_logo_url():
+    """Constructs the public URL for the Bifrost static logo."""
+    base_url = current_app.config.get('BIFROST_PUBLIC_URL', '').rstrip('/')
+    if not base_url:
+        return ""
+    # We construct the path manually to avoid request-context issues in background threads
+    return f"{base_url}/static/logo.png"
 
 def load_email_template(filename='verification_email.html'):
     """Loads the HTML template."""
@@ -50,10 +58,12 @@ def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, ap
     """
     html_template = load_email_template('verification_email.html')
 
-    # Replace placeholders
+    # Use provided logo, otherwise fall back to Bifrost System Logo
+    final_logo = logo_url if logo_url else get_default_logo_url()
+
     html_content = html_template.replace("{OTP_CODE}", str(otp)) \
         .replace("{APP_NAME}", app_name) \
-        .replace("{LOGO_URL}", logo_url or "") \
+        .replace("{LOGO_URL}", final_logo) \
         .replace("{APP_URL}", app_url) \
         .replace("{TITLE}", "Verification Code") \
         .replace("{SUBTITLE}", f"Please use the following code to complete your sign-in to <strong>{app_name}</strong>.")
@@ -62,15 +72,18 @@ def send_otp_email(to_email, otp, app_name="Bifrost Identity", logo_url=None, ap
 
     return send_email(to_email, f"🔐 {app_name} Login Code", html_content, text_content, app_name)
 
-def send_invite_email(to_email, otp, app_name, login_url):
+def send_invite_email(to_email, otp, app_name, login_url, logo_url=None):
     """
     Sends an Invitation Email to a new user.
     """
     html_template = load_email_template('verification_email.html')
 
+    # Use provided logo, otherwise fall back to Bifrost System Logo
+    final_logo = logo_url if logo_url else get_default_logo_url()
+
     html_content = html_template.replace("{OTP_CODE}", str(otp)) \
         .replace("{APP_NAME}", app_name) \
-        .replace("{LOGO_URL}", "") \
+        .replace("{LOGO_URL}", final_logo) \
         .replace("{APP_URL}", login_url) \
         .replace("{TITLE}", "You've been invited!") \
         .replace("{SUBTITLE}", f"You have been granted access to <strong>{app_name}</strong>. Use this code to set your password and log in.")
