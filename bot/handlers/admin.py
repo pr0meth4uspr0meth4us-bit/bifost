@@ -13,6 +13,8 @@ async def _verify_admin(update: Update):
     return False
 
 
+# In bot/handlers/admin.py
+
 async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _verify_admin(update): return
 
@@ -27,7 +29,7 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer("Approving...")
 
-    # 1. Grant the Role in DB
+    # 1. Grant the Role in DB (Handles both ObjectId and Telegram ID)
     success = call_grant_premium(user_id, target_app_client_id)
 
     if success:
@@ -41,19 +43,24 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML'
         )
 
-        # 4. Notify User with Friendly Name
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=f"🎉 <b>Payment Accepted!</b>\n\nYour features are now unlocked for App: <b>{display_name}</b>.",
-                parse_mode='HTML'
-            )
-        except Exception:
+        # 4. Notify User (Safely)
+        # Check if user_id looks like a Telegram ID (numeric) before trying to send message
+        if user_id.isdigit():
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"🎉 <b>Payment Accepted!</b>\n\nYour features are now unlocked for App: <b>{display_name}</b>.",
+                    parse_mode='HTML'
+                )
+            except Exception:
+                pass # User might have blocked bot, or this is an edge case
+        else:
+            # This was a Web Upload (ObjectId).
+            # The 'subscription_success' webhook fired by call_grant_premium will handle notifying the client app.
             pass
+
     else:
         await query.answer("❌ API Error. Check Logs.", show_alert=True)
-
-
 async def admin_reject_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await _verify_admin(update): return
     query = update.callback_query

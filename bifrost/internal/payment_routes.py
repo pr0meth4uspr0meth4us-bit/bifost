@@ -6,6 +6,8 @@ from ..services.payway import PayWayService
 from ..services.gumroad import GumroadService
 from .utils import require_service_auth
 from . import internal_bp
+from werkzeug.utils import secure_filename
+from ..utils.telegram import send_payment_proof_to_admin
 
 log = logging.getLogger(__name__)
 
@@ -254,3 +256,70 @@ def api_claim_payment():
         return jsonify({"success": True, "message": msg}), 200
     else:
         return jsonify({"success": False, "error": msg}), 400
+@internal_bp.route('/payments/submit-proof', methods=['POST'])
+@require_service_auth
+def submit_payment_proof():
+    """
+    Allows Client Apps to upload a payment receipt on behalf of a user.
+    Forwards the proof to the Telegram Admin Group for manual approval.
+    """
+    # 1. Check for File
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # 2. Get Metadata (Form Data)
+    account_id = request.form.get('account_id')
+    email = request.form.get('email')
+    transaction_id = request.form.get('transaction_id')
+
+    # 3. Authenticate Context
+    client_id = request.authenticated_client_id
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+    app_doc = db.get_app_by_client_id(client_id)
+
+    if not app_doc:
+        return jsonify({"error": "Invalid Client App"}), 403
+
+    # 4. Resolve User
+    user = None
+    if account_id:
+        user = db.find_account_by_id(account_id)
+    elif email:
+        user = db.find_account_by_email(email)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # 5. Validate Transaction (Optional but recommended for display)
+    amount_display = "See Receipt"
+    if transaction_id:
+        tx = db.db.transactions.find_one({"transaction_id": transaction_id})
+        if tx and tx.get('amount'):
+            amount_display = f"${tx['amount']}"
+
+    # 6. Send to Telegram Admin Group
+    # We pass the Account ID (ObjectId string) as the identifier.
+    try:
+        success = send_payment_proof_to_admin(
+            file_stream=file.stream,
+            file_name=secure_filename(file.filename),
+            user_display_name=user.get('display_name', 'Web User'),
+            user_identifier=str(user['_id']),
+            app_name=app_doc.get('app_name', client_id),
+            client_id=client_id,
+            amount=amount_display,
+            config=current_app.config
+        )
+
+        if success:
+            return jsonify({"success": True, "message": "Proof submitted for review"}), 200
+        else:
+            return jsonify({"error": "Failed to forward to admin group"}), 502
+
+    except Exception as e:
+        log.error(f"Proof Upload Error: {e}")
+        return jsonify({"error": str(e)}), 500

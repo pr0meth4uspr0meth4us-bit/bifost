@@ -4,6 +4,8 @@ import hashlib
 import hmac
 import time
 import logging
+import requests
+import json
 
 log = logging.getLogger(__name__)
 
@@ -59,3 +61,67 @@ def verify_telegram_data(telegram_data: dict, bot_token: str) -> bool:
 
     log.warning("Verification failed: Hash mismatch.")
     return False
+
+def send_payment_proof_to_admin(file_stream, file_name, user_display_name, user_identifier, app_name, client_id, amount, config):
+    """
+    Uploads a photo to the Telegram Admin Group with Approval Buttons.
+
+    Args:
+        user_identifier: Can be Telegram ID OR Bifrost Account ID.
+    """
+    bot_token = config.get('BIFROST_BOT_TOKEN')
+    chat_id = config.get('PAYMENT_GROUP_ID')
+
+    if not bot_token or not chat_id:
+        log.error("Missing BIFROST_BOT_TOKEN or PAYMENT_GROUP_ID")
+        return False
+
+    # 1. Construct Caption
+    caption = (
+        f"📸 <b>Web Upload Proof</b>\n"
+        f"User: {user_display_name}\n"
+        f"ID: <code>{user_identifier}</code>\n"
+        f"App: <b>{app_name}</b>\n"
+        f"Amount: {amount}\n"
+        f"Action: Verify Screenshot below."
+    )
+
+    # 2. Construct Inline Keyboard (JSON)
+    # Callback data format: "pay_approve_<USER_ID>|<CLIENT_ID>"
+    # Here <USER_ID> will be the Bifrost Account ID (ObjectId)
+    callback_data = f"{user_identifier}|{client_id}"
+
+    reply_markup = {
+        "inline_keyboard": [[
+            {"text": "✅ Approve", "callback_data": f"pay_approve_{callback_data}"},
+            {"text": "❌ Reject", "callback_data": f"pay_reject_menu_{callback_data}"}
+        ]]
+    }
+
+    # 3. Send Request via Telegram HTTP API
+    url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
+
+    try:
+        file_stream.seek(0)
+
+        files = {
+            'photo': (file_name, file_stream)
+        }
+        data = {
+            'chat_id': chat_id,
+            'caption': caption,
+            'parse_mode': 'HTML',
+            'reply_markup': json.dumps(reply_markup)
+        }
+
+        response = requests.post(url, data=data, files=files, timeout=10)
+
+        if response.status_code == 200:
+            return True
+        else:
+            log.error(f"Telegram API Error: {response.text}")
+            return False
+
+    except Exception as e:
+        log.error(f"Failed to send photo to Telegram: {e}")
+        return False

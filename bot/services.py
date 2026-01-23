@@ -14,11 +14,12 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-def call_grant_premium(user_telegram_id, target_client_id):
+# In bot/services.py
+
+def call_grant_premium(user_identifier, target_client_id):
     """
     Directly accesses the database to grant premium.
-    Attempts to complete a PENDING transaction to trigger 'subscription_success'.
-    Falls back to simple role grant if no transaction is found.
+    user_identifier: Can be a Telegram ID (digits) OR a Bifrost ObjectId (hex string).
     """
     try:
         if BifrostDB is None:
@@ -29,10 +30,22 @@ def call_grant_premium(user_telegram_id, target_client_id):
         db_instance = get_db()
         logic = BifrostDB(db_instance.client, Config.DB_NAME)
 
-        # 2. Find User
-        user = logic.find_account_by_telegram(user_telegram_id)
+        # 2. Identify User (Logic Update)
+        user = None
+
+        # Case A: Check if it looks like an ObjectId (24 hex chars) - Web User
+        if isinstance(user_identifier, str) and len(user_identifier) == 24:
+            # Basic hex validation
+            import re
+            if re.match(r'^[0-9a-fA-F]{24}$', user_identifier):
+                user = logic.find_account_by_id(user_identifier)
+
+        # Case B: If not found or not ObjectId, try Telegram ID
         if not user:
-            log.error(f"User {user_telegram_id} not found.")
+            user = logic.find_account_by_telegram(user_identifier)
+
+        if not user:
+            log.error(f"User identifier '{user_identifier}' not found in DB.")
             return False
 
         # 3. Find App
@@ -60,11 +73,8 @@ def call_grant_premium(user_telegram_id, target_client_id):
             else:
                 log.error(f"❌ Failed to complete transaction: {msg}")
 
-        # 5. FALLBACK: Manual Link (Legacy or No Transaction found)
-        # Fix: Suppress the generic event and manually fire the correct one.
-        log.info(f"⚠️ No pending transaction found or completion failed. Falling back to manual grant.")
-
-        # FIX: Default to 1 Month (1m) instead of None (Lifetime) to be safe
+        # 5. FALLBACK: Manual Grant
+        log.info(f"⚠️ No pending transaction found. Falling back to manual grant.")
         logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user", duration_str="1m", suppress_webhook=True)
 
         # Manually trigger subscription_success so the client app reacts correctly
@@ -74,15 +84,13 @@ def call_grant_premium(user_telegram_id, target_client_id):
             specific_app_id=app_doc['_id'],
             extra_data={
                 "transaction_id": "manual-grant",
-                "amount": 0,
-                "currency": "USD",
                 "role": "premium_user",
-                "method": "admin_manual",
+                "method": "admin_manual_web_upload",
                 "duration": "1m"
             }
         )
 
-        log.info(f"✅ Manually granted premium to {user_telegram_id} for {target_client_id}")
+        log.info(f"✅ Manually granted premium to {user_identifier} for {target_client_id}")
         return True
 
     except Exception as e:

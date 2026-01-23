@@ -3,6 +3,16 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-01-23
+
+### Added
+- [cite_start]**Web Payment Proofs**: Added `POST /internal/payments/submit-proof` allowing client applications to upload payment screenshots directly via API.
+- **Admin Forwarding**: Implemented `send_payment_proof_to_admin` in `bifrost/utils/telegram.py` to bridge the gap between the Web API and the Telegram Admin Group.
+- **Bot Logic Update**: Updated `call_grant_premium` in `bot/services.py` to support `ObjectId` (Bifrost Account IDs) for manual approvals, enabling the bot to verify users who are not on Telegram.
+
+### Changed
+- **Admin Handler**: Refactored `admin_approve` in the Bot to gracefully skip sending Telegram DMs if the user identifier is not a valid Telegram ID (Web upload flow).
+
 ## [2.3.3] - 2026-01-23
 
 ### Changed
