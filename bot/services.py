@@ -64,8 +64,8 @@ def call_grant_premium(user_telegram_id, target_client_id):
         # Fix: Suppress the generic event and manually fire the correct one.
         log.info(f"⚠️ No pending transaction found or completion failed. Falling back to manual grant.")
 
-        # Link without firing account_role_change
-        logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user", suppress_webhook=True)
+        # FIX: Default to 1 Month (1m) instead of None (Lifetime) to be safe
+        logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user", duration_str="1m", suppress_webhook=True)
 
         # Manually trigger subscription_success so the client app reacts correctly
         logic._trigger_event_for_user(
@@ -77,7 +77,8 @@ def call_grant_premium(user_telegram_id, target_client_id):
                 "amount": 0,
                 "currency": "USD",
                 "role": "premium_user",
-                "method": "admin_manual"
+                "method": "admin_manual",
+                "duration": "1m"
             }
         )
 

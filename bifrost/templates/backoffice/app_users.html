@@ -4,29 +4,37 @@
     <meta charset="UTF-8">
     <title>Manage {{ app.app_name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
 <body class="bg-slate-50 min-h-screen">
 <nav class="bg-white border-b border-slate-200 px-6 py-4 mb-8">
-    <div class="max-w-7xl mx-auto flex items-center space-x-4">
-        <a href="{{ url_for('backoffice.dashboard') }}" class="text-slate-500 hover:text-slate-900 font-bold">← Back</a>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <h1 class="text-xl font-bold text-slate-900">{{ app.app_name }} <span class="text-slate-400 font-normal">| App Management</span></h1>
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <a href="{{ url_for('backoffice.dashboard') }}" class="text-slate-500 hover:text-slate-900 font-bold">← Back</a>
+            <div class="h-6 w-px bg-slate-200"></div>
+            <h1 class="text-xl font-bold text-slate-900">{{ app.app_name }} <span class="text-slate-400 font-normal">| Management</span></h1>
+        </div>
+        {% if session['is_super_admin'] %}
+        <a href="{{ url_for('backoffice.global_users') }}" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 border border-indigo-100">
+            🌍 Global Users DB
+        </a>
+        {% endif %}
     </div>
 </nav>
 
-<div class="max-w-7xl mx-auto px-6 pb-12">
+<div class="max-w-7xl mx-auto px-6 pb-12" x-data="{ activeTab: 'users', showSecrets: false, editConfig: false }">
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="mb-6 space-y-2">
         {% for category, message in messages %}
-        <div class="p-4 rounded-xl text-sm font-bold
-                    {% if category == 'success' %}bg-green-100 text-green-700
-                    {% elif category == 'danger' %}bg-red-100 text-red-700
-                    {% elif category == 'warning' %}bg-amber-100 text-amber-800 break-all
-                    {% else %}bg-slate-100 text-slate-700{% endif %}">
+        <div class="p-4 rounded-xl text-sm font-bold shadow-sm border
+                    {% if category == 'success' %}bg-white border-green-200 text-green-700
+                    {% elif category == 'danger' %}bg-white border-red-200 text-red-700
+                    {% elif category == 'warning' %}bg-white border-amber-200 text-amber-800
+                    {% else %}bg-white border-slate-200 text-slate-700{% endif %}">
             {{ message }}
         </div>
         {% endfor %}
@@ -34,145 +42,217 @@
     {% endif %}
     {% endwith %}
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="flex space-x-1 mb-8 bg-slate-200 p-1 rounded-xl w-fit">
+        <button @click="activeTab = 'users'" :class="activeTab === 'users' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'" class="px-6 py-2 rounded-lg text-sm font-bold transition-all">Users</button>
+        <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'" class="px-6 py-2 rounded-lg text-sm font-bold transition-all">Configuration</button>
+    </div>
 
-        <div class="lg:col-span-2 space-y-8">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="font-bold text-slate-900 mb-4 flex items-center">
-                    <span class="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3">👤</span> Add Member
-                </h3>
-                <form action="{{ url_for('backoffice.add_user_to_app', app_id=app._id) }}" method="POST" class="flex flex-col md:flex-row gap-4">
-                    <input type="email" name="email" placeholder="User Email (Invites if new)" class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50" required>
-                    <select name="role" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600">
+    <div x-show="activeTab === 'users'" class="space-y-6">
+
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+            <form action="{{ url_for('backoffice.add_user_to_app', app_id=app._id) }}" method="POST" class="flex flex-col md:flex-row gap-4 items-center">
+                <div class="flex-grow w-full md:w-auto">
+                    <input type="email" name="email" placeholder="Add User by Email..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50 font-medium" required>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <select name="role" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm text-slate-700">
                         <option value="user">User</option>
-                        <option value="premium_user">Premium</option>
-                        <option value="admin">App Admin</option>
+                        <option value="premium_user" selected>Premium</option>
+                        <option value="admin">Admin</option>
                     </select>
-                    <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-slate-200">
-                        Add User
+                    <select name="duration" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm text-slate-700">
+                        <option value="1m" selected>1 Mo</option>
+                        <option value="3m">3 Mo</option>
+                        <option value="1y">1 Yr</option>
+                        <option value="lifetime">Forever</option>
+                    </select>
+                    <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg">
+                        Add
                     </button>
-                </form>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-100">
+                    <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Identity</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Expiry</th>
+                        <th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for user in users %}
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900">{{ user.display_name or 'No Name' }}</div>
+                            <div class="text-xs text-slate-500 font-mono">{{ user.email }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-md
+                                {% if user.role == 'admin' %}bg-purple-100 text-purple-700
+                                {% elif user.role == 'premium_user' %}bg-green-100 text-green-700
+                                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm font-medium text-slate-500">
+                            {{ user.expires_at.strftime('%b %d, %Y') if user.expires_at else 'Lifetime' }}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button @click="$dispatch('open-user-modal', {
+                                id: '{{ user.account_id }}',
+                                name: '{{ user.display_name }}',
+                                role: '{{ user.role }}'
+                            })"
+                                    class="text-indigo-600 hover:text-indigo-900 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors">
+                                Manage
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
             </div>
+        </div>
+    </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                    <h3 class="font-bold text-slate-700">User Directory</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-100">
-                        <thead class="bg-slate-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">User</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Expires</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-slate-100">
-                        {% for user in users %}
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-bold text-slate-900">{{ user.display_name or 'No Name' }}</div>
-                                <div class="text-xs text-slate-400">{{ user.email or user.telegram_id }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2.5 py-0.5 inline-flex text-xs leading-5 font-bold rounded-md
-                                                {% if user.role == 'admin' %}bg-purple-100 text-purple-700
-                                                {% elif user.role == 'premium_user' %}bg-green-100 text-green-700
-                                                {% else %}bg-slate-100 text-slate-600{% endif %}">
-                                    {{ user.role }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-medium">
-                                {{ user.expires_at.strftime('%Y-%m-%d') if user.expires_at else 'Lifetime' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex items-center space-x-2">
-                                    <form action="{{ url_for('backoffice.update_user_role', app_id=app._id, user_id=user.account_id) }}" method="POST" class="flex space-x-2">
-                                        <select name="role" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
-                                            <option value="premium_user" {% if user.role == 'premium_user' %}selected{% endif %}>Premium</option>
-                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                                            <option value="banned" {% if user.role == 'banned' %}selected{% endif %}>Ban</option>
-                                        </select>
-                                        <select name="duration" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                                            <option value="">--</option>
-                                            <option value="1m">+1 Mo</option>
-                                            <option value="1y">+1 Yr</option>
-                                            <option value="lifetime">Forever</option>
-                                        </select>
-                                        <button type="submit" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs">Save</button>
-                                    </form>
+    <div x-show="activeTab === 'settings'" style="display: none;" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                                    <form action="{{ url_for('backoffice.remove_user_from_app', app_id=app._id, user_id=user.account_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this user from the app?');">
-                                        <button type="submit" class="text-red-400 hover:text-red-600 font-bold text-lg px-2" title="Remove User">×</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <h3 class="font-bold text-slate-900">App Configuration</h3>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold text-slate-400 uppercase" x-text="editConfig ? 'Editing Mode' : 'Read Only'"></span>
+                        <button @click="editConfig = !editConfig" :class="editConfig ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'" class="px-3 py-1 rounded-lg text-xs font-bold transition-colors">
+                            <span x-text="editConfig ? 'Lock Settings' : 'Unlock to Edit'"></span>
+                        </button>
+                    </div>
                 </div>
+
+                <form action="{{ url_for('backoffice.update_app_settings', app_id=app._id) }}" method="POST" class="space-y-5">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">App Name</label>
+                            <input :disabled="!editConfig" type="text" name="app_name" value="{{ app.app_name }}" class="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white disabled:cursor-not-allowed">
+                        </div>
+                        <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Frontend URL</label>
+                            <input :disabled="!editConfig" type="url" name="web_url" value="{{ app.app_web_url }}" class="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white disabled:cursor-not-allowed">
+                        </div>
+                    </div>
+                    <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Callback URL (Auth)</label>
+                        <input :disabled="!editConfig" type="url" name="callback_url" value="{{ app.app_callback_url }}" class="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white disabled:cursor-not-allowed">
+                    </div>
+                    <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Webhook URL (API)</label>
+                        <input :disabled="!editConfig" type="url" name="api_url" value="{{ app.app_api_url }}" class="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white disabled:cursor-not-allowed">
+                    </div>
+
+                    <div x-show="editConfig" class="pt-4 border-t border-slate-100">
+                        <button type="submit" class="bg-slate-900 text-white font-bold py-3 px-6 rounded-xl text-sm hover:bg-slate-800 transition shadow-lg">Save Changes</button>
+                    </div>
+                </form>
             </div>
         </div>
 
         <div class="space-y-6">
+            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-lg border border-slate-800">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-white">API Credentials</h3>
+                    <button @click="showSecrets = !showSecrets" class="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition border border-white/10">
+                        <span x-text="showSecrets ? 'Hide Secrets' : 'Reveal Secrets'"></span>
+                    </button>
+                </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="font-bold text-slate-900 mb-4">General Settings</h3>
-                <form action="{{ url_for('backoffice.update_app_settings', app_id=app._id) }}" method="POST" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">App Name</label>
-                        <input type="text" name="app_name" value="{{ app.app_name }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Frontend URL</label>
-                        <input type="url" name="web_url" value="{{ app.app_web_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Callback URL</label>
-                        <input type="url" name="callback_url" value="{{ app.app_callback_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">API URL (Webhook)</label>
-                        <input type="url" name="api_url" value="{{ app.app_api_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Logo URL</label>
-                        <input type="url" name="logo_url" value="{{ app.app_logo_url }}" class="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-600">
-                    </div>
-                    <button type="submit" class="w-full bg-slate-800 text-white font-bold py-2 rounded-lg text-sm hover:bg-slate-900 transition">Update Settings</button>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="font-bold text-slate-900 mb-4">API Credentials</h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase">Client ID</label>
-                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all select-all">{{ app.client_id }}</code>
+                        <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Client ID</label>
+                        <div class="flex items-center justify-between bg-black/30 p-3 rounded-xl border border-white/5">
+                            <code class="text-xs font-mono break-all text-slate-300" x-text="showSecrets ? '{{ app.client_id }}' : '••••••••••••••••••••'"></code>
+                        </div>
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-400 uppercase">Webhook Secret</label>
-                        <code class="block bg-slate-100 p-2 rounded text-xs text-slate-700 mt-1 break-all select-all">{{ app.webhook_secret }}</code>
+                        <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Webhook Secret</label>
+                        <div class="flex items-center justify-between bg-black/30 p-3 rounded-xl border border-white/5">
+                            <code class="text-xs font-mono break-all text-amber-400" x-text="showSecrets ? '{{ app.webhook_secret }}' : '••••••••••••••••••••'"></code>
+                        </div>
                     </div>
                 </div>
+
+                <p class="text-xs text-slate-500 mt-4 leading-relaxed">
+                    Keep these credentials private. The <strong>Webhook Secret</strong> is used to sign requests sent to your API.
+                </p>
             </div>
 
             <div class="bg-red-50 p-6 rounded-2xl border border-red-100">
                 <h3 class="font-bold text-red-900 mb-2">Danger Zone</h3>
-                <p class="text-xs text-red-600 mb-4">Rotating the secret will immediately break all active sessions and API calls for this app.</p>
-                <form action="{{ url_for('backoffice.rotate_secret', app_id=app._id) }}" method="POST" onsubmit="return confirm('Are you strictly sure? This will break the running app.');">
-                    <button type="submit" class="w-full bg-white border border-red-200 text-red-600 font-bold py-2 px-4 rounded-xl hover:bg-red-600 hover:text-white transition text-sm">
+                <p class="text-xs text-red-600 mb-4 leading-relaxed">Rotating the secret will immediately break all active sessions and API calls for this app. You will need to update your environment variables.</p>
+                <form action="{{ url_for('backoffice.rotate_secret', app_id=app._id) }}" method="POST" onsubmit="return confirm('Strictly Warning: This will break your app immediately. Proceed?');">
+                    <button type="submit" class="w-full bg-white border border-red-200 text-red-600 font-bold py-2.5 px-4 rounded-xl hover:bg-red-600 hover:text-white transition text-sm">
                         Rotate Client Secret
                     </button>
                 </form>
             </div>
-
         </div>
-
     </div>
+
+    <div x-data="{ open: false, userId: '', userName: '', userRole: '' }"
+         @open-user-modal.window="open = true; userId = $event.detail.id; userName = $event.detail.name; userRole = $event.detail.role"
+         x-show="open" style="display: none;"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+         x-transition.opacity>
+
+        <div @click.away="open = false" class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-900">Manage Access</h3>
+                    <p class="text-sm text-slate-500 mt-1">User: <span x-text="userName" class="font-bold text-slate-800"></span></p>
+                </div>
+                <button @click="open = false" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">×</button>
+            </div>
+
+            <form :action="'/backoffice/app/{{ app._id }}/user/' + userId + '/update'" method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Role</label>
+                    <select name="role" x-model="userRole" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-700 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50">
+                        <option value="user">User</option>
+                        <option value="premium_user">Premium User</option>
+                        <option value="admin">App Admin</option>
+                        <option value="banned">Banned</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Extend Expiry</label>
+                    <select name="duration" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-700 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50">
+                        <option value="">Keep Current Expiry</option>
+                        <option value="1m">Add 1 Month</option>
+                        <option value="3m">Add 3 Months</option>
+                        <option value="1y">Add 1 Year</option>
+                        <option value="lifetime">Set to Lifetime</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 flex gap-3 border-t border-slate-100 mt-2">
+                    <button type="submit" name="action" value="update" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-100">
+                        Save Changes
+                    </button>
+                    <button type="submit" name="action" value="remove" onclick="return confirm('Remove user from app? This revokes all access immediately.')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition border border-red-100">
+                        Remove
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 </body>
 </html>

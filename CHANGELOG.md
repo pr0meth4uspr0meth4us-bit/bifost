@@ -3,6 +3,24 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-01-23
+
+### Added
+- **Global User Database**: Implemented a "God View" for Super Admins (`/backoffice/users`) to search and manage all accounts across the entire ecosystem.
+- **Global Deletion**: Added functionality to permanently delete a user account (`accounts` collection) and all their associated app links.
+- **UI Interaction**: Added Alpine.js to handle dynamic Modals, Tabs, and Secret masking without page reloads.
+
+### Changed
+- **Security Hardening**:
+  - **Masked Credentials**: Client IDs and Webhook Secrets are now hidden by default (`•••••`) and require a click to reveal.
+  - **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
+- **UX Overhaul**:
+  - **App Management**: Split "Users" and "Configuration" into separate tabs.
+  - **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
+- **Logic Fixes**:
+  - **Default Duration**: The "Add User" and "Manual Bot Approval" flows now default to **1 Month** access instead of **Lifetime** if no duration is specified.
+  - **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
+
 ## [2.3.1] - 2026-01-23
 
 ### Added
