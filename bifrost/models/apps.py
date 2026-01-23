@@ -8,7 +8,6 @@ import logging
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
 
-
 class AppMixin:
     # ---------------------------------------------------------
     # CLIENT APP MANAGEMENT
@@ -91,14 +90,10 @@ class AppMixin:
         if duration_str and duration_str != 'lifetime':
             now = datetime.now(UTC)
             expires_at = None
-            if duration_str == '1m':
-                expires_at = now + timedelta(days=30)
-            elif duration_str == '3m':
-                expires_at = now + timedelta(days=90)
-            elif duration_str == '6m':
-                expires_at = now + timedelta(days=180)
-            elif duration_str == '1y':
-                expires_at = now + timedelta(days=365)
+            if duration_str == '1m': expires_at = now + timedelta(days=30)
+            elif duration_str == '3m': expires_at = now + timedelta(days=90)
+            elif duration_str == '6m': expires_at = now + timedelta(days=180)
+            elif duration_str == '1y': expires_at = now + timedelta(days=365)
 
             if expires_at:
                 update_doc["expires_at"] = expires_at
@@ -118,6 +113,24 @@ class AppMixin:
         # Trigger Webhook ONLY if role changed AND not suppressed
         if old_role != role and not suppress_webhook:
             self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
+
+    def remove_user_from_app(self, account_id, app_id):
+        """Completely unlinks a user from an application."""
+        result = self.db.app_links.delete_one({
+            "account_id": ObjectId(account_id),
+            "app_id": ObjectId(app_id)
+        })
+
+        if result.deleted_count > 0:
+            # Trigger a 'banned' or 'removed' event so the app knows to kill the session
+            self._trigger_event_for_user(
+                account_id=account_id,
+                event_type="account_role_change",
+                specific_app_id=app_id,
+                extra_data={"new_role": "removed", "reason": "admin_removed"}
+            )
+            return True
+        return False
 
     def get_user_role_for_app(self, account_id, app_id):
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})

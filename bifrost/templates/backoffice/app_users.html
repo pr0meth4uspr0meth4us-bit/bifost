@@ -87,21 +87,27 @@
                                 {{ user.expires_at.strftime('%Y-%m-%d') if user.expires_at else 'Lifetime' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <form action="{{ url_for('backoffice.update_user_role', app_id=app._id, user_id=user.account_id) }}" method="POST" class="flex space-x-2">
-                                    <select name="role" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                                        <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
-                                        <option value="premium_user" {% if user.role == 'premium_user' %}selected{% endif %}>Premium</option>
-                                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                                        <option value="banned" {% if user.role == 'banned' %}selected{% endif %}>Ban</option>
-                                    </select>
-                                    <select name="duration" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
-                                        <option value="">--</option>
-                                        <option value="1m">+1 Mo</option>
-                                        <option value="1y">+1 Yr</option>
-                                        <option value="lifetime">Forever</option>
-                                    </select>
-                                    <button type="submit" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs">Save</button>
-                                </form>
+                                <div class="flex items-center space-x-2">
+                                    <form action="{{ url_for('backoffice.update_user_role', app_id=app._id, user_id=user.account_id) }}" method="POST" class="flex space-x-2">
+                                        <select name="role" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                                            <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+                                            <option value="premium_user" {% if user.role == 'premium_user' %}selected{% endif %}>Premium</option>
+                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                            <option value="banned" {% if user.role == 'banned' %}selected{% endif %}>Ban</option>
+                                        </select>
+                                        <select name="duration" class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white">
+                                            <option value="">--</option>
+                                            <option value="1m">+1 Mo</option>
+                                            <option value="1y">+1 Yr</option>
+                                            <option value="lifetime">Forever</option>
+                                        </select>
+                                        <button type="submit" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs">Save</button>
+                                    </form>
+
+                                    <form action="{{ url_for('backoffice.remove_user_from_app', app_id=app._id, user_id=user.account_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this user from the app?');">
+                                        <button type="submit" class="text-red-400 hover:text-red-600 font-bold text-lg px-2" title="Remove User">×</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

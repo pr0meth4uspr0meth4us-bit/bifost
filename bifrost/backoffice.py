@@ -7,10 +7,8 @@ from .services.email_service import send_invite_email
 
 backoffice_bp = Blueprint('backoffice', __name__, url_prefix='/backoffice')
 
-
 def get_db():
     return BifrostDB(mongo.cx, current_app.config['DB_NAME'])
-
 
 def login_required(f):
     from functools import wraps
@@ -19,9 +17,7 @@ def login_required(f):
         if not session.get('backoffice_user'):
             return redirect(url_for('backoffice.login'))
         return f(*args, **kwargs)
-
     return decorated_function
-
 
 def super_admin_required(f):
     from functools import wraps
@@ -31,9 +27,7 @@ def super_admin_required(f):
             flash("Super Admin privileges required.", "danger")
             return redirect(url_for('backoffice.dashboard'))
         return f(*args, **kwargs)
-
     return decorated_function
-
 
 @backoffice_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -70,12 +64,10 @@ def login():
 
     return render_template('backoffice/login.html')
 
-
 @backoffice_bp.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('backoffice.login'))
-
 
 @backoffice_bp.route('/')
 @login_required
@@ -90,7 +82,6 @@ def dashboard():
         title = "Tenant Dashboard"
 
     return render_template('backoffice/dashboard.html', apps=apps, title=title)
-
 
 # --- SUPER ADMIN FUNCTIONS ---
 
@@ -157,7 +148,6 @@ def create_app():
 
     return render_template('backoffice/create_app.html')
 
-
 # --- APP MANAGEMENT (Accessible to Tenant Admins) ---
 
 @backoffice_bp.route('/app/<app_id>/rotate-secret', methods=['POST'])
@@ -175,7 +165,6 @@ def rotate_secret(app_id):
     new_secret = db.rotate_app_secret(app_id)
     flash(f"SECRET ROTATED! Copy immediately: {new_secret}", "warning")
     return redirect(url_for('backoffice.view_app', app_id=app_id))
-
 
 @backoffice_bp.route('/app/<app_id>/update', methods=['POST'])
 @login_required
@@ -205,7 +194,6 @@ def update_app_settings(app_id):
 
     return redirect(url_for('backoffice.view_app', app_id=app_id))
 
-
 @backoffice_bp.route('/app/<app_id>')
 @login_required
 def view_app(app_id):
@@ -222,7 +210,6 @@ def view_app(app_id):
     users = db.get_app_users(app_id)
 
     return render_template('backoffice/app_users.html', app=app, users=users)
-
 
 @backoffice_bp.route('/app/<app_id>/user/<user_id>/update', methods=['POST'])
 @login_required
@@ -244,6 +231,24 @@ def update_user_role(app_id, user_id):
 
     return redirect(url_for('backoffice.view_app', app_id=app_id))
 
+@backoffice_bp.route('/app/<app_id>/user/<user_id>/remove', methods=['POST'])
+@login_required
+def remove_user_from_app(app_id, user_id):
+    db = get_db()
+
+    # Security Check
+    if not session.get('is_super_admin'):
+        owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
+        if app_id not in owned_apps:
+            flash("Unauthorized.", "danger")
+            return redirect(url_for('backoffice.dashboard'))
+
+    if db.remove_user_from_app(user_id, app_id):
+        flash("User removed from application.", "warning")
+    else:
+        flash("User not found or could not be removed.", "danger")
+
+    return redirect(url_for('backoffice.view_app', app_id=app_id))
 
 @backoffice_bp.route('/app/<app_id>/add', methods=['POST'])
 @login_required

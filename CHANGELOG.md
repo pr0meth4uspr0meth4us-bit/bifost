@@ -3,6 +3,12 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-01-23
+
+### Added
+- **User Removal**: Added `remove_user_from_app` method to `BifrostDB` and corresponding UI in the Backoffice.
+- **Admin Control**: App Admins and Super Admins can now permanently unlink a user from an application via the Backoffice "Actions" column (Red "X" button).
+
 ## [2.3.0] - 2026-01-23
 
 ### Changed
