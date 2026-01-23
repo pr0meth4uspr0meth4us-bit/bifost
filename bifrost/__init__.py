@@ -5,6 +5,7 @@ from flask_cors import CORS
 import json
 import datetime
 import os
+import logging
 from bson import ObjectId
 
 # Globally accessible PyMongo instance
@@ -31,6 +32,14 @@ class CustomJSONProvider(JSONProvider):
 def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # --- LOGGING CONFIGURATION ---
+    # Enforce the timestamped format requested
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+        force=True
+    )
 
     CORS(app, resources={r"/*": {"origins": "*"}})
 
