@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 import logging
@@ -44,9 +44,11 @@ class PaymentMixin:
         if not tx: return False, "Transaction not found"
         if tx['status'] == 'completed': return True, "Already completed"
 
+        now = datetime.now(UTC)
+
         self.db.transactions.update_one(
             {"_id": tx['_id']},
-            {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": datetime.now(UTC)}}
+            {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": now}}
         )
 
         # Grant the role and Apply Duration
@@ -60,7 +62,19 @@ class PaymentMixin:
                 suppress_webhook=True  # <--- SILENCE GENERIC
             )
 
-            # 2. Trigger Specific Payment Success Webhook
+            # 2. Calculate Expiration for Webhook Payload
+            # We mirror the logic from link_user_to_app to ensure the client gets the correct date
+            duration_str = tx.get('duration')
+            expires_at = None
+            if duration_str == '1m': expires_at = now + timedelta(days=30)
+            elif duration_str == '3m': expires_at = now + timedelta(days=90)
+            elif duration_str == '6m': expires_at = now + timedelta(days=180)
+            elif duration_str == '1y': expires_at = now + timedelta(days=365)
+
+            # Format as ISO string for JSON payload, or None if lifetime
+            expires_at_iso = expires_at.isoformat() if expires_at else None
+
+            # 3. Trigger Specific Payment Success Webhook
             log.info(f"🚀 Triggering subscription_success for TX {transaction_id}")
             self._trigger_event_for_user(
                 account_id=tx['account_id'],
@@ -71,7 +85,9 @@ class PaymentMixin:
                     "amount": tx['amount'],
                     "currency": tx['currency'],
                     "role": tx['target_role'],
-                    "client_ref_id": tx.get('client_ref_id')
+                    "client_ref_id": tx.get('client_ref_id'),
+                    "duration": duration_str,       # <--- Added
+                    "expires_at": expires_at_iso    # <--- Added
                 }
             )
 
@@ -139,7 +155,9 @@ class PaymentMixin:
         if result.modified_count == 0:
             return False, "Error: Payment claimed by someone else."
 
-        # 4. Grant Premium Role
+        # 4. Grant Premium Role (Claims currently default to 1 Month if not specified, usually 'lifetime' or manual policy)
+        # For claims, we will assume a standard 'premium_user' role.
+        # You might want to parameterize this in future.
         self.link_user_to_app(user['_id'], app_id, role="premium_user", suppress_webhook=True)
 
         # 5. Send Success Webhook for Claims

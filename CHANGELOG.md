@@ -3,6 +3,12 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2026-01-23
+
+### Changed
+- **Webhooks**: The `subscription_success` webhook event now includes `duration` (e.g., '1m') and `expires_at` (ISO timestamp) in the `extra_data` payload.
+- **Internal Logic**: Updated `complete_transaction` in `PaymentMixin` to calculate the expiration date immediately for the webhook payload, ensuring client apps receive the exact validity period of the new subscription.
+
 ## [2.3.2] - 2026-01-23
 
 ### Added
@@ -13,13 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 - **Security Hardening**:
   - **Masked Credentials**: Client IDs and Webhook Secrets are now hidden by default (`•••••`) and require a click to reveal.
-  - **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
+- **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
 - **UX Overhaul**:
   - **App Management**: Split "Users" and "Configuration" into separate tabs.
-  - **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
+- **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
 - **Logic Fixes**:
   - **Default Duration**: The "Add User" and "Manual Bot Approval" flows now default to **1 Month** access instead of **Lifetime** if no duration is specified.
-  - **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
+- **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
 
 ## [2.3.1] - 2026-01-23
 
@@ -30,7 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.3.0] - 2026-01-23
 
 ### Changed
-- **Backoffice Permissions**: Restored App Management capabilities for App Admins (Tenants). They can now view and edit their own application details.
+- **Backoffice Permissions**: Restored App Management capabilities for App Admins (Tenants).
+  They can now view and edit their own application details.
 - **App Management**: Added a "General Settings" form to the App Details view allowing updates to App Name, URLs (Callback/Web/API), and Logo.
 - **Technical Details**: Exposed `client_id`, `webhook_secret`, and `rotate_secret` functionality to App Admins for their owned applications.
 
@@ -103,7 +110,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rich Webhooks**: The webhook system now supports arbitrary data payloads via `extra_data`.
 - **Subscription Events**:
   - `subscription_success`: Fired when a payment completes. Payload includes `transaction_id`, `amount`, `currency`, and `role`.
-  - `subscription_expired`: Fired by the Reaper when a subscription expires.
+- `subscription_expired`: Fired by the Reaper when a subscription expires.
 
 ### Changed
 - **Scheduler**: The subscription reaper now sends `subscription_expired` instead of the generic `account_role_change` event for better clarity in client apps.
@@ -145,8 +152,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Refactored
 - **Bot Structure**: Modularized the Telegram Bot into a package structure:
   - `handlers/`: Split monolithic logic into `commands.py` (User inputs), `payment.py` (Proof processing), and `admin.py` (Approval flows).
-  - `database.py`: Centralized MongoDB connection logic, removing it from `group_listener.py`.
-  - `services.py`: Isolated external API calls to Bifrost Internal API and internal DB helper functions.
+- `database.py`: Centralized MongoDB connection logic, removing it from `group_listener.py`.
+- `services.py`: Isolated external API calls to Bifrost Internal API and internal DB helper functions.
 
 ### Fixed
 - **Configuration**: `config.py` now uses `pathlib` to traverse up the directory tree to find the `.env` file, resolving issues where environment variables failed to load locally.
@@ -162,8 +169,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - **Enterprise Payment Flow**: Implemented "Intent-Based" payments to prevent parameter tampering.
-  - New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
-  - Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
+- New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
+- Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
 - **Security**: The bot now fetches price, duration, and role directly from the MongoDB `transactions` collection instead of trusting the URL parameters.
 
 ### Changed
@@ -187,12 +194,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Worker Compatibility**: Implemented a manual `asyncio` event loop within the webhook route.
   This allows the async Telegram Bot logic to run safely inside standard synchronous Gunicorn workers without requiring ASGI or additional dependencies.
 
-## [1.6.0] - 2026-01-22 
+## [1.6.0] - 2026-01-22
 
 ### Added
 - **Subscription Reaper**: Implemented `bifrost/scheduler.py`, a background cron job that runs every 60 minutes.
-  - Automatically finds users with `expires_at < NOW` who are still marked as `premium_user` or `admin`.
-  - Downgrades their role to `user`.
+- Automatically finds users with `expires_at < NOW` who are still marked as `premium_user` or `admin`.
+- Downgrades their role to `user`.
   - Removes the `expires_at` field.
 - **Expiration Webhooks**: The Reaper now triggers an `account_role_change` webhook event to all client apps immediately upon downgrading a user.
   This ensures client apps (like Finance Bot) invalidate their local cache instantly.
