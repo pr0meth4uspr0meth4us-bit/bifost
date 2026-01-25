@@ -3,6 +3,16 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-01-26
+
+### Fixed
+- **OTP Race Condition**: Updated `create_otp` in `bifrost/models/auth.py` to delete any existing codes for the same identifier/channel before creating a new one. This resolves issues where users try to use an "old" code after requesting a new one.
+- **OTP Validation**: Added stricter whitespace cleaning to `verify_otp` to handle copy-paste errors better.
+- **UI UX**: Added double-submit protection (JavaScript disable button) to `verify_otp.html` to prevent the "Invalid/Expired" error that occurs when a user double-clicks the verify button.
+
+### Changed
+- **Auth UI**: Overhauled `forgot_password.html`, `verify_otp.html`, and `reset_password.html` to use the modern "Glassmorphism" design system (Tailwind CSS) consistent with the Login page.
+
 ## [0.4.0] - 2026-01-23
 
 ### Added
@@ -101,7 +111,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rich Webhooks**: The webhook system now supports arbitrary data payloads via `extra_data`.
 - **Subscription Events**:
   - `subscription_success`: Fired when a payment completes. Payload includes `transaction_id`, `amount`, `currency`, and `role`.
-  - `subscription_expired`: Fired by the Reaper when a subscription expires.
+- `subscription_expired`: Fired by the Reaper when a subscription expires.
 - **Subscription Reaper**: Implemented `bifrost/scheduler.py`, a background cron job that runs every 60 minutes to automatically downgrade expired subscriptions.
 - **Enterprise Payment Flow**: Implemented "Intent-Based" payments to prevent parameter tampering.
 - New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
@@ -109,7 +119,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Tenant Dashboard**: Created `bifrost/backoffice.py` to allow App Admins to manage their specific users.
 - **Role Hierarchy**:
   - **Super Admin**: Full access to all apps via Backoffice login.
-  - **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
+- **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
 - **User Management UI**: Added `app_users.html` allowing Admins to manually change user roles (e.g., grant Premium) and extend subscription duration.
 - **Subscription Expiration**: Updated `BifrostDB` models to support `expires_at` for app links.
 - **Dynamic Pricing**: Bifrost Bot now parses `duration` (e.g., '1m', '1y') and `client_ref_id` from the payment payload.
@@ -138,7 +148,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Admin Approval**: Fixed a bug where the Admin Approve button failed with "App lookup_skipped not found".
   The bot now correctly fetches the `client_id` from the database during the `/start` command instead of relying on a placeholder.
 - **Critical Deadlock**: Replaced the HTTP call in `call_grant_premium` with a direct database operation to prevent server worker freezing.
-- **Persistence**: Fixed a critical bug where `user_data` was lost upon bot restart. The `MongoPersistence` class now correctly reads/writes user data.
+- **Persistence**: Fixed a critical bug where `user_data` was lost upon bot restart.
+  The `MongoPersistence` class now correctly reads/writes user data.
 - **Payment Flow**: Added a fallback in `receive_proof` for cases where payment details are forgotten.
 - **Webhook Crash**: Resolved `RuntimeError: Install Flask with the 'async' extra` by converting the `/telegram-webhook` route to a synchronous wrapper.
 - **Worker Compatibility**: Implemented a manual `asyncio` event loop within the webhook route.

@@ -14,15 +14,29 @@ class AuthMixin:
     # OTP UTILITIES
     # ---------------------------------------------------------
     def create_otp(self, identifier, channel="email", account_id=None):
+        """
+        Generates a 6-digit OTP.
+        CRITICAL: Deletes any existing codes for this identifier/channel to prevent
+        user confusion (entering an old valid code vs a new valid code).
+        """
+        identifier = str(identifier).lower()
+
+        # 1. Invalidate previous codes for this specific flow to ensure only the LATEST works
+        self.db.verification_codes.delete_many({
+            "identifier": identifier,
+            "channel": channel
+        })
+
         code = str(random.randint(100000, 999999))
         doc = {
             "code": code,
-            "identifier": str(identifier).lower(),
+            "identifier": identifier,
             "channel": channel,
             "created_at": datetime.now(UTC)
         }
         if account_id:
             doc["account_id"] = str(account_id)
+
         result = self.db.verification_codes.insert_one(doc)
         log.info(f"✅ OTP Created: Code={code}, Channel={channel}, ID={identifier}")
         return code, str(result.inserted_id)
@@ -46,13 +60,19 @@ class AuthMixin:
         return token
 
     def verify_otp(self, identifier=None, code=None, verification_id=None):
-        safe_code = str(code).replace(" ", "").strip() if code else None
+        """
+        Verifies and consumes an OTP.
+        """
+        # Aggressive cleaning: remove spaces, newlines, tabs
+        safe_code = "".join(str(code).split()) if code else None
+
         query = {"code": safe_code}
 
         if verification_id:
             try:
                 query["_id"] = ObjectId(verification_id)
             except:
+                log.warning(f"❌ OTP Verification failed: Invalid ObjectId format '{verification_id}'")
                 return False
         elif identifier:
             query["identifier"] = str(identifier).lower()
@@ -60,11 +80,18 @@ class AuthMixin:
         if not identifier and not verification_id and not safe_code:
             return False
 
+        # Atomic find and delete
         record = self.db.verification_codes.find_one_and_delete(query)
-        return record if record else False
+
+        if record:
+            log.info(f"✅ OTP Verified and Consumed for {record.get('identifier')}")
+            return record
+
+        log.warning(f"❌ OTP Verification failed: No matching record found for code ending in ...{safe_code[-2:] if safe_code else 'None'}")
+        return False
 
     def verify_and_consume_code(self, code):
-        safe_code = str(code).replace(" ", "").strip() if code else None
+        safe_code = "".join(str(code).split()) if code else None
         log.info(f"🔍 Attempting to verify Telegram code: '{safe_code}'")
         query = {"code": safe_code, "channel": "telegram"}
         record = self.db.verification_codes.find_one_and_delete(query)
