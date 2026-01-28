@@ -12,56 +12,107 @@
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
         .prose code { color: #ec4899; font-weight: 600; font-size: 0.9em; background: #fdf2f8; padding: 2px 4px; rounded: 4px; }
-        .prose pre { background: #1e293b; padding: 1.5rem; overflow-x: auto; color: white; margin-bottom: 1.5rem; }
+        .prose pre { background: #1e293b; padding: 1.5rem; overflow-x: auto; color: white; margin-bottom: 1.5rem; border-radius: 0.75rem; }
         .prose pre code { background: transparent; color: inherit; padding: 0; font-weight: 400; }
         .sidebar-link.active { background-color: #e0e7ff; color: #4338ca; border-right: 3px solid #4338ca; }
+        h1, h2, h3, h4 { scroll-margin-top: 6rem; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-700">
 
 <div class="flex h-screen overflow-hidden">
-    <aside class="w-64 bg-white border-r border-slate-200 flex-shrink-0 hidden md:flex flex-col overflow-y-auto">
-        <div class="p-6 border-b border-slate-100">
+    <aside class="w-72 bg-white border-r border-slate-200 flex-shrink-0 hidden md:flex flex-col overflow-y-auto z-10">
+        <div class="p-6 border-b border-slate-100 sticky top-0 bg-white">
             <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Bifrost <span class="text-indigo-600">Docs</span></h1>
-            <p class="text-xs text-slate-400 mt-1 font-bold uppercase">Developer Platform</p>
+            <p class="text-xs text-slate-400 mt-1 font-bold uppercase">Developer Platform v0.4.3</p>
         </div>
-        <nav class="p-4 space-y-1">
-            <a href="#intro" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Introduction</a>
-            <a href="#auth" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Authentication</a>
-            <a href="#validation" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Validate Token</a>
-            <a href="#payments" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Payment Intents</a>
-            <a href="#webhooks" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Webhooks</a>
+        <nav class="p-4 space-y-8">
+            <div>
+                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Getting Started</h5>
+                <div class="space-y-1">
+                    <a href="#intro" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Introduction</a>
+                    <a href="#roles" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">User Roles</a>
+                </div>
+            </div>
+
+            <div>
+                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Client Authentication</h5>
+                <div class="space-y-1">
+                    <a href="#auth-login" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Login</a>
+                    <a href="#auth-register" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Registration Flow</a>
+                    <a href="#auth-telegram" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Telegram Login</a>
+                </div>
+            </div>
+
+            <div>
+                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Internal API (S2S)</h5>
+                <div class="space-y-1">
+                    <a href="#internal-validate" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Validate Token</a>
+                    <a href="#internal-linking" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Account Linking</a>
+                    <a href="#internal-user" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">User Info</a>
+                </div>
+            </div>
+
+            <div>
+                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Payments</h5>
+                <div class="space-y-1">
+                    <a href="#payments-intent" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Secure Intent</a>
+                    <a href="#payments-proof" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Submit Proof</a>
+                </div>
+            </div>
+
+            <div>
+                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Events</h5>
+                <div class="space-y-1">
+                    <a href="#webhooks-security" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Security & Verification</a>
+                    <a href="#webhooks-types" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Event Types</a>
+                </div>
+            </div>
         </nav>
-        <div class="mt-auto p-6 border-t border-slate-100">
+        <div class="mt-auto p-6 border-t border-slate-100 bg-white">
             <a href="/" class="text-xs font-bold text-slate-400 hover:text-indigo-600">← Back to Portal</a>
         </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto bg-slate-50">
+    <main class="flex-1 overflow-y-auto bg-slate-50 scroll-smooth">
         <div class="max-w-4xl mx-auto px-8 py-12 prose prose-slate max-w-none">
 
             <section id="intro" class="mb-16">
-                <h1 class="text-4xl font-extrabold text-slate-900 mb-6">Integration Guide</h1>
+                <h1 class="text-4xl font-extrabold text-slate-900 mb-6">Bifrost Integration Guide</h1>
                 <p class="text-lg leading-relaxed mb-4">
                     Bifrost is the centralized Identity Provider (IdP) and Payment Gateway for the Helm ecosystem.
                     It handles user authentication, session management via JWT, and subscription payments so you can focus on building your app logic.
                 </p>
-                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start space-x-3">
-                    <span class="text-2xl">💡</span>
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start space-x-3 mb-6">
+                    <span class="text-2xl">🔑</span>
                     <div>
                         <h4 class="font-bold text-indigo-900 text-sm uppercase mb-1">Prerequisites</h4>
-                        <p class="text-sm text-indigo-800">You need a <strong>Client ID</strong> and <strong>Client Secret</strong>. Obtain these from the Bifrost Admin Dashboard.</p>
+                        <p class="text-sm text-indigo-800">
+                            You need a <strong>Client ID</strong> and <strong>Client Secret</strong>.
+                            Obtain these from the <a href="/backoffice" class="underline">Bifrost Backoffice</a>.
+                        </p>
                     </div>
                 </div>
             </section>
 
+            <section id="roles" class="mb-16">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">User Roles</h2>
+                <p>Bifrost assigns roles per application link. A user can be an Admin in App A but a Guest in App B.</p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li><code>guest</code>: Default for new users. Limited access.</li>
+                    <li><code>user</code>: Verified standard user (free tier).</li>
+                    <li><code>premium_user</code>: Paid subscriber. Unlocks features.</li>
+                    <li><code>admin</code>: Application administrator.</li>
+                </ul>
+            </section>
+
             <hr class="border-slate-200 my-10">
 
-            <section id="auth" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">1. Authentication</h2>
-                <p class="mb-4">Clients can authenticate users via the Headless API. Bifrost supports Email/Password and Telegram authentication.</p>
+            <section id="auth-login" class="mb-16">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">1. Client Authentication</h2>
+                <p class="mb-6">Public endpoints for your frontend client (React, Vue, Mobile, etc.). No Client Secret required.</p>
 
-                <h3 class="text-lg font-bold text-slate-800 mt-6 mb-2">Login Endpoint</h3>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Login</h3>
                 <div class="flex items-center space-x-2 mb-2">
                     <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
                     <code class="text-slate-600 text-sm">/auth/api/login</code>
@@ -70,11 +121,10 @@
 -H "Content-Type: application/json" \
 -d '{
     "client_id": "YOUR_CLIENT_ID",
-    "email": "user@example.com",
+    "identifier": "user@example.com", // OR username
     "password": "user_password"
 }'</code></pre>
-
-                <h4 class="font-bold text-slate-800 mb-2">Response</h4>
+                <h4 class="font-bold text-slate-800 mb-2">Response (200 OK)</h4>
                 <pre><code class="language-json">{
     "jwt": "eyJhbGciOiJIUzI1NiIs...",
     "account_id": "65a1b2c3d4...",
@@ -83,93 +133,213 @@
 }</code></pre>
             </section>
 
-            <hr class="border-slate-200 my-10">
+            <section id="auth-register" class="mb-16">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">Headless Registration Flow</h3>
+                <p class="mb-4">Registration requires email verification. Follow this 3-step process:</p>
 
-            <section id="validation" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Token Validation</h2>
-                <p class="mb-4">
-                    Your backend services should treat the JWT as opaque. To verify a user and get their role,
-                    call the introspection endpoint using your <strong>Client Credentials</strong> (Basic Auth).
-                </p>
+                <div class="border-l-4 border-slate-300 pl-4 ml-2 space-y-8">
+                    <div>
+                        <h4 class="font-bold text-slate-900">Step 1: Request OTP</h4>
+                        <div class="flex items-center space-x-2 mb-2 mt-2">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                            <code class="text-slate-600 text-sm">/auth/api/request-email-otp</code>
+                        </div>
+                        <pre><code class="language-json">{
+    "email": "newuser@example.com",
+    "client_id": "YOUR_CLIENT_ID"
+}</code></pre>
+                        <p class="text-sm">Response includes a <code>verification_id</code>. Save this.</p>
+                    </div>
 
+                    <div>
+                        <h4 class="font-bold text-slate-900">Step 2: Verify OTP</h4>
+                        <div class="flex items-center space-x-2 mb-2 mt-2">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                            <code class="text-slate-600 text-sm">/auth/api/verify-email-otp</code>
+                        </div>
+                        <pre><code class="language-json">{
+    "verification_id": "PREVIOUS_RESPONSE_ID",
+    "code": "123456"
+}</code></pre>
+                        <p class="text-sm">Response includes a <code>proof_token</code> (JWT). This proves the email is verified.</p>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-slate-900">Step 3: Complete Registration</h4>
+                        <div class="flex items-center space-x-2 mb-2 mt-2">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                            <code class="text-slate-600 text-sm">/auth/api/complete-registration</code>
+                        </div>
+                        <pre><code class="language-json">{
+    "proof_token": "JWT_FROM_STEP_2",
+    "client_id": "YOUR_CLIENT_ID",
+    "password": "securePassword123",
+    "display_name": "John Doe",
+    "username": "johndoe" // Optional
+}</code></pre>
+                        <p class="text-sm">Returns the final User JWT and Account ID.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="auth-telegram" class="mb-16">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Telegram Widget Login</h3>
+                <p class="mb-4">Authenticate via the Telegram Login Widget data.</p>
                 <div class="flex items-center space-x-2 mb-2">
                     <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                    <code class="text-slate-600 text-sm">/internal/validate-token</code>
+                    <code class="text-slate-600 text-sm">/auth/api/telegram-login</code>
                 </div>
-
-                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4">
-                    <p class="text-amber-700 text-sm font-bold">🔒 Security Note: This endpoint requires Basic Auth using your Client ID and Client Secret.</p>
-                </div>
-
-                <pre><code class="language-bash">curl -X POST https://bifrost.helm.com/internal/validate-token \
--u "YOUR_CLIENT_ID:YOUR_CLIENT_SECRET" \
--H "Content-Type: application/json" \
--d '{
-    "jwt": "USER_JWT_HERE"
-}'</code></pre>
-
-                <h4 class="font-bold text-slate-800 mb-2">Response</h4>
-                <p class="text-sm mb-2">Bifrost returns the user's global ID and their specific role within your application.</p>
                 <pre><code class="language-json">{
-    "is_valid": true,
-    "account_id": "65a1b2c3d4...",
-    "app_specific_role": "premium_user",
-    "email": "user@example.com"
+    "client_id": "YOUR_CLIENT_ID",
+    "telegram_data": {
+        "id": 123456789,
+        "first_name": "John",
+        "auth_date": 1700000000,
+        "hash": "..."
+    }
 }</code></pre>
             </section>
 
             <hr class="border-slate-200 my-10">
 
-            <section id="payments" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Payments (Secure Intent)</h2>
-                <p class="mb-4">
-                    To prevent tampering, do not generate payment links manually. Instead, request a <strong>Secure Intent</strong>.
-                    Bifrost will store the price/role logic server-side and give you a safe link.
-                </p>
+            <section id="internal-validate" class="mb-16">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Internal API (Server-to-Server)</h2>
+                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+                    <p class="text-amber-700 text-sm font-bold">🔒 Security Note: All endpoints here require Basic Auth using your Client ID (username) and Client Secret (password).</p>
+                </div>
+
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Validate Token</h3>
+                <p class="mb-2">Verify a User JWT sent from your frontend.</p>
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                    <code class="text-slate-600 text-sm">/internal/validate-token</code>
+                </div>
+                <pre><code class="language-bash">curl -X POST https://bifrost.helm.com/internal/validate-token \
+-u "CLIENT_ID:CLIENT_SECRET" \
+-H "Content-Type: application/json" \
+-d '{ "jwt": "USER_JWT" }'</code></pre>
+
+                <h4 class="font-bold text-slate-800 mb-2">Response</h4>
+                <pre><code class="language-json">{
+    "is_valid": true,
+    "account_id": "65a...",
+    "app_specific_role": "premium_user",
+    "telegram_id": "123456"
+}</code></pre>
+            </section>
+
+            <section id="internal-linking" class="mb-16">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Account Linking (Web ↔ Telegram)</h3>
+                <p class="mb-4">To link a web session to a Telegram user, generate a <code>link_token</code> and pass it to your bot.</p>
+
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-bold text-slate-900">Step 1: Generate Token (Web Backend)</h4>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                            <code class="text-slate-600 text-sm">/internal/generate-link-token</code>
+                        </div>
+                        <pre><code class="language-json">{ "account_id": "CURRENT_USER_ID" }</code></pre>
+                        <p class="text-sm">Returns: <code>{ "token": "xyz_secure_token" }</code></p>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-slate-900">Step 2: Link (Bot Backend)</h4>
+                        <p class="text-sm mb-2">When user sends <code>/start xyz_secure_token</code> to your bot:</p>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                            <code class="text-slate-600 text-sm">/internal/link-account</code>
+                        </div>
+                        <pre><code class="language-json">{
+    "link_token": "xyz_secure_token",
+    "telegram_id": "123456789"
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section id="internal-user" class="mb-16">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Get User Info</h3>
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold uppercase">GET</span>
+                    <code class="text-slate-600 text-sm">/internal/users/{user_id}</code>
+                </div>
+                <p class="text-sm">Retrieve public profile data (Display Name, Username, Email mask) for a global user ID.</p>
+            </section>
+
+            <hr class="border-slate-200 my-10">
+
+            <section id="payments-intent" class="mb-16">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Payments</h2>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Secure Intent (Enterprise Flow)</h3>
+                <p class="mb-4">Create a server-side transaction record before showing payment options to the user.</p>
 
                 <div class="flex items-center space-x-2 mb-2">
                     <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
                     <code class="text-slate-600 text-sm">/internal/payments/secure-intent</code>
                 </div>
-
-                <pre><code class="language-bash">curl -X POST https://bifrost.helm.com/internal/payments/secure-intent \
--u "YOUR_CLIENT_ID:YOUR_CLIENT_SECRET" \
--H "Content-Type: application/json" \
--d '{
+                <pre><code class="language-json">{
     "account_id": "OPTIONAL_USER_ID",
     "amount": 9.99,
     "currency": "USD",
     "target_role": "premium_user",
-    "duration": "1m",
+    "duration": "1m", // 1m, 3m, 6m, 1y, lifetime
     "client_ref_id": "INV-2024-001"
-}'</code></pre>
-
+}</code></pre>
                 <h4 class="font-bold text-slate-800 mb-2">Response</h4>
                 <pre><code class="language-json">{
     "success": true,
     "transaction_id": "tx-a1b2c3d4",
-    "secure_link": "https://t.me/bifrost_bot?start=tx-a1b2c3d4",
+    "secure_link": "https://t.me/bifrost_byhelm_bot?start=tx-a1b2c3d4",
     "manual_command": "/pay tx-a1b2c3d4"
 }</code></pre>
-                <p class="text-sm mt-2">Redirect the user to <code>secure_link</code> to open the Payment Bot with the correct context.</p>
+            </section>
+
+            <section id="payments-proof" class="mb-16">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Submit Payment Proof</h3>
+                <p class="mb-4">Allows a user to upload a screenshot of their bank transfer via your Web App. This forwards the image to the Telegram Admin Group for manual approval.</p>
+
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
+                    <code class="text-slate-600 text-sm">/internal/payments/submit-proof</code>
+                </div>
+                <p class="text-sm font-bold mb-2">Content-Type: <code>multipart/form-data</code></p>
+                <ul class="list-disc pl-5 mb-4 text-sm">
+                    <li><code>file</code>: The image file.</li>
+                    <li><code>account_id</code>: The Bifrost User ID.</li>
+                    <li><code>transaction_id</code>: (Optional) The pending TX ID.</li>
+                </ul>
             </section>
 
             <hr class="border-slate-200 my-10">
 
-            <section id="webhooks" class="mb-16">
+            <section id="webhooks-security" class="mb-16">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4">4. Webhooks</h2>
-                <p class="mb-4">
-                    Bifrost pushes real-time updates to your configured <code>API URL</code>.
-                    You must verify the signature to ensure the request is genuine.
-                </p>
+                <p class="mb-4">Bifrost sends events to your configured <code>API URL</code>. You must verify the signature.</p>
 
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Security: Signature Verification</h3>
-                <p class="text-sm mb-4">
-                    Headers contain <code>X-Bifrost-Signature</code>. This is an HMAC-SHA256 hex digest of the request body,
-                    using your <strong>Webhook Secret</strong> as the key.
-                </p>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Signature Verification (Python Example)</h3>
+                <p class="text-sm mb-2">Headers contain <code>X-Bifrost-Signature</code> (HMAC-SHA256 hex digest).</p>
 
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Event Types</h3>
+                <pre><code class="language-python">import hmac
+import hashlib
+import json
+
+def verify_bifrost_webhook(request, secret):
+    signature = request.headers.get('X-Bifrost-Signature')
+    # Bifrost uses compact JSON (separators=(',', ':'))
+    payload_bytes = request.get_data()
+
+    expected = hmac.new(
+        key=secret.encode('utf-8'),
+        msg=payload_bytes,
+        digestmod=hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(expected, signature)</code></pre>
+            </section>
+
+            <section id="webhooks-types" class="mb-16">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Event Payloads</h3>
 
                 <div class="space-y-6">
                     <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
@@ -177,7 +347,7 @@
                             <code class="text-indigo-600 font-bold">subscription_success</code>
                             <span class="text-xs font-bold bg-green-100 text-green-800 px-2 py-1 rounded">Payment</span>
                         </div>
-                        <p class="text-sm text-slate-600 mb-3">Fired immediately after a successful payment or admin approval.</p>
+                        <p class="text-sm text-slate-600 mb-3">Fired after successful payment or admin approval.</p>
                         <pre class="mb-0"><code class="language-json">{
     "event": "subscription_success",
     "account_id": "65a...",
@@ -185,6 +355,8 @@
     "transaction_id": "tx-123",
     "amount": 9.99,
     "role": "premium_user",
+    "duration": "1m",
+    "expires_at": "2026-02-28T12:00:00+00:00",
     "client_ref_id": "INV-001"
 }</code></pre>
                     </div>
@@ -202,6 +374,20 @@
     "previous_role": "premium_user",
     "new_role": "user",
     "reason": "expired"
+}</code></pre>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <code class="text-amber-600 font-bold">account_update</code>
+                            <span class="text-xs font-bold bg-slate-100 text-slate-800 px-2 py-1 rounded">Identity</span>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-3">Fired when a user links a new credential (e.g., links Telegram).</p>
+                        <pre class="mb-0"><code class="language-json">{
+    "event": "account_update",
+    "account_id": "65a...",
+    "telegram_id": "123456789",
+    "email": "updated@example.com"
 }</code></pre>
                     </div>
                 </div>

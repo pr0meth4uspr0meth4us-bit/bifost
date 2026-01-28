@@ -3,6 +3,17 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-01-29
+
+### Documentation
+- **Integration Guide**: Major overhaul of `bifrost/templates/docs.html`.
+  - Added comprehensive "Registration Flow" section covering OTP generation and verification.
+  - Added "Account Linking" section detailing the `generate-link-token` flow.
+  - Added "Payment Proofs" section for the `submit-proof` API.
+  - Added concrete Python code examples for HMAC Webhook verification.
+  - Added specific details on User Roles (`guest`, `user`, `premium_user`, `admin`).
+- **Structure**: Organized docs with a sticky sidebar for easier navigation.
+
 ## [0.4.2] - 2026-01-29
 
 ### Added
@@ -11,13 +22,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Testing**: Added `tests.http` for internal API testing.
 
 ### Security & Compliance
-- **Immutable Verified Users**: Updated `remove_user_from_app` in `bifrost/models/apps.py`. Administrators can no longer remove users whose role is anything other than `guest`. This ensures verified users own their data and cannot be forcibly unlinked by a tenant admin.
-- **Backoffice UI**: Added logic to `bifrost/backoffice.py` to catch compliance errors and flash a descriptive warning ("Verified users cannot be removed..."). Updated the UI button to label removal as "(Guest Only)".
+- **Immutable Verified Users**: Updated `remove_user_from_app` in `bifrost/models/apps.py`.
+  Administrators can no longer remove users whose role is anything other than `guest`.
+  This ensures verified users own their data and cannot be forcibly unlinked by a tenant admin.
+- **Backoffice UI**: Added logic to `bifrost/backoffice.py` to catch compliance errors and flash a descriptive warning ("Verified users cannot be removed...").
+  Updated the UI button to label removal as "(Guest Only)".
 
 ## [0.4.1] - 2026-01-26
 
 ### Fixed
-- **OTP Race Condition**: Updated `create_otp` in `bifrost/models/auth.py` to delete any existing codes for the same identifier/channel before creating a new one. This resolves issues where users try to use an "old" code after requesting a new one.
+- **OTP Race Condition**: Updated `create_otp` in `bifrost/models/auth.py` to delete any existing codes for the same identifier/channel before creating a new one.
+  This resolves issues where users try to use an "old" code after requesting a new one.
 - **OTP Validation**: Added stricter whitespace cleaning to `verify_otp` to handle copy-paste errors better.
 - **UI UX**: Added double-submit protection (JavaScript disable button) to `verify_otp.html` to prevent the "Invalid/Expired" error that occurs when a user double-clicks the verify button.
 
@@ -50,13 +65,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 - **Security Hardening**:
   - **Masked Credentials**: Client IDs and Webhook Secrets are now hidden by default (`•••••`) and require a click to reveal.
-- **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
+  - **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
 - **UX Overhaul**:
   - **App Management**: Split "Users" and "Configuration" into separate tabs.
-- **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
+  - **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
 - **Logic Fixes**:
   - **Default Duration**: The "Add User" and "Manual Bot Approval" flows now default to **1 Month** access instead of **Lifetime** if no duration is specified.
-- **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
+  - **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
 
 ## [0.3.1] - 2026-01-23
 
@@ -122,15 +137,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rich Webhooks**: The webhook system now supports arbitrary data payloads via `extra_data`.
 - **Subscription Events**:
   - `subscription_success`: Fired when a payment completes. Payload includes `transaction_id`, `amount`, `currency`, and `role`.
-- `subscription_expired`: Fired by the Reaper when a subscription expires.
+  - `subscription_expired`: Fired by the Reaper when a subscription expires.
 - **Subscription Reaper**: Implemented `bifrost/scheduler.py`, a background cron job that runs every 60 minutes to automatically downgrade expired subscriptions.
 - **Enterprise Payment Flow**: Implemented "Intent-Based" payments to prevent parameter tampering.
-- New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
-- Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
+  - New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
+  - Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
 - **Tenant Dashboard**: Created `bifrost/backoffice.py` to allow App Admins to manage their specific users.
 - **Role Hierarchy**:
   - **Super Admin**: Full access to all apps via Backoffice login.
-- **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
+  - **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
 - **User Management UI**: Added `app_users.html` allowing Admins to manually change user roles (e.g., grant Premium) and extend subscription duration.
 - **Subscription Expiration**: Updated `BifrostDB` models to support `expires_at` for app links.
 - **Dynamic Pricing**: Bifrost Bot now parses `duration` (e.g., '1m', '1y') and `client_ref_id` from the payment payload.
