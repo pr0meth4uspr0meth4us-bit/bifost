@@ -1,195 +1,281 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bifrost Developer Documentation</title>
+    <title>Bifrost API Documentation</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>hljs.highlightAll();</script>
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
-        .prose code { color: #ec4899; font-weight: 600; font-size: 0.9em; background: #fdf2f8; padding: 2px 4px; rounded: 4px; }
-        .prose pre { background: #1e293b; padding: 1.5rem; overflow-x: auto; color: white; margin-bottom: 1.5rem; border-radius: 0.75rem; }
-        .prose pre code { background: transparent; color: inherit; padding: 0; font-weight: 400; }
-        .sidebar-link.active { background-color: #e0e7ff; color: #4338ca; border-right: 3px solid #4338ca; }
-        h1, h2, h3, h4 { scroll-margin-top: 6rem; }
+        body { font-family: 'Inter', sans-serif; }
+        code { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Prose Overrides */
+        .prose h2 { margin-top: 2.5em; padding-bottom: 0.5em; border-bottom: 1px solid #e2e8f0; }
+        .prose h3 { margin-top: 2em; color: #1e293b; }
+        .prose code:not(pre code) {
+            color: #0f172a;
+            background-color: #f1f5f9;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-weight: 500;
+            font-size: 0.875em;
+        }
+        .prose pre {
+            background-color: #1e293b;
+            border-radius: 0.5rem;
+            margin-top: 1em;
+            margin-bottom: 2em;
+            border: 1px solid #334155;
+        }
+
+        /* Method Badges */
+        .method-post { @apply bg-green-100 text-green-700 border border-green-200; }
+        .method-get { @apply bg-blue-100 text-blue-700 border border-blue-200; }
+
+        /* Sidebar Active State */
+        .nav-link.active { @apply text-indigo-600 font-semibold border-l-2 border-indigo-600 pl-3 -ml-[2px]; }
+        .nav-link { @apply text-slate-500 hover:text-slate-900 transition-colors border-l-2 border-transparent pl-3 -ml-[2px] block py-1; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-700">
+<body class="bg-white text-slate-600 antialiased selection:bg-indigo-100 selection:text-indigo-700">
 
 <div class="flex h-screen overflow-hidden">
-    <aside class="w-72 bg-white border-r border-slate-200 flex-shrink-0 hidden md:flex flex-col overflow-y-auto z-10">
-        <div class="p-6 border-b border-slate-100 sticky top-0 bg-white">
-            <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">Bifrost <span class="text-indigo-600">Docs</span></h1>
-            <p class="text-xs text-slate-400 mt-1 font-bold uppercase">Developer Platform v0.4.3</p>
+
+    <aside class="w-64 flex-shrink-0 border-r border-slate-200 bg-slate-50/50 hidden lg:flex flex-col h-full">
+        <div class="p-6 border-b border-slate-200 bg-white sticky top-0 z-10">
+            <div class="flex items-center space-x-2">
+                <div class="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">B</div>
+                <span class="text-lg font-bold text-slate-900 tracking-tight">Bifrost <span class="text-indigo-600">API</span></span>
+            </div>
+            <div class="mt-2 flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider border border-slate-200">v0.4.3</span>
+                <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider border border-green-200">Live</span>
+            </div>
         </div>
-        <nav class="p-4 space-y-8">
+
+        <nav class="flex-1 overflow-y-auto p-6 space-y-8 text-sm">
             <div>
-                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Getting Started</h5>
-                <div class="space-y-1">
-                    <a href="#intro" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Introduction</a>
-                    <a href="#roles" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">User Roles</a>
+                <h5 class="font-bold text-slate-900 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Overview
+                </h5>
+                <div class="space-y-1 ml-2 border-l border-slate-200">
+                    <a href="#intro" class="nav-link">Introduction</a>
+                    <a href="#roles" class="nav-link">User Roles</a>
                 </div>
             </div>
 
             <div>
-                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Client Authentication</h5>
-                <div class="space-y-1">
-                    <a href="#auth-login" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Login</a>
-                    <a href="#auth-register" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Registration Flow</a>
-                    <a href="#auth-telegram" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Telegram Login</a>
+                <h5 class="font-bold text-slate-900 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 14l-1 1-1 1H6v2H2v-2v-2h2l2.172-2.172a6 6 0 01-4.951-9.929" /></svg>
+                    Authentication
+                </h5>
+                <div class="space-y-1 ml-2 border-l border-slate-200">
+                    <a href="#auth-login" class="nav-link">Login</a>
+                    <a href="#auth-register" class="nav-link">Registration Flow</a>
+                    <a href="#auth-telegram" class="nav-link">Telegram Login</a>
                 </div>
             </div>
 
             <div>
-                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Internal API (S2S)</h5>
-                <div class="space-y-1">
-                    <a href="#internal-validate" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Validate Token</a>
-                    <a href="#internal-linking" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Account Linking</a>
-                    <a href="#internal-user" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">User Info</a>
+                <h5 class="font-bold text-slate-900 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    Internal API
+                </h5>
+                <div class="space-y-1 ml-2 border-l border-slate-200">
+                    <a href="#internal-validate" class="nav-link">Validate Token</a>
+                    <a href="#internal-linking" class="nav-link">Account Linking</a>
+                    <a href="#internal-user" class="nav-link">Get User Info</a>
                 </div>
             </div>
 
             <div>
-                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Payments</h5>
-                <div class="space-y-1">
-                    <a href="#payments-intent" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Secure Intent</a>
-                    <a href="#payments-proof" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Submit Proof</a>
+                <h5 class="font-bold text-slate-900 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    Payments
+                </h5>
+                <div class="space-y-1 ml-2 border-l border-slate-200">
+                    <a href="#payments-intent" class="nav-link">Secure Intent</a>
+                    <a href="#payments-proof" class="nav-link">Submit Proof</a>
                 </div>
             </div>
 
             <div>
-                <h5 class="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Events</h5>
-                <div class="space-y-1">
-                    <a href="#webhooks-security" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Security & Verification</a>
-                    <a href="#webhooks-types" class="sidebar-link block px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-lg">Event Types</a>
+                <h5 class="font-bold text-slate-900 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    Webhooks
+                </h5>
+                <div class="space-y-1 ml-2 border-l border-slate-200">
+                    <a href="#webhooks-security" class="nav-link">Security</a>
+                    <a href="#webhooks-types" class="nav-link">Event Types</a>
                 </div>
             </div>
         </nav>
-        <div class="mt-auto p-6 border-t border-slate-100 bg-white">
-            <a href="/" class="text-xs font-bold text-slate-400 hover:text-indigo-600">← Back to Portal</a>
+
+        <div class="p-4 border-t border-slate-200 bg-white">
+            <a href="/" class="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors">
+                ← Back to Portal
+            </a>
         </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto bg-slate-50 scroll-smooth">
-        <div class="max-w-4xl mx-auto px-8 py-12 prose prose-slate max-w-none">
+    <main class="flex-1 overflow-y-auto scroll-smooth">
+        <div class="max-w-5xl mx-auto px-8 lg:px-12 py-12">
 
-            <section id="intro" class="mb-16">
-                <h1 class="text-4xl font-extrabold text-slate-900 mb-6">Bifrost Integration Guide</h1>
-                <p class="text-lg leading-relaxed mb-4">
+            <section id="intro" class="mb-20">
+                <h1 class="text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">Integration Guide</h1>
+                <p class="text-xl text-slate-500 leading-relaxed mb-8">
                     Bifrost is the centralized Identity Provider (IdP) and Payment Gateway for the Helm ecosystem.
-                    It handles user authentication, session management via JWT, and subscription payments so you can focus on building your app logic.
+                    It handles user authentication, session management via JWT, and subscription payments, allowing you to focus purely on your application logic.
                 </p>
-                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start space-x-3 mb-6">
-                    <span class="text-2xl">🔑</span>
+
+                <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 flex gap-4">
+                    <div class="flex-shrink-0">
+                        <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
                     <div>
-                        <h4 class="font-bold text-indigo-900 text-sm uppercase mb-1">Prerequisites</h4>
-                        <p class="text-sm text-indigo-800">
-                            You need a <strong>Client ID</strong> and <strong>Client Secret</strong>.
-                            Obtain these from the <a href="/backoffice" class="underline">Bifrost Backoffice</a>.
+                        <h4 class="font-bold text-indigo-900 text-sm uppercase tracking-wide mb-1">Prerequisites</h4>
+                        <p class="text-indigo-800 text-sm leading-relaxed">
+                            You need a <strong>Client ID</strong> and <strong>Client Secret</strong> to interact with the API.
+                            These can be obtained from the <a href="/backoffice" class="underline hover:text-indigo-950 font-semibold">Bifrost Backoffice</a>.
                         </p>
                     </div>
                 </div>
             </section>
 
-            <section id="roles" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">User Roles</h2>
-                <p>Bifrost assigns roles per application link. A user can be an Admin in App A but a Guest in App B.</p>
-                <ul class="list-disc pl-5 space-y-2">
-                    <li><code>guest</code>: Default for new users. Limited access.</li>
-                    <li><code>user</code>: Verified standard user (free tier).</li>
-                    <li><code>premium_user</code>: Paid subscriber. Unlocks features.</li>
-                    <li><code>admin</code>: Application administrator.</li>
-                </ul>
+            <section id="roles" class="mb-20 prose prose-slate max-w-none">
+                <h2>User Roles & Permissions</h2>
+                <p>Bifrost utilizes a context-aware role system. A single user identity can hold different roles across different applications.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 not-prose mt-6">
+                    <div class="p-4 border border-slate-200 rounded-lg bg-white shadow-sm">
+                        <div class="font-mono text-xs font-bold text-slate-500 uppercase mb-1">Role</div>
+                        <div class="font-bold text-slate-900 text-lg">guest</div>
+                        <p class="text-sm text-slate-500 mt-2">Default for new unverified users. Limited access.</p>
+                    </div>
+                    <div class="p-4 border border-slate-200 rounded-lg bg-white shadow-sm">
+                        <div class="font-mono text-xs font-bold text-slate-500 uppercase mb-1">Role</div>
+                        <div class="font-bold text-slate-900 text-lg">user</div>
+                        <p class="text-sm text-slate-500 mt-2">Verified standard user (Free Tier).</p>
+                    </div>
+                    <div class="p-4 border border-indigo-200 rounded-lg bg-indigo-50/50 shadow-sm">
+                        <div class="font-mono text-xs font-bold text-indigo-500 uppercase mb-1">Role</div>
+                        <div class="font-bold text-indigo-900 text-lg">premium_user</div>
+                        <p class="text-sm text-indigo-800 mt-2">Paid subscriber. Unlocks full features.</p>
+                    </div>
+                    <div class="p-4 border border-slate-200 rounded-lg bg-white shadow-sm">
+                        <div class="font-mono text-xs font-bold text-slate-500 uppercase mb-1">Role</div>
+                        <div class="font-bold text-slate-900 text-lg">admin</div>
+                        <p class="text-sm text-slate-500 mt-2">Application administrator with dashboard access.</p>
+                    </div>
+                </div>
             </section>
 
-            <hr class="border-slate-200 my-10">
-
-            <section id="auth-login" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">1. Client Authentication</h2>
-                <p class="mb-6">Public endpoints for your frontend client (React, Vue, Mobile, etc.). No Client Secret required.</p>
-
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Login</h3>
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                    <code class="text-slate-600 text-sm">/auth/api/login</code>
+            <section id="auth-login" class="mb-20 prose prose-slate max-w-none">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="flex items-center justify-center h-8 w-8 rounded-full bg-slate-900 text-white font-bold text-sm">1</span>
+                    <h2 class="!m-0 !p-0 !border-0 text-3xl font-bold text-slate-900">Client Authentication</h2>
                 </div>
-                <pre><code class="language-bash">curl -X POST https://bifrost.helm.com/auth/api/login \
+                <p>Public endpoints for frontend clients (React, Vue, Mobile). <strong class="text-indigo-600">No Client Secret required.</strong></p>
+
+                <div class="mt-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="!m-0 text-lg font-bold">Standard Login</h3>
+                        <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide method-post">POST</span>
+                    </div>
+                    <div class="bg-slate-100 rounded-lg p-3 font-mono text-sm text-slate-600 mb-4 border border-slate-200">
+                        https://bifrost.helm.com/auth/api/login
+                    </div>
+
+                    <pre><code class="language-bash">curl -X POST https://bifrost.helm.com/auth/api/login \
 -H "Content-Type: application/json" \
 -d '{
     "client_id": "YOUR_CLIENT_ID",
     "identifier": "user@example.com", // OR username
     "password": "user_password"
 }'</code></pre>
-                <h4 class="font-bold text-slate-800 mb-2">Response (200 OK)</h4>
-                <pre><code class="language-json">{
+
+                    <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wide mt-6 mb-2">Response (200 OK)</h4>
+                    <pre><code class="language-json">{
     "jwt": "eyJhbGciOiJIUzI1NiIs...",
     "account_id": "65a1b2c3d4...",
     "username": "johndoe",
     "display_name": "John Doe"
 }</code></pre>
+                </div>
             </section>
 
-            <section id="auth-register" class="mb-16">
-                <h3 class="text-lg font-bold text-slate-800 mb-4">Headless Registration Flow</h3>
-                <p class="mb-4">Registration requires email verification. Follow this 3-step process:</p>
+            <section id="auth-register" class="mb-20 prose prose-slate max-w-none">
+                <h3 class="text-xl font-bold text-slate-900">Headless Registration Flow</h3>
+                <p>Registration is a 3-step process to ensure email ownership before account creation.</p>
 
-                <div class="border-l-4 border-slate-300 pl-4 ml-2 space-y-8">
-                    <div>
-                        <h4 class="font-bold text-slate-900">Step 1: Request OTP</h4>
-                        <div class="flex items-center space-x-2 mb-2 mt-2">
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                            <code class="text-slate-600 text-sm">/auth/api/request-email-otp</code>
+                <div class="relative pl-8 border-l-2 border-indigo-100 space-y-12 mt-8">
+
+                    <div class="relative">
+                        <span class="absolute -left-[41px] top-0 h-5 w-5 rounded-full border-4 border-white bg-indigo-600"></span>
+                        <h4 class="!mt-0 text-lg font-bold text-slate-900">Step 1: Request OTP</h4>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                            <code class="text-xs">/auth/api/request-email-otp</code>
                         </div>
-                        <pre><code class="language-json">{
+                        <pre class="!my-2"><code class="language-json">{
     "email": "newuser@example.com",
     "client_id": "YOUR_CLIENT_ID"
 }</code></pre>
-                        <p class="text-sm">Response includes a <code>verification_id</code>. Save this.</p>
+                        <p class="text-sm text-slate-500">Save the <code>verification_id</code> from the response.</p>
                     </div>
 
-                    <div>
-                        <h4 class="font-bold text-slate-900">Step 2: Verify OTP</h4>
-                        <div class="flex items-center space-x-2 mb-2 mt-2">
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                            <code class="text-slate-600 text-sm">/auth/api/verify-email-otp</code>
+                    <div class="relative">
+                        <span class="absolute -left-[41px] top-0 h-5 w-5 rounded-full border-4 border-white bg-indigo-600"></span>
+                        <h4 class="!mt-0 text-lg font-bold text-slate-900">Step 2: Verify OTP</h4>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                            <code class="text-xs">/auth/api/verify-email-otp</code>
                         </div>
-                        <pre><code class="language-json">{
+                        <pre class="!my-2"><code class="language-json">{
     "verification_id": "PREVIOUS_RESPONSE_ID",
     "code": "123456"
 }</code></pre>
-                        <p class="text-sm">Response includes a <code>proof_token</code> (JWT). This proves the email is verified.</p>
+                        <p class="text-sm text-slate-500">Returns a temporary <code>proof_token</code> (JWT).</p>
                     </div>
 
-                    <div>
-                        <h4 class="font-bold text-slate-900">Step 3: Complete Registration</h4>
-                        <div class="flex items-center space-x-2 mb-2 mt-2">
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                            <code class="text-slate-600 text-sm">/auth/api/complete-registration</code>
+                    <div class="relative">
+                        <span class="absolute -left-[41px] top-0 h-5 w-5 rounded-full border-4 border-white bg-indigo-600"></span>
+                        <h4 class="!mt-0 text-lg font-bold text-slate-900">Step 3: Create Account</h4>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                            <code class="text-xs">/auth/api/complete-registration</code>
                         </div>
-                        <pre><code class="language-json">{
+                        <pre class="!my-2"><code class="language-json">{
     "proof_token": "JWT_FROM_STEP_2",
     "client_id": "YOUR_CLIENT_ID",
     "password": "securePassword123",
     "display_name": "John Doe",
     "username": "johndoe" // Optional
 }</code></pre>
-                        <p class="text-sm">Returns the final User JWT and Account ID.</p>
                     </div>
                 </div>
             </section>
 
-            <section id="auth-telegram" class="mb-16">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Telegram Widget Login</h3>
-                <p class="mb-4">Authenticate via the Telegram Login Widget data.</p>
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                    <code class="text-slate-600 text-sm">/auth/api/telegram-login</code>
-                </div>
-                <pre><code class="language-json">{
+            <section id="auth-telegram" class="mb-20 prose prose-slate max-w-none">
+                <h3 class="text-xl font-bold text-slate-900">Telegram Widget Login</h3>
+                <div class="mt-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                        <code class="text-xs">/auth/api/telegram-login</code>
+                    </div>
+                    <pre><code class="language-json">{
     "client_id": "YOUR_CLIENT_ID",
     "telegram_data": {
         "id": 123456789,
@@ -198,28 +284,35 @@
         "hash": "..."
     }
 }</code></pre>
+                </div>
             </section>
 
-            <hr class="border-slate-200 my-10">
-
-            <section id="internal-validate" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">2. Internal API (Server-to-Server)</h2>
-                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
-                    <p class="text-amber-700 text-sm font-bold">🔒 Security Note: All endpoints here require Basic Auth using your Client ID (username) and Client Secret (password).</p>
+            <section id="internal-validate" class="mb-20 prose prose-slate max-w-none">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="flex items-center justify-center h-8 w-8 rounded-full bg-slate-900 text-white font-bold text-sm">2</span>
+                    <h2 class="!m-0 !p-0 !border-0 text-3xl font-bold text-slate-900">Internal API (S2S)</h2>
                 </div>
 
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Validate Token</h3>
-                <p class="mb-2">Verify a User JWT sent from your frontend.</p>
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                    <code class="text-slate-600 text-sm">/internal/validate-token</code>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-8 flex gap-3">
+                    <svg class="h-5 w-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <p class="text-amber-800 text-sm font-semibold !my-0">
+                        Security Note: These endpoints require HTTP Basic Auth using your Client ID (username) and Client Secret (password).
+                    </p>
+                </div>
+
+                <h3 class="text-xl font-bold text-slate-900">Validate Token</h3>
+                <p>Exchange an opaque User JWT for user details and permissions.</p>
+
+                <div class="flex items-center gap-2 mb-2 mt-4">
+                    <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                    <code class="text-xs">/internal/validate-token</code>
                 </div>
                 <pre><code class="language-bash">curl -X POST https://bifrost.helm.com/internal/validate-token \
 -u "CLIENT_ID:CLIENT_SECRET" \
 -H "Content-Type: application/json" \
 -d '{ "jwt": "USER_JWT" }'</code></pre>
 
-                <h4 class="font-bold text-slate-800 mb-2">Response</h4>
+                <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wide mt-6 mb-2">Response</h4>
                 <pre><code class="language-json">{
     "is_valid": true,
     "account_id": "65a...",
@@ -228,55 +321,59 @@
 }</code></pre>
             </section>
 
-            <section id="internal-linking" class="mb-16">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Account Linking (Web ↔ Telegram)</h3>
-                <p class="mb-4">To link a web session to a Telegram user, generate a <code>link_token</code> and pass it to your bot.</p>
+            <section id="internal-linking" class="mb-20 prose prose-slate max-w-none">
+                <h3 class="text-xl font-bold text-slate-900">Account Linking</h3>
+                <p>Link a web session to a Telegram ID securely.</p>
 
-                <div class="space-y-6">
-                    <div>
-                        <h4 class="font-bold text-slate-900">Step 1: Generate Token (Web Backend)</h4>
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                            <code class="text-slate-600 text-sm">/internal/generate-link-token</code>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                        <div class="text-xs font-bold text-slate-500 uppercase mb-2">Step 1: Web Backend</div>
+                        <h4 class="!mt-0 text-base font-bold text-slate-900">Generate Token</h4>
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                            <code class="text-xs">/internal/generate-link-token</code>
                         </div>
-                        <pre><code class="language-json">{ "account_id": "CURRENT_USER_ID" }</code></pre>
-                        <p class="text-sm">Returns: <code>{ "token": "xyz_secure_token" }</code></p>
+                        <pre class="!mb-0"><code class="language-json">{ "account_id": "USER_ID" }</code></pre>
                     </div>
 
-                    <div>
-                        <h4 class="font-bold text-slate-900">Step 2: Link (Bot Backend)</h4>
-                        <p class="text-sm mb-2">When user sends <code>/start xyz_secure_token</code> to your bot:</p>
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                            <code class="text-slate-600 text-sm">/internal/link-account</code>
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                        <div class="text-xs font-bold text-slate-500 uppercase mb-2">Step 2: Bot Backend</div>
+                        <h4 class="!mt-0 text-base font-bold text-slate-900">Consume Token</h4>
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                            <code class="text-xs">/internal/link-account</code>
                         </div>
-                        <pre><code class="language-json">{
-    "link_token": "xyz_secure_token",
-    "telegram_id": "123456789"
+                        <pre class="!mb-0"><code class="language-json">{
+    "link_token": "TOKEN",
+    "telegram_id": "123"
 }</code></pre>
                     </div>
                 </div>
             </section>
 
-            <section id="internal-user" class="mb-16">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Get User Info</h3>
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold uppercase">GET</span>
-                    <code class="text-slate-600 text-sm">/internal/users/{user_id}</code>
+            <section id="internal-user" class="mb-20 prose prose-slate max-w-none">
+                <h3 class="text-xl font-bold text-slate-900">Get User Info</h3>
+                <div class="mt-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="method-get px-2 py-0.5 rounded text-[10px] font-bold uppercase">GET</span>
+                        <code class="text-xs">/internal/users/{user_id}</code>
+                    </div>
+                    <p class="text-sm text-slate-600">Retrieve public profile data (Display Name, Username, Email mask) for a global user ID.</p>
                 </div>
-                <p class="text-sm">Retrieve public profile data (Display Name, Username, Email mask) for a global user ID.</p>
             </section>
 
-            <hr class="border-slate-200 my-10">
+            <section id="payments-intent" class="mb-20 prose prose-slate max-w-none">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="flex items-center justify-center h-8 w-8 rounded-full bg-slate-900 text-white font-bold text-sm">3</span>
+                    <h2 class="!m-0 !p-0 !border-0 text-3xl font-bold text-slate-900">Payments</h2>
+                </div>
 
-            <section id="payments-intent" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Payments</h2>
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Secure Intent (Enterprise Flow)</h3>
-                <p class="mb-4">Create a server-side transaction record before showing payment options to the user.</p>
+                <h3 class="text-xl font-bold text-slate-900">Secure Intent</h3>
+                <p>Create a server-side transaction record before showing payment options to ensure price integrity.</p>
 
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                    <code class="text-slate-600 text-sm">/internal/payments/secure-intent</code>
+                <div class="flex items-center gap-2 mb-2 mt-4">
+                    <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                    <code class="text-xs">/internal/payments/secure-intent</code>
                 </div>
                 <pre><code class="language-json">{
     "account_id": "OPTIONAL_USER_ID",
@@ -286,7 +383,8 @@
     "duration": "1m", // 1m, 3m, 6m, 1y, lifetime
     "client_ref_id": "INV-2024-001"
 }</code></pre>
-                <h4 class="font-bold text-slate-800 mb-2">Response</h4>
+
+                <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wide mt-6 mb-2">Response</h4>
                 <pre><code class="language-json">{
     "success": true,
     "transaction_id": "tx-a1b2c3d4",
@@ -295,39 +393,41 @@
 }</code></pre>
             </section>
 
-            <section id="payments-proof" class="mb-16">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Submit Payment Proof</h3>
-                <p class="mb-4">Allows a user to upload a screenshot of their bank transfer via your Web App. This forwards the image to the Telegram Admin Group for manual approval.</p>
+            <section id="payments-proof" class="mb-20 prose prose-slate max-w-none">
+                <h3 class="text-xl font-bold text-slate-900">Submit Proof</h3>
+                <p>Upload a screenshot of a manual bank transfer. This forwards the image to the Telegram Admin Group.</p>
 
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">POST</span>
-                    <code class="text-slate-600 text-sm">/internal/payments/submit-proof</code>
+                <div class="flex items-center gap-2 mb-2 mt-4">
+                    <span class="method-post px-2 py-0.5 rounded text-[10px] font-bold uppercase">POST</span>
+                    <code class="text-xs">/internal/payments/submit-proof</code>
                 </div>
-                <p class="text-sm font-bold mb-2">Content-Type: <code>multipart/form-data</code></p>
-                <ul class="list-disc pl-5 mb-4 text-sm">
-                    <li><code>file</code>: The image file.</li>
-                    <li><code>account_id</code>: The Bifrost User ID.</li>
-                    <li><code>transaction_id</code>: (Optional) The pending TX ID.</li>
-                </ul>
+
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
+                    <strong>Header:</strong> <code>Content-Type: multipart/form-data</code>
+                    <ul class="mt-2 list-disc list-inside">
+                        <li><code>file</code>: The image file binary.</li>
+                        <li><code>account_id</code>: The Bifrost User ID.</li>
+                        <li><code>transaction_id</code>: (Optional) Pending TX ID.</li>
+                    </ul>
+                </div>
             </section>
 
-            <hr class="border-slate-200 my-10">
+            <section id="webhooks-security" class="mb-20 prose prose-slate max-w-none">
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="flex items-center justify-center h-8 w-8 rounded-full bg-slate-900 text-white font-bold text-sm">4</span>
+                    <h2 class="!m-0 !p-0 !border-0 text-3xl font-bold text-slate-900">Webhooks</h2>
+                </div>
 
-            <section id="webhooks-security" class="mb-16">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4">4. Webhooks</h2>
-                <p class="mb-4">Bifrost sends events to your configured <code>API URL</code>. You must verify the signature.</p>
+                <p>Bifrost sends events to your configured <code>API URL</code>. You <strong>must</strong> verify the signature.</p>
 
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Signature Verification (Python Example)</h3>
-                <p class="text-sm mb-2">Headers contain <code>X-Bifrost-Signature</code> (HMAC-SHA256 hex digest).</p>
+                <h3 class="text-xl font-bold text-slate-900">Security</h3>
+                <p class="text-sm text-slate-600 mb-4">Header: <code>X-Bifrost-Signature</code> (HMAC-SHA256 hex digest).</p>
 
-                <pre><code class="language-python">import hmac
-import hashlib
-import json
+                <pre><code class="language-python">import hmac, hashlib
 
 def verify_bifrost_webhook(request, secret):
     signature = request.headers.get('X-Bifrost-Signature')
-    # Bifrost uses compact JSON (separators=(',', ':'))
-    payload_bytes = request.get_data()
+    payload_bytes = request.get_data() # Raw Body
 
     expected = hmac.new(
         key=secret.encode('utf-8'),
@@ -338,20 +438,20 @@ def verify_bifrost_webhook(request, secret):
     return hmac.compare_digest(expected, signature)</code></pre>
             </section>
 
-            <section id="webhooks-types" class="mb-16">
-                <h3 class="text-lg font-bold text-slate-800 mb-2">Event Payloads</h3>
+            <section id="webhooks-types" class="mb-24 prose prose-slate max-w-none">
+                <h3 class="text-xl font-bold text-slate-900">Event Payloads</h3>
 
-                <div class="space-y-6">
-                    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                        <div class="flex items-center justify-between mb-3">
-                            <code class="text-indigo-600 font-bold">subscription_success</code>
-                            <span class="text-xs font-bold bg-green-100 text-green-800 px-2 py-1 rounded">Payment</span>
+                <div class="space-y-8 mt-6">
+
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                            <code class="text-indigo-600 font-bold bg-white border border-slate-200 px-2 py-1 rounded">subscription_success</code>
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-1 rounded-full">Payment</span>
                         </div>
-                        <p class="text-sm text-slate-600 mb-3">Fired after successful payment or admin approval.</p>
-                        <pre class="mb-0"><code class="language-json">{
+                        <div class="p-6">
+                            <pre class="!my-0"><code class="language-json">{
     "event": "subscription_success",
     "account_id": "65a...",
-    "timestamp": 1705881234,
     "transaction_id": "tx-123",
     "amount": 9.99,
     "role": "premium_user",
@@ -359,42 +459,65 @@ def verify_bifrost_webhook(request, secret):
     "expires_at": "2026-02-28T12:00:00+00:00",
     "client_ref_id": "INV-001"
 }</code></pre>
+                        </div>
                     </div>
 
-                    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                        <div class="flex items-center justify-between mb-3">
-                            <code class="text-red-600 font-bold">subscription_expired</code>
-                            <span class="text-xs font-bold bg-slate-100 text-slate-800 px-2 py-1 rounded">Scheduler</span>
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                            <code class="text-red-600 font-bold bg-white border border-slate-200 px-2 py-1 rounded">subscription_expired</code>
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-700 px-2 py-1 rounded-full">Scheduler</span>
                         </div>
-                        <p class="text-sm text-slate-600 mb-3">Fired when the subscription reaper downgrades a user.</p>
-                        <pre class="mb-0"><code class="language-json">{
+                        <div class="p-6">
+                            <pre class="!my-0"><code class="language-json">{
     "event": "subscription_expired",
     "account_id": "65a...",
-    "timestamp": 1705881234,
     "previous_role": "premium_user",
     "new_role": "user",
     "reason": "expired"
 }</code></pre>
+                        </div>
                     </div>
 
-                    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                        <div class="flex items-center justify-between mb-3">
-                            <code class="text-amber-600 font-bold">account_update</code>
-                            <span class="text-xs font-bold bg-slate-100 text-slate-800 px-2 py-1 rounded">Identity</span>
+                    <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                            <code class="text-amber-600 font-bold bg-white border border-slate-200 px-2 py-1 rounded">account_update</code>
+                            <span class="text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-700 px-2 py-1 rounded-full">Identity</span>
                         </div>
-                        <p class="text-sm text-slate-600 mb-3">Fired when a user links a new credential (e.g., links Telegram).</p>
-                        <pre class="mb-0"><code class="language-json">{
+                        <div class="p-6">
+                            <pre class="!my-0"><code class="language-json">{
     "event": "account_update",
     "account_id": "65a...",
     "telegram_id": "123456789",
     "email": "updated@example.com"
 }</code></pre>
+                        </div>
                     </div>
+
                 </div>
             </section>
 
         </div>
     </main>
+
+    <aside class="w-64 flex-shrink-0 border-l border-slate-200 hidden xl:block p-8 h-full bg-white">
+        <h5 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">On this page</h5>
+        <ul class="space-y-3 text-sm text-slate-500">
+            <li><a href="#intro" class="hover:text-indigo-600 transition-colors">Introduction</a></li>
+            <li><a href="#roles" class="hover:text-indigo-600 transition-colors">User Roles</a></li>
+            <li class="pt-2"><a href="#auth-login" class="hover:text-indigo-600 transition-colors font-medium text-slate-700">Client Auth</a></li>
+            <li><a href="#auth-login" class="pl-3 hover:text-indigo-600 transition-colors">Login</a></li>
+            <li><a href="#auth-register" class="pl-3 hover:text-indigo-600 transition-colors">Registration</a></li>
+            <li><a href="#auth-telegram" class="pl-3 hover:text-indigo-600 transition-colors">Telegram</a></li>
+            <li class="pt-2"><a href="#internal-validate" class="hover:text-indigo-600 transition-colors font-medium text-slate-700">Internal API</a></li>
+            <li><a href="#internal-validate" class="pl-3 hover:text-indigo-600 transition-colors">Validate Token</a></li>
+            <li><a href="#internal-linking" class="pl-3 hover:text-indigo-600 transition-colors">Linking</a></li>
+            <li class="pt-2"><a href="#payments-intent" class="hover:text-indigo-600 transition-colors font-medium text-slate-700">Payments</a></li>
+            <li><a href="#payments-intent" class="pl-3 hover:text-indigo-600 transition-colors">Secure Intent</a></li>
+            <li class="pt-2"><a href="#webhooks-security" class="hover:text-indigo-600 transition-colors font-medium text-slate-700">Webhooks</a></li>
+            <li><a href="#webhooks-types" class="pl-3 hover:text-indigo-600 transition-colors">Events</a></li>
+        </ul>
+    </aside>
+
 </div>
 
 </body>
