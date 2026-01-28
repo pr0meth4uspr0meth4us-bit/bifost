@@ -1,3 +1,4 @@
+# bifrost/models/apps.py
 import secrets
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -27,6 +28,7 @@ class AppMixin:
             "client_secret_hash": generate_password_hash(client_secret),
             "webhook_secret": webhook_secret,
             "app_logo_url": logo_url or "",
+            "app_qr_url": "",  # New field for Custom QR
             "app_web_url": web_url,
             "app_callback_url": callback_url,
             "app_api_url": api_url,
@@ -45,7 +47,7 @@ class AppMixin:
 
     def update_app_details(self, app_id, data):
         """Updates non-sensitive app details."""
-        allowed_fields = ['app_name', 'app_callback_url', 'app_web_url', 'app_api_url', 'app_logo_url']
+        allowed_fields = ['app_name', 'app_callback_url', 'app_web_url', 'app_api_url', 'app_logo_url', 'app_qr_url']
         updates = {k: v for k, v in data.items() if k in allowed_fields}
 
         if updates:

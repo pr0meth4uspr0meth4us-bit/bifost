@@ -1,3 +1,4 @@
+# bifrost/backoffice.py
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app, jsonify
 from werkzeug.security import check_password_hash
 from bson import ObjectId
@@ -234,7 +235,8 @@ def update_app_settings(app_id):
         'app_web_url': request.form.get('web_url'),
         'app_callback_url': request.form.get('callback_url'),
         'app_api_url': request.form.get('api_url'),
-        'app_logo_url': request.form.get('logo_url')
+        'app_logo_url': request.form.get('logo_url'),
+        'app_qr_url': request.form.get('qr_url') # <--- ADDED
     }
 
     if db.update_app_details(app_id, data):

@@ -1,3 +1,4 @@
+# bifrost/internal/payment_routes.py
 from flask import request, jsonify, current_app
 import logging
 from .. import mongo
@@ -10,6 +11,10 @@ from werkzeug.utils import secure_filename
 from ..utils.telegram import send_payment_proof_to_admin
 
 log = logging.getLogger(__name__)
+
+# Security: Roles that cannot be assigned via Payment or automated API calls
+FORBIDDEN_ROLES = ['admin', 'super_admin', 'owner', 'god_admin', 'root', 'bifrost_admin']
+
 
 # =========================================================
 #  SECTION: PAYMENT ENDPOINTS (SECURE + HYBRID)
@@ -36,6 +41,13 @@ def create_secure_payment_intent():
     if not amount or not ref_id:
         return jsonify({"error": "Missing amount or client_ref_id"}), 400
 
+    # SECURITY CHECK: Prevent Privilege Escalation
+    if target_role.lower() in FORBIDDEN_ROLES or 'admin' in target_role.lower():
+        return jsonify({
+            "error": "Security Violation",
+            "message": f"Role '{target_role}' cannot be assigned via payment API."
+        }), 403
+
     # 2. Get Authenticated App Context
     client_id = request.authenticated_client_id
     db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
@@ -45,23 +57,59 @@ def create_secure_payment_intent():
         return jsonify({"error": "App context lost"}), 500
 
     # 3. Create Transaction Record (Pending)
-    tx_id = db.create_transaction(
-        account_id=account_id,
-        app_id=app_doc['_id'],
-        app_name=app_doc.get('app_name', 'Unknown App'), # <--- Pass Name Here
-        amount=amount,
-        currency=currency,
-        description=description,
-        target_role=target_role,
-        duration=duration,
-        ref_id=ref_id
-    )
+    try:
+        tx_id = db.create_transaction(
+            account_id=account_id,
+            app_id=app_doc['_id'],
+            app_name=app_doc.get('app_name', 'Unknown App'),
+            amount=amount,
+            currency=currency,
+            description=description,
+            target_role=target_role,
+            duration=duration,
+            ref_id=ref_id
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     return jsonify({
         "success": True,
         "transaction_id": tx_id,
         "secure_link": f"https://t.me/bifrost_byhelm_bot?start={tx_id}",
         "manual_command": f"/pay {tx_id}"
+    })
+
+
+@internal_bp.route('/payments/status/<transaction_id>', methods=['GET'])
+@require_service_auth
+def check_transaction_status(transaction_id):
+    """
+    POLLING ENDPOINT: Allows the client frontend (via their backend proxy)
+    to check if a payment has been completed.
+    Useful for showing 'Payment Successful!' screens in real-time.
+    """
+    client_id = request.authenticated_client_id
+    db = BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
+    # 1. Ensure the calling app owns this transaction
+    app_doc = db.get_app_by_client_id(client_id)
+    if not app_doc:
+        return jsonify({"error": "App context lost"}), 401
+
+    tx = db.db.transactions.find_one({
+        "transaction_id": transaction_id,
+        "app_id": app_doc['_id']
+    })
+
+    if not tx:
+        return jsonify({"error": "Transaction not found"}), 404
+
+    return jsonify({
+        "transaction_id": tx['transaction_id'],
+        "status": tx['status'],  # 'pending' or 'completed'
+        "amount": tx['amount'],
+        "target_role": tx.get('target_role'),
+        "updated_at": tx.get('updated_at')
     })
 
 
@@ -80,6 +128,10 @@ def create_payment_intent():
     lastname = data.get('lastname', 'User')
     email = data.get('email', 'user@example.com')
     phone = data.get('phone', '099999999')
+
+    # SECURITY CHECK
+    if target_role.lower() in FORBIDDEN_ROLES or 'admin' in target_role.lower():
+        return jsonify({"error": f"Role '{target_role}' restricted."}), 403
 
     client_id = request.authenticated_client_id
 
@@ -145,13 +197,26 @@ def create_payment_intent():
         })
 
 
-@internal_bp.route('/grant-premium', methods=['POST'])
+# --- RENAMED ENDPOINT (With Legacy Alias) ---
+@internal_bp.route('/grant-role', methods=['POST'])
+@internal_bp.route('/grant-premium', methods=['POST'])  # LEGACY SUPPORT
 @require_service_auth
-def grant_premium_by_admin():
-    """Manually upgrades a user to premium via Telegram ID."""
+def grant_role_by_admin():
+    """
+    Manually grants a specific tier (role) to a user via Telegram ID.
+    Supports custom 'target_role' for easy tier management.
+    """
     data = request.json
     telegram_id = data.get('telegram_id')
     target_client_id = data.get('target_client_id')
+
+    # Allow custom tiers (e.g. 'gold', 'pro'), default to 'premium_user'
+    target_role = data.get('target_role', 'premium_user')
+    duration = data.get('duration', '1m')
+
+    # SECURITY CHECK
+    if target_role.lower() in FORBIDDEN_ROLES or 'admin' in target_role.lower():
+        return jsonify({"error": f"Security Violation: Cannot grant '{target_role}' via API."}), 403
 
     # If no target provided, default to the caller's ID
     caller_client_id = request.authenticated_client_id
@@ -171,11 +236,17 @@ def grant_premium_by_admin():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Update Role
-    db.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user")
+    # Update Role with Custom Tier and Duration
+    db.link_user_to_app(user['_id'], app_doc['_id'], role=target_role, duration_str=duration)
 
-    log.info(f"Admin manually granted premium for App '{app_doc.get('app_name')}' to User {telegram_id}")
-    return jsonify({"success": True, "message": f"User upgraded to Premium for {app_doc.get('app_name')}"}), 200
+    log.info(f"Admin manually granted '{target_role}' for App '{app_doc.get('app_name')}' to User {telegram_id}")
+
+    return jsonify({
+        "success": True,
+        "message": f"User upgraded to {target_role}",
+        "role": target_role,
+        "app": app_doc.get('app_name')
+    }), 200
 
 
 @internal_bp.route('/payments/callback', methods=['POST'])
@@ -256,6 +327,8 @@ def api_claim_payment():
         return jsonify({"success": True, "message": msg}), 200
     else:
         return jsonify({"success": False, "error": msg}), 400
+
+
 @internal_bp.route('/payments/submit-proof', methods=['POST'])
 @require_service_auth
 def submit_payment_proof():
@@ -302,7 +375,6 @@ def submit_payment_proof():
             amount_display = f"${tx['amount']}"
 
     # 6. Send to Telegram Admin Group
-    # We pass the Account ID (ObjectId string) as the identifier.
     try:
         success = send_payment_proof_to_admin(
             file_stream=file.stream,

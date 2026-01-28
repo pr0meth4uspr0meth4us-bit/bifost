@@ -1,3 +1,4 @@
+# bot/services.py
 import logging
 import requests
 from requests.auth import HTTPBasicAuth
@@ -14,11 +15,43 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-# In bot/services.py
+
+def check_admin_permission(telegram_id, client_id):
+    """
+    Checks if the Telegram User is an Admin for the specific Client App.
+    Returns: Boolean
+    """
+    try:
+        if BifrostDB is None:
+            return False
+
+        db_instance = get_db()
+        logic = BifrostDB(db_instance.client, Config.DB_NAME)
+
+        # 1. Resolve User
+        user = logic.find_account_by_telegram(telegram_id)
+        if not user:
+            return False
+
+        # 2. Resolve App
+        app_doc = logic.get_app_by_client_id(client_id)
+        if not app_doc:
+            return False
+
+        # 3. Check Role in App Links
+        role = logic.get_user_role_for_app(user['_id'], app_doc['_id'])
+        if role in ['admin', 'owner', 'super_admin']:
+            return True
+
+        return False
+    except Exception as e:
+        log.error(f"Permission Check Failed: {e}")
+        return False
+
 
 def call_grant_premium(user_identifier, target_client_id):
     """
-    Directly accesses the database to grant premium.
+    Directly accesses the database to grant a role.
     user_identifier: Can be a Telegram ID (digits) OR a Bifrost ObjectId (hex string).
     """
     try:
@@ -74,8 +107,11 @@ def call_grant_premium(user_identifier, target_client_id):
                 log.error(f"❌ Failed to complete transaction: {msg}")
 
         # 5. FALLBACK: Manual Grant
-        log.info(f"⚠️ No pending transaction found. Falling back to manual grant.")
-        logic.link_user_to_app(user['_id'], app_doc['_id'], role="premium_user", duration_str="1m", suppress_webhook=True)
+        # Default to premium_user if manual, but this allows flexibility in future
+        target_role = "premium_user"
+        log.info(f"⚠️ No pending transaction found. Falling back to manual grant ({target_role}).")
+
+        logic.link_user_to_app(user['_id'], app_doc['_id'], role=target_role, duration_str="1m", suppress_webhook=True)
 
         # Manually trigger subscription_success so the client app reacts correctly
         logic._trigger_event_for_user(
@@ -84,18 +120,19 @@ def call_grant_premium(user_identifier, target_client_id):
             specific_app_id=app_doc['_id'],
             extra_data={
                 "transaction_id": "manual-grant",
-                "role": "premium_user",
+                "role": target_role,
                 "method": "admin_manual_web_upload",
                 "duration": "1m"
             }
         )
 
-        log.info(f"✅ Manually granted premium to {user_identifier} for {target_client_id}")
+        log.info(f"✅ Manually granted {target_role} to {user_identifier} for {target_client_id}")
         return True
 
     except Exception as e:
         log.error(f"Direct DB Grant failed: {e}")
         return False
+
 
 def get_app_details(client_id):
     """Fetches App Name to display nicely in the Bot."""
@@ -107,10 +144,12 @@ def get_app_details(client_id):
         log.error(f"DB Error fetching app details: {e}")
         return None
 
+
 def get_transaction(transaction_id):
     """Fetches a transaction by ID."""
     db = get_db()
     return db.transactions.find_one({"transaction_id": transaction_id})
+
 
 def get_app_by_id(app_id):
     """Fetches App by ObjectId, safely handling strings."""

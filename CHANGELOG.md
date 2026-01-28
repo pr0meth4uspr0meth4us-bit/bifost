@@ -3,6 +3,29 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-01-29
+
+### Added
+- **Payment Status Polling**: Added `GET /internal/payments/status/<transaction_id>`.
+  - Client frontends can now poll this endpoint (via their backend) to confirm payment success in real-time without relying solely on webhooks.
+- **Custom App QR Codes**: Added `app_qr_url` to Application model and Bot logic.
+- **Security Check**: Added explicit blocklist (`FORBIDDEN_ROLES`) to payment routes to prevent unauthorized promotion to Admin/Super Admin via the payment API.
+
+## [0.5.0] - 2026-01-29
+
+### Added
+- **Custom App QR Codes**: Added `app_qr_url` to the Application model.
+  - Client Apps can now upload/set their own custom Payment QR code via the Backoffice configuration tab.
+  - The Bifrost Bot (`/pay` command) now dynamically loads this custom QR instead of the default system image if it exists.
+- **Enhanced Role Permissions**:
+  - Implemented `check_admin_permission` in `bot/services.py`.
+  - **Client App Admin Approval**: The Telegram Bot now allows users with the `admin` role for a specific app to approve/reject payments for *that app*, even if they are not in the main Payment Group.
+  - Updated `_verify_admin` in `bot/handlers/admin.py` to support this dual-verification strategy (Global Admin Group OR Client App Admin).
+
+### Changed
+- **Bot Logic**: The `/pay` command now prioritizes the App's custom QR URL over the local `assets/qr.jpg`.
+- **Payment Approval**: The `admin_approve` handler now dynamically checks the clicker's role against the target application of the transaction.
+
 ## [0.4.3] - 2026-01-29
 
 ### Documentation

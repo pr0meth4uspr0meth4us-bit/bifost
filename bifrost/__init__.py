@@ -7,6 +7,7 @@ import datetime
 import os
 import logging
 from bson import ObjectId
+import markdown  # Added for Changelog parsing
 
 # Globally accessible PyMongo instance
 mongo = PyMongo()
@@ -76,7 +77,25 @@ def create_app(config_class):
     @app.route('/docs')
     def documentation():
         """Serves the Developer Documentation Portal."""
+        # No longer loading changelog here
         return render_template('docs.html')
+
+    @app.route('/docs/changelog')
+    def changelog_page():
+        """Serves the standalone Changelog page."""
+        changelog_html = ""
+        try:
+            # Path to CHANGELOG.md (assuming it's in the project root, one level up from bifrost package)
+            changelog_path = os.path.join(app.root_path, '..', 'CHANGELOG.md')
+            with open(changelog_path, 'r', encoding='utf-8') as f:
+                text = f.read()
+                # Parse Markdown to HTML with extensions for cleaner rendering
+                changelog_html = markdown.markdown(text, extensions=['fenced_code', 'tables', 'nl2br'])
+        except Exception as e:
+            logging.error(f"Error reading changelog: {e}")
+            changelog_html = "<div class='alert alert-error'><span>Could not load changelog file.</span></div>"
+
+        return render_template('changelog.html', changelog=changelog_html)
 
     @app.route('/health')
     def health():

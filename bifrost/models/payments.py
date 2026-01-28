@@ -1,3 +1,4 @@
+# bifrost/models/payments.py
 import secrets
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -19,6 +20,11 @@ class PaymentMixin:
         Creates a pending transaction.
         Stores app_name directly to prevent lookup failures later.
         """
+        # SECURITY: Double check at model level
+        forbidden = ['admin', 'super_admin', 'owner', 'god_admin']
+        if target_role and (target_role.lower() in forbidden or 'admin' in target_role.lower()):
+            raise ValueError(f"Role '{target_role}' is restricted and cannot be purchased.")
+
         transaction_id = f"tx-{secrets.token_hex(8)}"
         doc = {
             "transaction_id": transaction_id,
@@ -66,10 +72,14 @@ class PaymentMixin:
             # We mirror the logic from link_user_to_app to ensure the client gets the correct date
             duration_str = tx.get('duration')
             expires_at = None
-            if duration_str == '1m': expires_at = now + timedelta(days=30)
-            elif duration_str == '3m': expires_at = now + timedelta(days=90)
-            elif duration_str == '6m': expires_at = now + timedelta(days=180)
-            elif duration_str == '1y': expires_at = now + timedelta(days=365)
+            if duration_str == '1m':
+                expires_at = now + timedelta(days=30)
+            elif duration_str == '3m':
+                expires_at = now + timedelta(days=90)
+            elif duration_str == '6m':
+                expires_at = now + timedelta(days=180)
+            elif duration_str == '1y':
+                expires_at = now + timedelta(days=365)
 
             # Format as ISO string for JSON payload, or None if lifetime
             expires_at_iso = expires_at.isoformat() if expires_at else None
@@ -86,8 +96,8 @@ class PaymentMixin:
                     "currency": tx['currency'],
                     "role": tx['target_role'],
                     "client_ref_id": tx.get('client_ref_id'),
-                    "duration": duration_str,       # <--- Added
-                    "expires_at": expires_at_iso    # <--- Added
+                    "duration": duration_str,  # <--- Added
+                    "expires_at": expires_at_iso  # <--- Added
                 }
             )
 
@@ -155,9 +165,7 @@ class PaymentMixin:
         if result.modified_count == 0:
             return False, "Error: Payment claimed by someone else."
 
-        # 4. Grant Premium Role (Claims currently default to 1 Month if not specified, usually 'lifetime' or manual policy)
-        # For claims, we will assume a standard 'premium_user' role.
-        # You might want to parameterize this in future.
+        # 4. Grant Premium Role (Claims currently default to 1 Month if not specified)
         self.link_user_to_app(user['_id'], app_id, role="premium_user", suppress_webhook=True)
 
         # 5. Send Success Webhook for Claims

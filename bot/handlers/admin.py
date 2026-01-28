@@ -1,23 +1,34 @@
+# bot/handlers/admin.py
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from ..config import Config
-from ..services import call_grant_premium, get_app_details  # <--- Added get_app_details
+from ..services import call_grant_premium, get_app_details, check_admin_permission
 
 
-async def _verify_admin(update: Update):
-    """Security: Only allow clicks from the Payment Group."""
+async def _verify_admin(update: Update, target_client_id=None):
+    """
+    Security Check. Allows access if:
+    1. The message is in the Payment Group (Chat ID check).
+    2. OR The User is a verified Admin of the target_client_id (App Admin).
+    """
+    user = update.effective_user
     chat_id = str(update.effective_chat.id)
-    if chat_id == str(Config.PAYMENT_GROUP_ID):
+
+    # 1. Check Global Admin Group
+    if Config.PAYMENT_GROUP_ID and chat_id == str(Config.PAYMENT_GROUP_ID):
         return True
-    await update.callback_query.answer("⛔ Unauthorized.", show_alert=True)
+
+    # 2. Check App-Specific Admin Permission (If we know the target app)
+    if target_client_id:
+        is_app_admin = check_admin_permission(str(user.id), target_client_id)
+        if is_app_admin:
+            return True
+
+    await update.callback_query.answer("⛔ Unauthorized. You are not an admin for this app.", show_alert=True)
     return False
 
 
-# In bot/handlers/admin.py
-
 async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await _verify_admin(update): return
-
     query = update.callback_query
     data_part = query.data.replace("pay_approve_", "")
 
@@ -26,6 +37,9 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await query.answer("❌ Error: Invalid Data")
         return
+
+    # Pass target_app to verification
+    if not await _verify_admin(update, target_client_id=target_app_client_id): return
 
     await query.answer("Approving...")
 
@@ -44,7 +58,6 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # 4. Notify User (Safely)
-        # Check if user_id looks like a Telegram ID (numeric) before trying to send message
         if user_id.isdigit():
             try:
                 await context.bot.send_message(
@@ -53,18 +66,27 @@ async def admin_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode='HTML'
                 )
             except Exception:
-                pass # User might have blocked bot, or this is an edge case
+                pass
         else:
-            # This was a Web Upload (ObjectId).
-            # The 'subscription_success' webhook fired by call_grant_premium will handle notifying the client app.
+            # Web user - webhook handles notification
             pass
 
     else:
         await query.answer("❌ API Error. Check Logs.", show_alert=True)
+
+
 async def admin_reject_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await _verify_admin(update): return
     query = update.callback_query
     data_part = query.data.replace("pay_reject_menu_", "")
+
+    # Extract app id from data_part to check permissions (data_part = "user_id|client_id")
+    try:
+        _, target_app = data_part.split('|', 1)
+    except ValueError:
+        await query.answer("❌ Data Error")
+        return
+
+    if not await _verify_admin(update, target_client_id=target_app): return
 
     keyboard = [
         [InlineKeyboardButton("Bad Amount", callback_data=f"pay_reject_confirm_{data_part}|amount")],
@@ -76,7 +98,6 @@ async def admin_reject_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def admin_reject_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await _verify_admin(update): return
     query = update.callback_query
     data_part = query.data.replace("pay_reject_confirm_", "")
 
@@ -85,6 +106,8 @@ async def admin_reject_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
     except ValueError:
         await query.answer("❌ Data Error")
         return
+
+    if not await _verify_admin(update, target_client_id=target_app): return
 
     await query.edit_message_caption(
         caption=f"{query.message.caption}\n\n❌ <b>REJECTED ({reason})</b> by {update.effective_user.first_name}",
@@ -100,9 +123,16 @@ async def admin_reject_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def admin_restore_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await _verify_admin(update): return
     query = update.callback_query
     data_part = query.data.replace("pay_restore_", "")
+
+    try:
+        _, target_app = data_part.split('|', 1)
+    except ValueError:
+        await query.answer("❌ Data Error")
+        return
+
+    if not await _verify_admin(update, target_client_id=target_app): return
 
     keyboard = [[
         InlineKeyboardButton("✅ Approve", callback_data=f"pay_approve_{data_part}"),

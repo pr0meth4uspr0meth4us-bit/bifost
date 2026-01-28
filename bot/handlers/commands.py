@@ -1,3 +1,4 @@
+# bot/handlers/commands.py
 import logging
 from pathlib import Path
 from telegram import Update
@@ -7,7 +8,7 @@ from .payment import WAITING_PROOF
 
 log = logging.getLogger(__name__)
 
-# QR Code Path
+# QR Code Path (Fallback)
 BASE_DIR = Path(__file__).resolve().parents[1]  # Up one level to 'bot'
 QR_IMAGE_PATH = BASE_DIR / "assets" / "qr.jpg"
 
@@ -29,6 +30,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     ctx_data = {}
+    custom_qr_url = None
 
     try:
         # --- MODE 1: SECURE DATABASE LOOKUP (Enterprise) ---
@@ -44,8 +46,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return ConversationHandler.END
 
             # --- FIX: ALWAYS FETCH APP DOC ---
-            # We need the real client_id (e.g. 'finance_bot_x123') for the Admin Callback.
-            # We cannot skip this lookup even if we have the app_name.
             app_doc = get_app_by_id(tx['app_id'])
 
             if not app_doc:
@@ -54,6 +54,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             app_name = app_doc.get('app_name', 'Unknown App')
             client_id = app_doc.get('client_id', 'unknown')
+            custom_qr_url = app_doc.get('app_qr_url')  # <--- GET CUSTOM QR
             # ---------------------------------
 
             ctx_data = {
@@ -83,6 +84,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             app_doc = get_app_details(client_id)
             app_name = app_doc.get('app_name', 'Unknown App') if app_doc else 'Unknown'
+            if app_doc:
+                custom_qr_url = app_doc.get('app_qr_url') # <--- GET CUSTOM QR
 
             ctx_data = {
                 "client_id": client_id,
@@ -113,7 +116,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "3. <b>Send a Screenshot</b> of the receipt here."
         )
 
-        if QR_IMAGE_PATH.exists():
+        # PRIORITY: Custom QR URL -> Local Asset -> Error
+        if custom_qr_url:
+            await update.message.reply_photo(photo=custom_qr_url, caption=msg, parse_mode='HTML')
+        elif QR_IMAGE_PATH.exists():
             with open(QR_IMAGE_PATH, 'rb') as photo:
                 await update.message.reply_photo(photo=photo, caption=msg, parse_mode='HTML')
         else:
