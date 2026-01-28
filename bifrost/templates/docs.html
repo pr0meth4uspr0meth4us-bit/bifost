@@ -20,7 +20,7 @@
         code { font-family: 'JetBrains Mono', monospace; }
         html { scroll-behavior: smooth; }
 
-        /* Copy Animation Classes */
+        /* Copy Animation Classes - Tooltip Style */
         .endpoint-copy {
             cursor: pointer;
             transition: all 0.2s ease;
@@ -32,16 +32,24 @@
         .endpoint-copy:active {
             transform: scale(0.98);
         }
+        /* Tooltip positioned above to avoid overlap */
         .endpoint-copy::after {
             content: 'Click to copy';
             position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.6rem;
-            color: #64748b;
+            bottom: 100%;
+            right: 0;
+            margin-bottom: 5px;
+            background-color: #1e293b; /* slate-800 */
+            color: #ffffff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.2s;
+            white-space: nowrap;
+            z-index: 10;
         }
         .endpoint-copy:hover::after {
             opacity: 1;
@@ -72,16 +80,32 @@
 
     <main class="p-6 lg:p-12 max-w-6xl mx-auto w-full">
 
-        <div class="mb-16">
-            <h1 class="text-4xl font-extrabold text-base-content mb-4">Integration Guide</h1>
-            <p class="text-xl text-base-content/70 max-w-3xl">
-                The complete reference for authentication, role management, and payment processing.
-            </p>
-            <div class="mt-6 flex gap-4 items-center">
-                <div class="badge badge-primary badge-lg gap-2 p-4">Base URL</div>
-                <code onclick="copyText('https://objective-denna-auppecampus-9a7d86fc.koyeb.app')" class="endpoint-copy font-mono bg-base-200 px-4 py-2 rounded-lg text-sm">https://objective-denna-auppecampus-9a7d86fc.koyeb.app</code>
-            </div>
+        <!-- UPDATED: Added docs version note -->
+        <div class="alert alert-info mb-8">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>Documentation updated to v0.6.0 (2026-01-29). See <a href="{{ url_for('changelog_page') }}" class="link">Changelog</a> for details.</span>
         </div>
+
+        <section id="introduction" class="mb-16 scroll-mt-24">
+            <h1 class="text-4xl font-extrabold text-base-content mb-4">Introduction</h1>
+            <p class="text-lg text-base-content/70 leading-relaxed mb-6">
+                <strong>Bifrost</strong> is the centralized Identity Provider (IdP) and Payment Gateway for the Helm Ecosystem.
+                It acts as the secure bridge between users, client applications, and financial providers.
+            </p>
+            <p class="text-base-content/70 leading-relaxed mb-8">
+                By integrating with Bifrost, your application gains:
+                <br>• <strong>Unified Login:</strong> Single Sign-On (SSO) via Email or Telegram.
+                <br>• <strong>Role Management:</strong> Centralized permission handling (Guest, User, Premium, Admin).
+                <br>• <strong>Payment Processing:</strong> Abstraction layer for ABA PayWay, Gumroad, and Manual/Bot payments.
+                <!-- UPDATED: Added branding mention -->
+                <br>• <strong>Branding Support:</strong> Custom logos, QR codes, and email templates per app.
+            </p>
+
+            <div class="flex gap-4 items-center bg-base-200 p-4 rounded-xl border border-base-300">
+                <div class="badge badge-primary badge-lg gap-2">Base URL</div>
+                <code onclick="copyText('https://objective-denna-auppecampus-9a7d86fc.koyeb.app')" class="endpoint-copy font-mono text-sm font-bold flex-1 truncate">https://objective-denna-auppecampus-9a7d86fc.koyeb.app</code>
+            </div>
+        </section>
 
         <div class="divider"></div>
 
@@ -94,43 +118,40 @@
             <div class="grid lg:grid-cols-2 gap-12">
                 <div>
                     <p class="mb-6 text-base-content/80">
-                        Bifrost enforces a strict permission ladder. Roles inherit permissions from the tiers below them.
+                        Bifrost maintains a clear hierarchy of roles, where each level builds on the access and capabilities of the ones below it. This structure ensures secure and scalable user management across applications.
+                        <br><span class="text-xs text-warning">Note: Verified users (non-guest) cannot be removed by admins to protect data ownership and integrity.</span>
+                        <br><span class="text-xs text-info">Client apps have full flexibility to define and name their subscription tiers (e.g., 'basic', 'pro', 'elite', 'gold', 'platinum'). Bifrost records these roles without any restrictions or predefined limits—apps can create as many tiers as needed, such as one 'basic' plan, two 'gold' variations, or three 'platinum' levels. Bifrost handles them uniformly for authentication, leaving the interpretation and feature gating entirely to the client app.</span>
                     </p>
                     <ul class="steps steps-vertical w-full">
                         <li class="step step-neutral" data-content="?">
                             <div class="text-left w-full pl-4">
                                 <strong class="block">Guest</strong>
-                                <span class="text-xs text-base-content/60">Unauthenticated or email unverified.</span>
+                                <span class="text-xs text-base-content/60">Represents unauthenticated users or those with unverified emails, providing minimal access.</span>
                             </div>
                         </li>
                         <li class="step step-primary" data-content="✓">
                             <div class="text-left w-full pl-4">
                                 <strong class="block">User</strong>
-                                <span class="text-xs text-base-content/60">Standard authenticated user (Free Tier).</span>
+                                <span class="text-xs text-base-content/60">The base level for authenticated users on a free tier, with standard access to core features.</span>
                             </div>
                         </li>
                         <li class="step step-accent" data-content="★">
                             <div class="text-left w-full pl-4">
-                                <strong class="block">Premium User</strong>
-                                <span class="text-xs text-base-content/60">Active subscription holder.</span>
-                            </div>
-                        </li>
-                        <li class="step step-accent" data-content="+">
-                            <div class="text-left w-full pl-4">
-                                <strong class="block text-base-content/40">Custom Tiers (Planned)</strong>
-                                <span class="text-xs text-base-content/40">e.g., Gold, Platinum, Enterprise.</span>
+                                <strong class="block">Subscriber</strong>
+                                <span class="text-xs text-base-content/60">Users with an active subscription, unlocking enhanced features. Custom tiers (e.g., 'basic', 'gold', 'platinum') are treated the same way by Bifrost.</span>
                             </div>
                         </li>
                         <li class="step step-secondary" data-content="🛡️">
                             <div class="text-left w-full pl-4">
                                 <strong class="block">Admin</strong>
-                                <span class="text-xs text-base-content/60">Client Application Administrator.</span>
+                                <span class="text-xs text-base-content/60">Application-specific administrators who can manage users, approve payments, and handle app-level configurations.</span>
                             </div>
                         </li>
+                        <!-- UPDATED: Clarified super_admin -->
                         <li class="step step-secondary" data-content="⚡">
                             <div class="text-left w-full pl-4">
                                 <strong class="block">Super Admin</strong>
-                                <span class="text-xs text-base-content/60">Client Application Owner.</span>
+                                <span class="text-xs text-base-content/60">Global overseers with access to manage multiple apps, users, and system-wide settings.</span>
                             </div>
                         </li>
                     </ul>
@@ -142,10 +163,158 @@
                         <h3 class="font-bold">God Admin (Bifrost Admin)</h3>
                     </div>
                     <p class="text-sm mb-4">
-                        This role exists outside the client application scope. God Admins have cross-application access for debugging, billing management, and system configuration.
+                        This elevated role operates beyond individual client apps, providing ecosystem-wide oversight for tasks like debugging, billing oversight, and infrastructure management.
                     </p>
                     <div class="alert bg-base-100 shadow-sm text-xs">
-                        This role cannot be assigned via API. It is strictly for Bifrost maintainers.
+                        This role cannot be assigned through the API and is reserved exclusively for Bifrost system maintainers.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- UPDATED: New section for Flows & Guides -->
+        <section id="flows-guides" class="mb-24 scroll-mt-24">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">1</span>
+                Flows & Guides
+            </h2>
+            <p class="mb-6 text-base-content/70">These step-by-step guides walk you through key integration processes, from user registration to secure payments. Each flow includes endpoint details, payloads, and tips for smooth implementation.</p>
+
+            <div class="space-y-8">
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Registration Flow (Email OTP)</h3>
+                        <p class="text-sm mb-4 text-base-content/70">This flow handles new user sign-ups using email verification, ensuring secure account creation and automatic app linking.</p>
+                        <ol class="steps steps-vertical">
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Check if Exists:</strong> POST /auth/api/check-email
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Determines if the email is already registered to guide the UI (login vs. register).</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Request OTP:</strong> POST /auth/api/request-email-otp
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Generates a 6-digit code and sends a branded email (with app name and logo) to the user.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Verify OTP:</strong> POST /auth/api/verify-email-otp
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{ "verification_id": "returned_from_request", "code": "123456" }</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Validates the code and returns a short-lived proof_token for setting credentials.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Complete Registration:</strong> POST /auth/api/complete-registration
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{
+  "proof_token": "from_verify_step",
+  "password": "user_password",
+  "display_name": "User Name",
+  "username": "unique_username",
+  "client_id": "your_client_id"
+}</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Finalizes the account, links it to your app, and issues a JWT for immediate use.</span>
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Account Linking (Web to Telegram)</h3>
+                        <p class="text-sm mb-4 text-base-content/70">Seamlessly merge web-based accounts with Telegram identities for a unified user experience across platforms.</p>
+                        <ol class="steps steps-vertical">
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Generate Link Token:</strong> POST /internal/generate-link-token
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{ "account_id": "bifrost_account_id" }</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Creates a secure deep_link_token to initiate the Bot connection.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>User Clicks Deep Link:</strong> t.me/BifrostBot?start=link_{deep_link_token}
+                                    <span class="text-xs text-base-content/60">Directs the user to the Bifrost Bot for Telegram authentication.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Link Account:</strong> POST /internal/link-account
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{ "link_token": "from_generate_step", "telegram_id": "user_telegram_id" }</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Completes the merge of identities and triggers an account_update webhook to notify your app.</span>
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Payment Proof Submission</h3>
+                        <p class="text-sm mb-4 text-base-content/70">Allows users to upload payment evidence (e.g., screenshots) from web interfaces, with admin review for verification.</p>
+                        <ol class="steps steps-vertical">
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Create Intent (Optional):</strong> POST /internal/payments/secure-intent
+                                    <div class="payload-block pl-4 mt-2">
+                                        <pre><code class="language-json">{ "amount": 9.99, "currency": "USD", "target_role": "premium", "duration": "1m", "client_ref_id": "INV-001" }</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Pre-registers payment details to prevent tampering.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Submit Proof:</strong> POST /internal/payments/submit-proof (multipart/form-data)
+                                    <div class="mockup-code bg-[#282c34] text-xs mt-2">
+                                        <pre data-prefix=">"><code>file: (binary_image_data)</code></pre>
+                                        <pre data-prefix=">"><code>account_id: "bifrost_account_id"</code></pre>
+                                        <pre data-prefix=">"><code>transaction_id: "tx-..." (optional)</code></pre>
+                                    </div>
+                                    <span class="text-xs text-base-content/60">Uploads the proof and forwards it to the admin group for review.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary">
+                                <div class="pl-4">
+                                    <strong>Poll Status:</strong> GET /internal/payments/status/{transaction_id}
+                                    <span class="text-xs text-base-content/60">Checks approval status in real-time, or await the subscription_success webhook for confirmation.</span>
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- UPDATED: Added HMAC example -->
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">HMAC Webhook Verification (Python Example)</h3>
+                        <p class="text-sm mb-4 text-base-content/70">Webhooks from Bifrost include an HMAC signature in the X-Bifrost-Signature header for security. This signature is generated using your client secret and the request body, allowing you to verify that the payload originated from Bifrost and hasn't been tampered with. Use this code snippet to validate incoming webhooks before processing them.</p>
+                        <pre><code class="language-python">import hmac
+import hashlib
+
+def verify_webhook(request_body, signature_header, client_secret):
+    computed_sig = hmac.new(
+        client_secret.encode(),
+        request_body.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(computed_sig, signature_header)</code></pre>
                     </div>
                 </div>
             </div>
@@ -153,9 +322,10 @@
 
         <section id="auth-hosted" class="mb-24 scroll-mt-24">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">1</span>
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">2</span> <!-- UPDATED: Renumbered -->
                 Hosted Login UI
             </h2>
+            <p class="mb-6 text-base-content/70">These URLs should be opened in the user's browser to initiate authentication flows. Supports custom branding (app logo in emails).</p> <!-- UPDATED: Added branding note -->
 
             <div class="overflow-x-auto bg-base-100 border border-base-200 rounded-xl shadow-sm">
                 <table class="table table-zebra w-full">
@@ -187,7 +357,7 @@
                             <td class="font-bold">Activate Account</td>
                             <td><code onclick="copyText('/auth/ui/set-password')" class="endpoint-copy text-xs bg-base-300 p-2 rounded block">/auth/ui/set-password</code></td>
                             <td class="text-sm">
-                                Invite Flow.<br>
+                                Invite Flow (from Email).<br>
                                 <span class="badge badge-xs badge-outline mt-1">Param</span> <code>verification_id</code>, <code>client_id</code>
                             </td>
                         </tr>
@@ -198,12 +368,24 @@
 
         <section id="auth-api" class="mb-24 scroll-mt-24">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">2</span>
-                Client API (Authentication)
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">3</span> <!-- UPDATED: Renumbered -->
+                Client API (Public Authentication)
             </h2>
-            <p class="mb-6 text-base-content/80">Public endpoints for custom frontends. No Basic Auth required.</p>
+            <p class="mb-6 text-base-content/80">Public endpoints for custom frontends (Headless Mode). No Basic Auth required. <!-- UPDATED: Added OTP note --> Supports OTP race condition fixes and whitespace cleaning.</p>
 
             <div class="space-y-4">
+                <div class="collapse collapse-arrow border border-base-200 bg-base-100">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-lg font-medium flex gap-3 items-center">
+                        <span class="badge badge-info text-xs">GET</span>
+                        <code onclick="copyText('/health')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/health</code>
+                    </div>
+                    <div class="collapse-content">
+                         <p class="text-sm py-2">Checks service availability.</p>
+                         <pre><code class="language-json">{ "status": "ok", "message": "Bifrost IdP operational." }</code></pre>
+                    </div>
+                </div>
+
                 <div class="collapse collapse-arrow border border-base-200 bg-base-100">
                     <input type="checkbox" />
                     <div class="collapse-title text-lg font-medium flex gap-3 items-center">
@@ -211,9 +393,74 @@
                         <code onclick="copyText('/auth/api/check-email')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/auth/api/check-email</code>
                     </div>
                     <div class="collapse-content">
-                        <div class="payload-block pl-4 mt-2">
+                         <div class="payload-block pl-4 mt-2">
                             <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
-                            <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
+                            <pre><code class="language-json">{ "email": "user@example.com" } // OR { "username": "..." }</code></pre> <!-- UPDATED: Added username option -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UPDATED: Added missing endpoints -->
+                <div class="collapse collapse-arrow border border-base-200 bg-base-100">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-lg font-medium flex gap-3 items-center">
+                        <span class="badge badge-success text-xs">POST</span>
+                        <code onclick="copyText('/auth/api/request-email-otp')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/auth/api/request-email-otp</code>
+                    </div>
+                    <div class="collapse-content">
+                         <div class="payload-block pl-4 mt-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
+                            <pre><code class="language-json">{ "email": "user@example.com", "client_id": "..." }</code></pre>
+                        </div>
+                        <p class="text-sm mt-2">Generates and emails OTP (branded with app name/logo).</p>
+                    </div>
+                </div>
+
+                <div class="collapse collapse-arrow border border-base-200 bg-base-100">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-lg font-medium flex gap-3 items-center">
+                        <span class="badge badge-success text-xs">POST</span>
+                        <code onclick="copyText('/auth/api/verify-email-otp')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/auth/api/verify-email-otp</code>
+                    </div>
+                    <div class="collapse-content">
+                         <div class="payload-block pl-4 mt-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
+                            <pre><code class="language-json">{ "verification_id": "...", "code": "123456" }</code></pre>
+                        </div>
+                        <p class="text-sm mt-2">Returns proof_token for registration/reset.</p>
+                    </div>
+                </div>
+
+                <div class="collapse collapse-arrow border border-base-200 bg-base-100">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-lg font-medium flex gap-3 items-center">
+                        <span class="badge badge-success text-xs">POST</span>
+                        <code onclick="copyText('/auth/api/complete-registration')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/auth/api/complete-registration</code>
+                    </div>
+                    <div class="collapse-content">
+                         <div class="payload-block pl-4 mt-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
+                            <pre><code class="language-json">{
+    "proof_token": "...",
+    "password": "...",
+    "display_name": "...",
+    "username": "...",
+    "client_id": "..."
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="collapse collapse-arrow border border-base-200 bg-base-100">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-lg font-medium flex gap-3 items-center">
+                        <span class="badge badge-success text-xs">POST</span>
+                        <code onclick="copyText('/auth/api/reset-password')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/auth/api/reset-password</code>
+                    </div>
+                    <div class="collapse-content">
+                         <div class="payload-block pl-4 mt-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
+                            <pre><code class="language-json">{ "proof_token": "...", "password": "..." }</code></pre>
                         </div>
                     </div>
                 </div>
@@ -229,7 +476,7 @@
                             <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
                             <pre><code class="language-json">{
     "client_id": "YOUR_CLIENT_ID",
-    "identifier": "user@example.com",
+    "identifier": "user@example.com", // OR username
     "password": "secret_password"
 }</code></pre>
                         </div>
@@ -252,18 +499,39 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- UPDATED: Added Telegram login -->
+                <div class="collapse collapse-arrow border border-base-200 bg-base-100">
+                    <input type="checkbox" />
+                    <div class="collapse-title text-lg font-medium flex gap-3 items-center">
+                        <span class="badge badge-success text-xs">POST</span>
+                        <code onclick="copyText('/auth/api/telegram-login')" class="endpoint-copy hover:bg-base-200 px-2 rounded">/auth/api/telegram-login</code>
+                    </div>
+                    <div class="collapse-content">
+                         <div class="payload-block pl-4 mt-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
+                            <pre><code class="language-json">{
+    "client_id": "YOUR_CLIENT_ID",
+    "telegram_data": { ... } // From Telegram Widget
+}</code></pre>
+                        </div>
+                        <p class="text-sm mt-2">Verifies Telegram data using app's bot_token.</p>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section id="internal-api" class="mb-24 scroll-mt-24">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">3</span>
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">4</span> <!-- UPDATED: Renumbered -->
                 Internal API (Server-to-Server)
             </h2>
             <div class="alert alert-warning shadow-sm mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333 .192 3 1.732 3z" /></svg>
                 <div class="text-xs">
                     <strong>Auth Required:</strong> <code>Username = Client ID</code>, <code>Password = Client Secret</code>.
+                    <!-- UPDATED: Added security note -->
+                    <br><span class="text-warning">Security: Cannot promote to admin/super_admin via payments (FORBIDDEN_ROLES).</span>
                 </div>
             </div>
 
@@ -280,7 +548,12 @@
                         <tr>
                             <td><code onclick="copyText('/internal/validate-token')" class="endpoint-copy text-xs bg-base-300 p-2 rounded">/internal/validate-token</code></td>
                             <td><span class="badge badge-success badge-xs">POST</span></td>
-                            <td><code class="text-xs">{ "jwt": "..." }</code></td>
+                            <td><code class="text-xs">{ "jwt": "..." }</code> <!-- UPDATED: Note --> <br><span class="text-xs text-base-content/60">Returns telegram_id if present.</span></td>
+                        </tr>
+                        <tr>
+                            <td><code onclick="copyText('/internal/users/<user_id>')" class="endpoint-copy text-xs bg-base-300 p-2 rounded">/internal/users/&lt;user_id&gt;</code></td>
+                            <td><span class="badge badge-info badge-xs">GET</span></td>
+                            <td><span class="text-xs text-base-content/50">Fetch basic user profile</span></td>
                         </tr>
                         <tr>
                             <td><code onclick="copyText('/internal/generate-link-token')" class="endpoint-copy text-xs bg-base-300 p-2 rounded">/internal/generate-link-token</code></td>
@@ -309,9 +582,11 @@
 
         <section id="payments-api" class="mb-24 scroll-mt-24">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">4</span>
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">5</span> <!-- UPDATED: Renumbered -->
                 Payments API
             </h2>
+            <!-- UPDATED: Added custom QR note -->
+            <p class="mb-6 text-base-content/70">Supports tamper-proof intents. Apps can set custom QR codes (app_qr_url) via Backoffice for Bot payments.</p>
 
             <div class="space-y-8">
 
@@ -325,12 +600,33 @@
 
                         <div class="payload-block pl-4 mt-2">
                              <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
-                             <pre><code class="language-json">{
+                            <pre><code class="language-json">{
     "amount": 9.99,
     "currency": "USD",
     "target_role": "premium_user",
     "duration": "1m", // 1m, 3m, 6m, 1y, lifetime
     "client_ref_id": "INV-1001"
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UPDATED: Added polling from [0.6.0] -->
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <div class="flex justify-between items-start">
+                            <h3 class="card-title text-base">Check Payment Status (Polling)</h3>
+                            <div class="badge badge-info">GET</div>
+                        </div>
+                        <p class="text-sm text-base-content/70">Check if a transaction has been completed (real-time alternative to webhooks).</p>
+                        <code onclick="copyText('/internal/payments/status/<transaction_id>')" class="endpoint-copy text-sm bg-base-200 p-2 rounded block mb-2 mt-2">/internal/payments/status/&lt;transaction_id&gt;</code>
+
+                        <div class="payload-block pl-4 mt-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Response</div>
+                            <pre><code class="language-json">{
+    "transaction_id": "tx-123...",
+    "status": "completed", // or 'pending'
+    "amount": 9.99
 }</code></pre>
                         </div>
                     </div>
@@ -363,15 +659,16 @@
                             <h3 class="card-title text-base">Admin Grant (Manual Upgrade)</h3>
                             <div class="badge badge-success">POST</div>
                         </div>
-                        <p class="text-sm text-base-content/70">Forcefully upgrade a user's role without payment.</p>
-                        <code onclick="copyText('/internal/grant-premium')" class="endpoint-copy text-sm bg-base-200 p-2 rounded block mb-2 mt-2">/internal/grant-premium</code>
+                        <p class="text-sm text-base-content/70">Forcefully upgrade a user's role without payment. Defaults to 1 month if no duration.</p> <!-- UPDATED: Added default note -->
+                        <code onclick="copyText('/internal/grant-role')" class="endpoint-copy text-sm bg-base-200 p-2 rounded block mb-2 mt-2">/internal/grant-role</code>
 
                         <div class="payload-block pl-4 mt-2">
                             <div class="text-xs font-bold uppercase tracking-wide text-base-content/50 mb-1">Payload</div>
                             <pre><code class="language-json">{
     "telegram_id": "123456789",
     "target_client_id": "optional_if_cross_app",
-    "duration": "1m" // optional, defaults to infinite if missing
+    "target_role": "premium_user",
+    "duration": "1m" // optional
 }</code></pre>
                         </div>
                     </div>
@@ -388,7 +685,10 @@
                         <div class="mockup-code bg-[#282c34] text-xs">
                             <pre data-prefix=">"><code>file: (binary_image_data)</code></pre>
                             <pre data-prefix=">"><code>account_id: "65a..."</code></pre>
+                            <pre data-prefix=">"><code>transaction_id: "tx-..." (optional)</code></pre>
                         </div>
+                        <!-- UPDATED: Added note -->
+                        <p class="text-sm mt-2">Forwards proof to Telegram admin group for approval (supports app admins).</p>
                     </div>
                 </div>
 
@@ -397,9 +697,10 @@
 
         <section id="webhooks" class="mb-24 scroll-mt-24">
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">5</span>
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">6</span> <!-- UPDATED: Renumbered -->
                 Webhooks
             </h2>
+            <p class="text-sm mb-4 text-base-content/70">Bifrost sends real-time notifications to your configured webhook URL for key events. Each webhook includes an HMAC signature (see the verification example in Flows & Guides) to ensure authenticity and integrity.</p>
             <div class="mockup-code bg-[#282c34] text-white mb-8">
                 <pre><code>Header: X-Bifrost-Signature</code></pre>
                 <pre><code>Value: HMAC-SHA256(Client_Secret, Request_Body)</code></pre>
@@ -413,8 +714,11 @@
   "event": "subscription_success",
   "account_id": "65a...",
   "amount": 9.99,
-  "role": "premium_user"
+  "role": "premium_user",
+  "duration": "1m", // UPDATED: Added from [0.3.3]
+  "expires_at": "2026-03-01T12:00:00Z" // UPDATED: Added from [0.3.3]
 }</code></pre>
+                    <p class="text-sm mt-2">Sent when a payment is approved, including details like the new role and expiration.</p>
                 </div>
             </div>
 
@@ -427,6 +731,104 @@
   "account_id": "65a...",
   "new_role": "user"
 }</code></pre>
+                    <!-- UPDATED: Added reaper note -->
+                    <p class="text-sm mt-2">Triggered by the hourly reaper when a subscription lapses, downgrading the user.</p>
+                </div>
+            </div>
+
+            <!-- UPDATED: Added more events -->
+            <div class="collapse collapse-plus bg-base-100 border border-base-200 mt-2">
+                <input type="radio" name="webhook-accordion" />
+                <div class="collapse-title text-md font-bold text-green-600">account_update</div>
+                <div class="collapse-content">
+                    <pre><code class="language-json">{
+  "event": "account_update",
+  "account_id": "65a...",
+  "extra_data": {
+    "telegram_id": "123456", // UPDATED: From [0.2.1]
+    "email": "user@example.com",
+    "username": "user123"
+  }
+}</code></pre>
+                    <p class="text-sm mt-2">Notifies of changes to user identity fields, such as adding a Telegram ID.</p>
+                </div>
+            </div>
+
+            <div class="collapse collapse-plus bg-base-100 border border-base-200 mt-2">
+                <input type="radio" name="webhook-accordion" />
+                <div class="collapse-title text-md font-bold text-purple-600">account_role_change</div>
+                <div class="collapse-content">
+                    <pre><code class="language-json">{
+  "event": "account_role_change",
+  "account_id": "65a...",
+  "new_role": "premium_user"
+}</code></pre>
+                    <p class="text-sm mt-2">Generic notification for any role updates, such as manual grants by admins.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- UPDATED: New section for Advanced Features -->
+        <section id="advanced" class="mb-24 scroll-mt-24">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span class="bg-primary text-primary-content w-8 h-8 rounded-lg flex items-center justify-center text-sm">7</span>
+                Advanced Features
+            </h2>
+            <p class="text-sm mb-6 text-base-content/70">Bifrost includes powerful tools and integrations to enhance security, branding, and user management. Below, we dive into each feature with practical details and examples.</p>
+            <div class="space-y-8">
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Bifrost Bot</h3>
+                        <p class="text-sm text-base-content/70">The Bifrost Bot is a dedicated Telegram bot serving as a central hub for authentication and payments. It supports deep links for seamless account linking (e.g., <code>t.me/BifrostBot?start=link_{token}</code>) and the /pay command, which displays app-branded instructions and custom QR codes. Admins receive approval requests directly in chat, with inline buttons for quick actions.</p>
+                        <div class="mockup-phone mt-4">
+                            <div class="camera"></div>
+                            <div class="display">
+                                <div class="artboard artboard-demo phone-1 p-4">
+                                    <div class="chat chat-start">
+                                        <div class="chat-bubble">/pay your_app_id</div>
+                                    </div>
+                                    <div class="chat chat-end">
+                                        <div class="chat-bubble">Scan this QR to pay $9.99 for Premium (Your App Name)<br><img src="https://example.com/custom-qr.png" alt="Custom QR" class="w-32 h-32 mx-auto mt-2"></div>
+                                    </div>
+                                    <div class="chat chat-start">
+                                        <div class="chat-bubble">Upload proof screenshot.</div>
+                                    </div>
+                                    <div class="chat chat-end">
+                                        <div class="chat-bubble">Approved! Enjoy your subscription.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs mt-4 text-base-content/60">Example chat flow: Users interact via commands, and the bot handles tamper-proof transactions using IDs.</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Custom QR Branding</h3>
+                        <p class="text-sm text-base-content/70">Personalize the payment experience by uploading your own QR code (e.g., for ABA or ACLEDA) in the Backoffice under app settings. When users trigger /pay in the Bifrost Bot, they'll see your custom QR instead of the default, creating a fully white-labeled flow that aligns with your brand.</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Enhanced Permissions</h3>
+                        <p class="text-sm text-base-content/70">App-specific admins gain targeted control: they can review and approve payment proofs only for their own application via the Bifrost Bot. This decentralized approach, combined with global super admin oversight, ensures efficient management without bottlenecks.</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Passkeys (Future)</h3>
+                        <p class="text-sm text-base-content/70">Bifrost is prepared for passwordless authentication with built-in support for WebAuthn credentials in the database models. This feature will enable seamless, secure logins using biometrics or hardware keys once fully implemented.</p>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 border border-base-200">
+                    <div class="card-body p-6">
+                        <h3 class="card-title text-base">Smart Invites</h3>
+                        <p class="text-sm text-base-content/70">Streamline onboarding with automated, branded email invitations from the Backoffice. When adding new users or admins, Bifrost generates a unique activation link embedded in the email—users can set their password directly without an OTP, simplifying the process while maintaining security.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -451,16 +853,22 @@
 
         <ul class="menu p-4 w-full text-base-content font-medium gap-1">
             <li class="menu-title opacity-50 uppercase tracking-widest text-xs mt-2">Getting Started</li>
+            <li><a href="#introduction" class="nav-link">Introduction</a></li>
             <li><a href="#roles-hierarchy" class="nav-link">Role Hierarchy</a></li>
-            <li><a href="#auth-hosted" class="nav-link">Hosted UI</a></li>
+
+            <!-- UPDATED: Added new sidebar items -->
+            <li class="menu-title opacity-50 uppercase tracking-widest text-xs mt-6">Guides</li>
+            <li><a href="#flows-guides" class="nav-link">Flows & Guides</a></li>
 
             <li class="menu-title opacity-50 uppercase tracking-widest text-xs mt-6">Authentication</li>
+            <li><a href="#auth-hosted" class="nav-link">Hosted UI</a></li>
             <li><a href="#auth-api" class="nav-link">Client API</a></li>
 
             <li class="menu-title opacity-50 uppercase tracking-widest text-xs mt-6">Backend Integration</li>
             <li><a href="#internal-api" class="nav-link">Internal API (S2S)</a></li>
             <li><a href="#payments-api" class="nav-link">Payments</a></li>
             <li><a href="#webhooks" class="nav-link">Webhooks</a></li>
+            <li><a href="#advanced" class="nav-link">Advanced Features</a></li> <!-- UPDATED: Added -->
 
             <li class="mt-8">
                 <a href="{{ url_for('changelog_page') }}" class="btn btn-warning btn-sm text-warning-content no-animation justify-start">
@@ -479,6 +887,7 @@
 
 <script>
     function copyText(text) {
+        if (!text) return;
         navigator.clipboard.writeText(text).then(() => {
             const toast = document.createElement('div');
             toast.className = 'alert alert-success text-white text-xs py-2 px-4 shadow-lg rounded-xl';
@@ -486,10 +895,11 @@
 
             const container = document.getElementById('toast-container');
             container.appendChild(toast);
-
             setTimeout(() => {
                 toast.remove();
             }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
         });
     }
 
