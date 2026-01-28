@@ -309,10 +309,12 @@ def update_user_role(app_id, user_id):
     action = request.form.get('action')
 
     if action == 'remove':
-        if db.remove_user_from_app(user_id, app_id):
-            flash("User removed from application.", "warning")
+        # CHANGED: Now handles success/message tuple return
+        success, msg = db.remove_user_from_app(user_id, app_id)
+        if success:
+            flash(msg, "warning")
         else:
-            flash("Could not remove user.", "danger")
+            flash(msg, "danger")
     else:
         new_role = request.form.get('role')
         duration = request.form.get('duration')

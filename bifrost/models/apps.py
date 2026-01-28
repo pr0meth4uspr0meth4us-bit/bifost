@@ -8,6 +8,7 @@ import logging
 log = logging.getLogger(__name__)
 UTC = ZoneInfo("UTC")
 
+
 class AppMixin:
     # ---------------------------------------------------------
     # CLIENT APP MANAGEMENT
@@ -90,10 +91,14 @@ class AppMixin:
         if duration_str and duration_str != 'lifetime':
             now = datetime.now(UTC)
             expires_at = None
-            if duration_str == '1m': expires_at = now + timedelta(days=30)
-            elif duration_str == '3m': expires_at = now + timedelta(days=90)
-            elif duration_str == '6m': expires_at = now + timedelta(days=180)
-            elif duration_str == '1y': expires_at = now + timedelta(days=365)
+            if duration_str == '1m':
+                expires_at = now + timedelta(days=30)
+            elif duration_str == '3m':
+                expires_at = now + timedelta(days=90)
+            elif duration_str == '6m':
+                expires_at = now + timedelta(days=180)
+            elif duration_str == '1y':
+                expires_at = now + timedelta(days=365)
 
             if expires_at:
                 update_doc["expires_at"] = expires_at
@@ -114,12 +119,27 @@ class AppMixin:
         if old_role != role and not suppress_webhook:
             self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
 
-    def remove_user_from_app(self, account_id, app_id):
-        """Completely unlinks a user from an application."""
-        result = self.db.app_links.delete_one({
+    def remove_user_from_app(self, account_id, app_id, is_self_action=False):
+        """
+        Completely unlinks a user from an application.
+        COMPLIANCE UPDATE: Only 'guest' users can be removed by admins.
+        Verified users (user, premium_user, admin) cannot be removed by anyone except themselves (GDPR/Compliance).
+        """
+        query = {
             "account_id": ObjectId(account_id),
             "app_id": ObjectId(app_id)
-        })
+        }
+
+        link = self.db.app_links.find_one(query)
+        if not link:
+            return False, "Link not found."
+
+        # COMPLIANCE CHECK
+        if not is_self_action:
+            if link.get('role') not in ['guest', 'banned']:
+                return False, "COMPLIANCE ERROR: Verified users cannot be removed by Admins. They must delete their own account."
+
+        result = self.db.app_links.delete_one(query)
 
         if result.deleted_count > 0:
             # Trigger a 'banned' or 'removed' event so the app knows to kill the session
@@ -127,10 +147,11 @@ class AppMixin:
                 account_id=account_id,
                 event_type="account_role_change",
                 specific_app_id=app_id,
-                extra_data={"new_role": "removed", "reason": "admin_removed"}
+                extra_data={"new_role": "removed", "reason": "admin_removed" if not is_self_action else "self_deleted"}
             )
-            return True
-        return False
+            return True, "User removed successfully."
+
+        return False, "Database error during removal."
 
     def get_user_role_for_app(self, account_id, app_id):
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})

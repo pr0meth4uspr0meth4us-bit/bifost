@@ -3,6 +3,17 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-01-29
+
+### Added
+- **Guest Role**: Explicitly added `guest` as a selectable role in the Backoffice "Add User" and "Manage User" forms.
+- **Documentation**: Added `docs/` folder with `README.md` and `API_REFERENCE.md` detailing compliance rules.
+- **Testing**: Added `tests.http` for internal API testing.
+
+### Security & Compliance
+- **Immutable Verified Users**: Updated `remove_user_from_app` in `bifrost/models/apps.py`. Administrators can no longer remove users whose role is anything other than `guest`. This ensures verified users own their data and cannot be forcibly unlinked by a tenant admin.
+- **Backoffice UI**: Added logic to `bifrost/backoffice.py` to catch compliance errors and flash a descriptive warning ("Verified users cannot be removed..."). Updated the UI button to label removal as "(Guest Only)".
+
 ## [0.4.1] - 2026-01-26
 
 ### Fixed

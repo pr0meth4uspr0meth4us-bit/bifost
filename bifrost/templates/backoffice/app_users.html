@@ -56,6 +56,7 @@
                 </div>
                 <div class="flex gap-2 w-full md:w-auto">
                     <select name="role" class="p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm text-slate-700">
+                        <option value="guest">Guest</option>
                         <option value="user">User</option>
                         <option value="premium_user" selected>Premium</option>
                         <option value="admin">Admin</option>
@@ -95,6 +96,7 @@
                             <span class="px-2.5 py-1 text-xs font-bold rounded-md
                                 {% if user.role == 'admin' %}bg-purple-100 text-purple-700
                                 {% elif user.role == 'premium_user' %}bg-green-100 text-green-700
+                                {% elif user.role == 'guest' %}bg-amber-100 text-amber-700
                                 {% else %}bg-slate-100 text-slate-600{% endif %}">
                                 {{ user.role }}
                             </span>
@@ -107,7 +109,7 @@
                                 id: '{{ user.account_id }}',
                                 name: '{{ user.display_name }}',
                                 role: '{{ user.role }}'
-                            })"
+                                })"
                                     class="text-indigo-600 hover:text-indigo-900 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors">
                                 Manage
                             </button>
@@ -223,6 +225,7 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Role</label>
                     <select name="role" x-model="userRole" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-700 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50">
+                        <option value="guest">Guest</option>
                         <option value="user">User</option>
                         <option value="premium_user">Premium User</option>
                         <option value="admin">App Admin</option>
@@ -245,8 +248,9 @@
                     <button type="submit" name="action" value="update" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-100">
                         Save Changes
                     </button>
-                    <button type="submit" name="action" value="remove" onclick="return confirm('Remove user from app? This revokes all access immediately.')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition border border-red-100">
-                        Remove
+                    <button type="submit" name="action" value="remove" onclick="return confirm('Remove user from app? This is only allowed for Guests.')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-4 rounded-xl transition border border-red-100"
+                    title="Verified users cannot be removed manually.">
+                        Remove (Guest Only)
                     </button>
                 </div>
             </form>
