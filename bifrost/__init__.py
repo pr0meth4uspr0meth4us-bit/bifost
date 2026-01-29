@@ -9,10 +9,10 @@ import logging
 from bson import ObjectId
 import markdown
 from bifrost.utils.changelog import get_latest_version_info
+from urllib.parse import urlparse
 
-# Globally accessible PyMongo instance
+
 mongo = PyMongo()
-
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -36,21 +36,60 @@ def create_app(config_class):
     app.config.from_object(config_class)
 
     # --- LOGGING CONFIGURATION ---
-    # Enforce the timestamped format requested
     logging.basicConfig(
         level=logging.INFO,
         format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
         force=True
     )
 
-    CORS(app, resources={r"/*": {"origins": "*"}})
-
     app.json_provider_class = CustomJSONProvider
     app.json = app.json_provider_class(app)
 
     mongo.init_app(app)
 
-    # Initialize Blueprints
+    # --- DYNAMIC CORS CONFIGURATION ---
+    # Fetch all registered App URLs to build the whitelist
+    with app.app_context():
+        try:
+            db_name = app.config.get('DB_NAME', 'bifrost_db')
+            # Use the raw pymongo client to fetch during startup
+            # Note: We use app.config['MONGO_URI'] if accessible or rely on mongo.cx if connected
+            db = mongo.cx[db_name]
+
+            allowed_origins = []
+
+            # Fetch all applications
+            apps = list(db.applications.find({}, {"app_web_url": 1, "app_callback_url": 1}))
+
+            for application in apps:
+                def get_origin(url):
+                    if not url: return None
+                    parsed = urlparse(url)
+                    return f"{parsed.scheme}://{parsed.netloc}"
+
+                web_origin = get_origin(application.get('app_web_url'))
+                cb_origin = get_origin(application.get('app_callback_url'))
+
+                if web_origin: allowed_origins.append(web_origin)
+                if cb_origin: allowed_origins.append(cb_origin)
+
+            # Deduplicate list
+            allowed_origins = list(set(allowed_origins))
+
+            # Fallback for local development if list is empty or strictly dev mode
+            if app.debug or not allowed_origins:
+                allowed_origins.append("http://localhost:8000")  # Client App port
+                allowed_origins.append("http://localhost:5000")  # Bifrost port
+
+            logging.info(f"🛡️ CORS Whitelist initialized with {len(allowed_origins)} origins: {allowed_origins}")
+
+            # Apply CORS with the specific list
+            CORS(app, resources={r"/*": {"origins": allowed_origins}}, supports_credentials=True)
+
+        except Exception as e:
+            logging.error(f"⚠️ Failed to load CORS whitelist from DB: {e}. Defaulting to safe local fallback.")
+            CORS(app, resources={r"/*": {"origins": ["http://localhost:8000"]}})
+
     from .auth.ui import auth_ui_bp
     from .auth.api import auth_api_bp
     from .internal.routes import internal_bp
