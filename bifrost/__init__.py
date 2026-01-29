@@ -7,7 +7,8 @@ import datetime
 import os
 import logging
 from bson import ObjectId
-import markdown  # Added for Changelog parsing
+import markdown
+from bifrost.utils.changelog import get_latest_version_info
 
 # Globally accessible PyMongo instance
 mongo = PyMongo()
@@ -77,8 +78,8 @@ def create_app(config_class):
     @app.route('/docs')
     def documentation():
         """Serves the Developer Documentation Portal."""
-        # No longer loading changelog here
-        return render_template('docs.html')
+        version, date = get_latest_version_info()
+        return render_template('docs.html', version=version, date=date)
 
     @app.route('/docs/changelog')
     def changelog_page():
