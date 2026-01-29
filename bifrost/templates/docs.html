@@ -159,6 +159,63 @@
             </div>
         </section>
 
+        <section id="get-started" class="mb-24 scroll-mt-24">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">!</span>
+                Get Started
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                    <div class="card-body p-6">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">1</span>
+                            <h3 class="font-bold text-slate-800">Register Application</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            Access the <strong>Bifrost Backoffice</strong> to create your application. You will receive a unique <code>client_id</code> and <code>client_secret</code>. These credentials are required for all Server-to-Server (S2S) requests.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                    <div class="card-body p-6">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">2</span>
+                            <h3 class="font-bold text-slate-800">Choose Auth Strategy</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            Decide between using our <strong>Hosted UI</strong> (fastest) or the <strong>Headless API</strong> (full control). Most apps start with Hosted UI to handle password resets and email verification automatically.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                    <div class="card-body p-6">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">3</span>
+                            <h3 class="font-bold text-slate-800">Configure Webhooks</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            Set your <code>Webhook URL</code> in the app settings. Bifrost will notify your server whenever a user pays, a subscription expires, or a profile is updated. Always verify the HMAC signature.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                    <div class="card-body p-6">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">4</span>
+                            <h3 class="font-bold text-slate-800">Secure Payments</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            Use the <code>/internal/payments/secure-intent</code> endpoint to generate tamper-proof payment requests. This ensures that users cannot manipulate prices or durations on the frontend.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <div class="divider text-slate-300"></div>
 
         <section id="roles-hierarchy" class="mb-24 scroll-mt-24">
@@ -971,6 +1028,7 @@ def handle_admin_approval(admin_user, transaction):
         <ul class="menu p-4 w-full text-slate-600 font-medium gap-1">
             <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-2 font-bold text-slate-400">Getting Started</li>
             <li><a href="#introduction" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Introduction</a></li>
+            <li><a href="#get-started" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Get Started</a></li>
             <li><a href="#roles-hierarchy" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Role Hierarchy</a></li>
 
             <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Guides</li>
