@@ -195,9 +195,10 @@ def create_app():
                 flash(f"App created & Invite sent to {admin_email}", "success")
             else:
                 user_id = user['_id']
-                flash(f"App created & {admin_email} linked as Admin", "success")
+                flash(f"App created & {admin_email} linked as Owner", "success")
 
-            db.link_user_to_app(user_id, app_doc['_id'], role="admin", duration_str="lifetime")
+            # CHANGED: Role is now 'owner', duration 'lifetime'
+            db.link_user_to_app(user_id, app_doc['_id'], role="owner", duration_str="lifetime")
         else:
             flash(f"App created without an admin.", "warning")
 
@@ -236,7 +237,7 @@ def update_app_settings(app_id):
         'app_callback_url': request.form.get('callback_url'),
         'app_api_url': request.form.get('api_url'),
         'app_logo_url': request.form.get('logo_url'),
-        'app_qr_url': request.form.get('qr_url') # <--- ADDED
+        'app_qr_url': request.form.get('qr_url')
     }
 
     if db.update_app_details(app_id, data):

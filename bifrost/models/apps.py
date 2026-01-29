@@ -79,9 +79,29 @@ class AppMixin:
     def link_user_to_app(self, account_id, app_id, role="user", duration_str=None, suppress_webhook=False):
         """
         Links a user to an app.
-        Added suppress_webhook=True to prevent firing 'account_role_change'
-        when we want to fire a more specific event (like 'subscription_success') instead.
+        Enforces 'One Owner per App' rule if role is 'owner'.
         """
+        # --- OWNER LOGIC: Enforce Single Owner ---
+        if role == 'owner':
+            # Find any existing owner for this app that isn't the current user
+            existing_owners = self.db.app_links.find({
+                "app_id": ObjectId(app_id),
+                "role": "owner",
+                "account_id": {"$ne": ObjectId(account_id)}
+            })
+
+            for owner_link in existing_owners:
+                log.info(f"👑 Ownership Transfer: Demoting {owner_link['account_id']} to Admin.")
+                # Recursively call to downgrade them to admin and trigger their webhook
+                self.link_user_to_app(
+                    account_id=owner_link['account_id'],
+                    app_id=app_id,
+                    role="admin",
+                    duration_str="lifetime",
+                    suppress_webhook=False
+                )
+        # ------------------------------------------
+
         current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
         old_role = current_link.get('role') if current_link else None
 

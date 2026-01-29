@@ -1,3 +1,4 @@
+# bifrost/admin_panel.py
 from flask import session, redirect, url_for, request, flash
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.pymongo import ModelView
@@ -35,7 +36,12 @@ class AccountForm(form.Form):
 
 class AppLinkForm(form.Form):
     account_id = fields.StringField('Account ID (ObjectId)', [validators.DataRequired()])
-    role = fields.SelectField('Role', choices=[('user', 'User'), ('premium_user', 'Premium User'), ('admin', 'Admin')])
+    role = fields.SelectField('Role', choices=[
+        ('user', 'User'),
+        ('premium_user', 'Premium User'),
+        ('admin', 'Admin'),
+        ('owner', 'Owner')  # <--- Added Owner
+    ])
 
 
 class SuperAdminForm(form.Form):

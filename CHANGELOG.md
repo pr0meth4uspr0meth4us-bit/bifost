@@ -2,6 +2,22 @@
 
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.7.3] - 2026-01-29
+
+### Added
+- **Owner Role**: New top-level role for App Creators.
+  - Apps can now have only **one** Owner.
+  - Transferring ownership automatically demotes the previous owner to Admin.
+- **UI Enhancements**: 
+  - Added "Show/Hide Password" (Eye Icon) to Backoffice Login.
+  - Added "Show/Hide Secrets" (Eye Icon) to App Configuration.
+
+### Changed
+- **Permissions**: App Creators are now assigned `owner` role instead of `admin` upon creation.
+- **Backoffice**: Updated User Management modals to include `owner` in role selection.
+- **Admin Panel**: Added `Owner` to the Flask-Admin role dropdowns.
+
 ## [0.7.2] - 2026-01-29
 
 ### Security
