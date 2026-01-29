@@ -2,15 +2,21 @@
 
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.7.2] - 2026-01-29
 
-## [0.6.2] - 2026-01-29
+### Security
+- **Dynamic CORS Middleware**: Implemented a custom middleware that validates the `Origin` header against the database in real-time.
+- **Zero-Downtime Updates**: New client applications are automatically whitelisted within 60 seconds of registration without requiring a server restart.
+- **Smart Caching**: Implemented a TTL-based cache for allowed origins to maintain high performance while ensuring security.
+
+## [0.7.1] - 2026-01-29
 
 ### Security
 - **CORS Hardening**: Replaced the insecure wildcard CORS configuration (`*`) with a strict dynamic whitelist.
 - **Dynamic Origin Loading**: The application now queries the database at startup to fetch `app_web_url` and `app_callback_url` for all registered clients, parsing them to allow only authorized origins.
 - **Dev Fallback**: `localhost` ports are automatically added to the whitelist when the app is running in debug mode.
 
-## [0.6.1] 2026-01-29
+## [0.7.0] 2026-01-29
 
 ### Added
 - "Get Started" section in bifrost_docs.html outlining the 4-step integration process. 

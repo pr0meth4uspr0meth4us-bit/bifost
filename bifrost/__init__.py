@@ -1,18 +1,27 @@
-from flask import Flask, jsonify, render_template, current_app
+from flask import Flask, jsonify, render_template, current_app, request, make_response
 from flask_pymongo import PyMongo
 from flask.json.provider import JSONProvider
-from flask_cors import CORS
+# Note: flask_cors is removed in favor of the custom DynamicCorsMiddleware
 import json
 import datetime
+import time
 import os
 import logging
 from bson import ObjectId
 import markdown
-from bifrost.utils.changelog import get_latest_version_info
 from urllib.parse import urlparse
 
+# Preserve your custom utility import
+try:
+    from bifrost.utils.changelog import get_latest_version_info
+except ImportError:
+    # Fallback if file is missing during dev
+    def get_latest_version_info():
+        return "v0.0.0", datetime.datetime.now().strftime("%Y-%m-%d")
 
+# Globally accessible PyMongo instance
 mongo = PyMongo()
+
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -31,6 +40,93 @@ class CustomJSONProvider(JSONProvider):
         return json.loads(s, **kwargs)
 
 
+# --- DYNAMIC CORS MIDDLEWARE ---
+class DynamicCorsMiddleware:
+    def __init__(self, app):
+        self.app = app
+        self.cache = set()
+        self.last_update = 0
+        self.cache_ttl = 60  # Cache duration in seconds
+
+    def get_allowed_origins(self):
+        """Fetches allowed origins from DB with caching."""
+        now = time.time()
+
+        # 1. Return Cache if valid
+        if self.cache and (now - self.last_update < self.cache_ttl):
+            return self.cache
+
+        # 2. Refresh from DB
+        try:
+            with self.app.app_context():
+                db_name = self.app.config.get('DB_NAME', 'bifrost_db')
+                db = mongo.cx[db_name]
+
+                new_origins = set()
+
+                # A. Default Origins (Localhost + Public URL)
+                new_origins.add("http://localhost:8000")
+                new_origins.add("http://localhost:5000")
+                if self.app.config.get('BIFROST_PUBLIC_URL'):
+                    new_origins.add(self.app.config['BIFROST_PUBLIC_URL'])
+
+                # B. Fetch Registered Apps
+                apps = list(db.applications.find({}, {"app_web_url": 1, "app_callback_url": 1}))
+
+                for application in apps:
+                    for field in ['app_web_url', 'app_callback_url']:
+                        url = application.get(field)
+                        if url:
+                            try:
+                                parsed = urlparse(url)
+                                if parsed.scheme and parsed.netloc:
+                                    origin = f"{parsed.scheme}://{parsed.netloc}"
+                                    new_origins.add(origin)
+                            except:
+                                pass
+
+                self.cache = new_origins
+                self.last_update = now
+                # logging.info(f"🔄 CORS Cache Refreshed: {len(self.cache)} origins")
+                return self.cache
+        except Exception as e:
+            logging.error(f"CORS DB Error: {e}")
+            return self.cache  # Return old cache on error
+
+    def attach(self):
+        """Attaches request hooks to the Flask app."""
+
+        @self.app.before_request
+        def handle_preflight():
+            """Handle OPTIONS requests for Preflight checks."""
+            if request.method == "OPTIONS":
+                origin = request.headers.get('Origin')
+                allowed = self.get_allowed_origins()
+
+                if origin in allowed or self.app.debug:
+                    response = make_response()
+                    response.headers.add("Access-Control-Allow-Origin", origin)
+                    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With")
+                    response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+                    response.headers.add("Access-Control-Allow-Credentials", "true")
+                    return response
+
+        @self.app.after_request
+        def add_cors_headers(response):
+            """Add headers to normal responses."""
+            origin = request.headers.get('Origin')
+            if not origin:
+                return response
+
+            allowed = self.get_allowed_origins()
+
+            if origin in allowed or self.app.debug:
+                response.headers.add("Access-Control-Allow-Origin", origin)
+                response.headers.add("Access-Control-Allow-Credentials", "true")
+
+            return response
+
+
 def create_app(config_class):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -47,49 +143,12 @@ def create_app(config_class):
 
     mongo.init_app(app)
 
-    # --- DYNAMIC CORS CONFIGURATION ---
-    # Fetch all registered App URLs to build the whitelist
-    with app.app_context():
-        try:
-            db_name = app.config.get('DB_NAME', 'bifrost_db')
-            # Use the raw pymongo client to fetch during startup
-            # Note: We use app.config['MONGO_URI'] if accessible or rely on mongo.cx if connected
-            db = mongo.cx[db_name]
+    # --- ACTIVATE DYNAMIC CORS ---
+    # Replaces static Flask-CORS configuration
+    cors = DynamicCorsMiddleware(app)
+    cors.attach()
 
-            allowed_origins = []
-
-            # Fetch all applications
-            apps = list(db.applications.find({}, {"app_web_url": 1, "app_callback_url": 1}))
-
-            for application in apps:
-                def get_origin(url):
-                    if not url: return None
-                    parsed = urlparse(url)
-                    return f"{parsed.scheme}://{parsed.netloc}"
-
-                web_origin = get_origin(application.get('app_web_url'))
-                cb_origin = get_origin(application.get('app_callback_url'))
-
-                if web_origin: allowed_origins.append(web_origin)
-                if cb_origin: allowed_origins.append(cb_origin)
-
-            # Deduplicate list
-            allowed_origins = list(set(allowed_origins))
-
-            # Fallback for local development if list is empty or strictly dev mode
-            if app.debug or not allowed_origins:
-                allowed_origins.append("http://localhost:8000")  # Client App port
-                allowed_origins.append("http://localhost:5000")  # Bifrost port
-
-            logging.info(f"🛡️ CORS Whitelist initialized with {len(allowed_origins)} origins: {allowed_origins}")
-
-            # Apply CORS with the specific list
-            CORS(app, resources={r"/*": {"origins": allowed_origins}}, supports_credentials=True)
-
-        except Exception as e:
-            logging.error(f"⚠️ Failed to load CORS whitelist from DB: {e}. Defaulting to safe local fallback.")
-            CORS(app, resources={r"/*": {"origins": ["http://localhost:8000"]}})
-
+    # --- BLUEPRINTS ---
     from .auth.ui import auth_ui_bp
     from .auth.api import auth_api_bp
     from .internal.routes import internal_bp
@@ -117,6 +176,7 @@ def create_app(config_class):
     @app.route('/docs')
     def documentation():
         """Serves the Developer Documentation Portal."""
+        # Using your custom version info
         version, date = get_latest_version_info()
         return render_template('docs.html', version=version, date=date)
 
@@ -125,11 +185,11 @@ def create_app(config_class):
         """Serves the standalone Changelog page."""
         changelog_html = ""
         try:
-            # Path to CHANGELOG.md (assuming it's in the project root, one level up from bifrost package)
+            # Path to CHANGELOG.md
             changelog_path = os.path.join(app.root_path, '..', 'CHANGELOG.md')
             with open(changelog_path, 'r', encoding='utf-8') as f:
                 text = f.read()
-                # Parse Markdown to HTML with extensions for cleaner rendering
+                # Parse Markdown to HTML
                 changelog_html = markdown.markdown(text, extensions=['fenced_code', 'tables', 'nl2br'])
         except Exception as e:
             logging.error(f"Error reading changelog: {e}")
