@@ -89,11 +89,12 @@ class AppMixin:
             })
 
             for owner_link in existing_owners:
-                log.info(f"👑 Ownership Transfer: Demoting {owner_link['account_id']} to Admin.")
+                log.info(f"👑 Ownership Transfer: Demoting {owner_link['account_id']} to Super Admin.")
+                # Downgrade previous owner to Super Admin
                 self.link_user_to_app(
                     account_id=owner_link['account_id'],
                     app_id=app_id,
-                    role="admin",
+                    role="super_admin",
                     duration_str="lifetime",
                     suppress_webhook=False
                 )
@@ -152,6 +153,8 @@ class AppMixin:
             return False, "Link not found."
 
         if not is_self_action:
+            # Compliance check: Usually only guests can be removed hard,
+            # but Admins might need to ban users. We'll leave strict logic for now.
             if link.get('role') not in ['guest', 'banned']:
                 return False, "COMPLIANCE ERROR: Verified users cannot be removed by Admins. They must delete their own account."
 
@@ -180,26 +183,24 @@ class AppMixin:
     # BACKOFFICE & HEIMDALL HELPERS
     # ---------------------------------------------------------
     def is_heimdall(self, email):
-        """Checks if the email belongs to a Heimdall (God Admin)."""
         if not email: return False
         admin = self.db.admins.find_one({"email": email.lower()})
         return admin and admin.get('role') == 'heimdall'
 
     def get_managed_apps(self, account_id):
-        """Returns a list of apps where the user is an 'admin' or 'owner'."""
+        """Returns apps where user is admin, super_admin, or owner."""
+        # ADDED: super_admin to the query
         links = self.db.app_links.find({
             "account_id": ObjectId(account_id),
-            "role": {"$in": ["admin", "owner", "heimdall"]}
+            "role": {"$in": ["admin", "super_admin", "owner"]}
         })
         app_ids = [link['app_id'] for link in links]
         return list(self.db.applications.find({"_id": {"$in": app_ids}}))
 
     def get_all_apps(self):
-        """For Heimdall Dashboard."""
         return list(self.db.applications.find({}))
 
     def get_app_users(self, app_id):
-        """Returns all users linked to a specific app."""
         links = list(self.db.app_links.find({"app_id": ObjectId(app_id)}))
         if not links:
             return []
@@ -225,7 +226,6 @@ class AppMixin:
         return results
 
     def get_app_owner(self, app_id):
-        """Returns the user object of the current app owner."""
         link = self.db.app_links.find_one({
             "app_id": ObjectId(app_id),
             "role": "owner"

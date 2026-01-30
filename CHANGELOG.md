@@ -3,6 +3,22 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-01-30
+
+### Added
+- **App Super Admin Role**: Introduced an intermediate role (`super_admin`) between App Admin and Owner. 
+    - Can manage Users AND App Admins.
+    - Can manage App Configuration (Name, URLs, Bot Token).
+    - Cannot access Secrets.
+
+### Changed
+- **Permission Hierarchy**: Enforced strict vertical permission logic in Backoffice.
+    - **Heimdall/Owner**: Full Access (Level 3/4).
+    - **Super Admin**: Config + User Management (Level 2).
+    - **App Admin**: User Management Only (Level 1).
+- **UI Logic**: Updated `app_users.html` to conditionally hide the "Secrets" pane and disable Config forms based on the logged-in user's role rank.
+
+
 ## [0.7.6] - 2026-01-30
 
 ### Security
