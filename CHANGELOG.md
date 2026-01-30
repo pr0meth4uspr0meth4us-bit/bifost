@@ -18,6 +18,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
     - **App Admin**: User Management Only (Level 1).
 - **UI Logic**: Updated `app_users.html` to conditionally hide the "Secrets" pane and disable Config forms based on the logged-in user's role rank.
 
+## [0.7.7] - 2026-01-30
+
+### Added
+- **Password Recovery**: Implemented a full Forgot Password flow for the Backoffice.
+    - `/backoffice/forgot-password`: Email entry form.
+    - `/backoffice/reset-password`: OTP verification and new password setting.
+    - `send_reset_email` service to deliver OTPs via SMTPLIB.
+- **Support**: Works for both **Heimdall** (Admins) and **App Owners** (Accounts) automatically.
 
 ## [0.7.6] - 2026-01-30
 
