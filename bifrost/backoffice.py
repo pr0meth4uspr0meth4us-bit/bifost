@@ -8,8 +8,10 @@ from .services.email_service import send_invite_email
 
 backoffice_bp = Blueprint('backoffice', __name__, url_prefix='/backoffice')
 
+
 def get_db():
     return BifrostDB(mongo.cx, current_app.config['DB_NAME'])
+
 
 def login_required(f):
     from functools import wraps
@@ -18,7 +20,9 @@ def login_required(f):
         if not session.get('backoffice_user'):
             return redirect(url_for('backoffice.login'))
         return f(*args, **kwargs)
+
     return decorated_function
+
 
 def heimdall_required(f):
     from functools import wraps
@@ -28,7 +32,9 @@ def heimdall_required(f):
             flash("Heimdall Access Required. You are but a mortal.", "danger")
             return redirect(url_for('backoffice.dashboard'))
         return f(*args, **kwargs)
+
     return decorated_function
+
 
 @backoffice_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -37,38 +43,46 @@ def login():
         password = request.form.get('password')
         db = get_db()
 
-        # 1. Check Heimdall (God Admin)
+        # 1. Check Heimdall (God Admin) - STRICT MODE
         admin_doc = db.db.admins.find_one({"email": identifier.lower()})
         if admin_doc and check_password_hash(admin_doc['password_hash'], password):
-            session['backoffice_user'] = str(admin_doc['_id'])
-            # We map 'super_admin' or 'heimdall' to True
-            session['is_heimdall'] = True
-            session['role'] = 'Heimdall'
-            return redirect(url_for('backoffice.dashboard'))
+            # STRICT: Only 'heimdall' role is allowed. 'super_admin' is now deprecated/blocked.
+            if admin_doc.get('role') == 'heimdall':
+                session['backoffice_user'] = str(admin_doc['_id'])
+                session['is_heimdall'] = True
+                session['role'] = 'Heimdall'
+                return redirect(url_for('backoffice.dashboard'))
+            else:
+                flash("System Role Deprecated. Please update your admin account to 'heimdall'.", "warning")
+                return render_template('backoffice/login.html')
 
-        # 2. Check App Tenant
+        # 2. Check App Tenant (App Owner/Admin)
         user = db.find_account_by_email(identifier)
         if not user:
             user = db.find_account_by_username(identifier)
 
         if user and user.get('password_hash') and check_password_hash(user['password_hash'], password):
             managed_apps = db.get_managed_apps(user['_id'])
-            if managed_apps:
+
+            # CRITICAL: If they manage NO apps, they are just a regular user. BLOCK THEM.
+            if managed_apps and len(managed_apps) > 0:
                 session['backoffice_user'] = str(user['_id'])
                 session['is_heimdall'] = False
                 session['role'] = 'App Admin'
                 return redirect(url_for('backoffice.dashboard'))
             else:
-                flash("Access Denied: Not an administrator.", "danger")
+                flash("Access Denied: You do not own or manage any applications.", "danger")
         else:
             flash("Invalid credentials.", "danger")
 
     return render_template('backoffice/login.html')
 
+
 @backoffice_bp.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('backoffice.login'))
+
 
 @backoffice_bp.route('/')
 @login_required
@@ -78,9 +92,16 @@ def dashboard():
         apps = db.get_all_apps()
         title = "Heimdall Dashboard"
     else:
+        # Re-verify permissions on every load
         apps = db.get_managed_apps(session['backoffice_user'])
+        if not apps:
+            session.clear()
+            flash("No apps found. Session revoked.", "warning")
+            return redirect(url_for('backoffice.login'))
         title = "Tenant Dashboard"
+
     return render_template('backoffice/dashboard.html', apps=apps, title=title)
+
 
 # --- HEIMDALL: GLOBAL VISION ---
 
@@ -104,6 +125,7 @@ def global_users():
         users = list(db.db.accounts.find({}).sort('created_at', -1).limit(50))
 
     return render_template('backoffice/global_users.html', users=users, query=query)
+
 
 @backoffice_bp.route('/users/<user_id>/details', methods=['GET'])
 @login_required
@@ -135,6 +157,7 @@ def get_global_user_details(user_id):
         "linked_apps": linked_apps
     })
 
+
 @backoffice_bp.route('/users/<user_id>/delete', methods=['POST'])
 @login_required
 @heimdall_required
@@ -148,6 +171,7 @@ def delete_global_user(user_id):
         flash(f"Error deleting user: {e}", "danger")
 
     return redirect(url_for('backoffice.global_users'))
+
 
 # --- APP MANAGEMENT ---
 
@@ -198,6 +222,7 @@ def create_app():
 
     return render_template('backoffice/create_app.html')
 
+
 @backoffice_bp.route('/app/<app_id>')
 @login_required
 def view_app(app_id):
@@ -211,9 +236,10 @@ def view_app(app_id):
 
     app = db.db.applications.find_one({"_id": ObjectId(app_id)})
     users = db.get_app_users(app_id)
-    owner = db.get_app_owner(app_id) # Fetch Owner Info for Config Tab
+    owner = db.get_app_owner(app_id)
 
     return render_template('backoffice/app_users.html', app=app, users=users, owner=owner)
+
 
 @backoffice_bp.route('/app/<app_id>/update', methods=['POST'])
 @login_required
@@ -242,6 +268,7 @@ def update_app_settings(app_id):
 
     return redirect(url_for('backoffice.view_app', app_id=app_id))
 
+
 @backoffice_bp.route('/app/<app_id>/rotate-secret', methods=['POST'])
 @login_required
 def rotate_secret(app_id):
@@ -255,6 +282,7 @@ def rotate_secret(app_id):
     new_secret = db.rotate_app_secret(app_id)
     flash(f"SECRET ROTATED! Copy immediately: {new_secret}", "warning")
     return redirect(url_for('backoffice.view_app', app_id=app_id))
+
 
 @backoffice_bp.route('/app/<app_id>/add', methods=['POST'])
 @login_required
@@ -290,6 +318,7 @@ def add_user_to_app(app_id):
     db.link_user_to_app(user_id, app_id, role=role, duration_str=duration)
 
     return redirect(url_for('backoffice.view_app', app_id=app_id))
+
 
 @backoffice_bp.route('/app/<app_id>/user/<user_id>/update', methods=['POST'])
 @login_required

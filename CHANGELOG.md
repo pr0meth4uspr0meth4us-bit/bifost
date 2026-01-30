@@ -3,6 +3,12 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-01-30
+
+### Security
+- **Strict Role Enforcement**: Updated Backoffice login to strictly require `role: "heimdall"` for global access. Users with the legacy `super_admin` role will now be blocked and prompted to update.
+- **Access Control**: Hardened the check for Tenant Dashboard access. Users with no managed apps (zero ownership/admin links) will now be explicitly denied access with a clear error message.
+
 ## [0.7.5] - 2026-01-30
 
 ### Added
