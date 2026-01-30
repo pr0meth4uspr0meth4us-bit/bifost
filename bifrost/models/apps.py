@@ -28,7 +28,7 @@ class AppMixin:
             "client_secret_hash": generate_password_hash(client_secret),
             "webhook_secret": webhook_secret,
             "app_logo_url": logo_url or "",
-            "app_qr_url": "",  # New field for Custom QR
+            "app_qr_url": "",
             "app_web_url": web_url,
             "app_callback_url": callback_url,
             "app_api_url": api_url,
@@ -38,7 +38,6 @@ class AppMixin:
         }
         self.db.applications.insert_one(app_doc)
 
-        # Return raw secrets only once
         return {
             "client_id": client_id,
             "client_secret": client_secret,
@@ -47,7 +46,7 @@ class AppMixin:
 
     def update_app_details(self, app_id, data):
         """Updates non-sensitive app details."""
-        allowed_fields = ['app_name', 'app_callback_url', 'app_web_url', 'app_api_url', 'app_logo_url', 'app_qr_url']
+        allowed_fields = ['app_name', 'app_callback_url', 'app_web_url', 'app_api_url', 'app_logo_url', 'app_qr_url', 'telegram_bot_token']
         updates = {k: v for k, v in data.items() if k in allowed_fields}
 
         if updates:
@@ -83,7 +82,6 @@ class AppMixin:
         """
         # --- OWNER LOGIC: Enforce Single Owner ---
         if role == 'owner':
-            # Find any existing owner for this app that isn't the current user
             existing_owners = self.db.app_links.find({
                 "app_id": ObjectId(app_id),
                 "role": "owner",
@@ -92,7 +90,6 @@ class AppMixin:
 
             for owner_link in existing_owners:
                 log.info(f"👑 Ownership Transfer: Demoting {owner_link['account_id']} to Admin.")
-                # Recursively call to downgrade them to admin and trigger their webhook
                 self.link_user_to_app(
                     account_id=owner_link['account_id'],
                     app_id=app_id,
@@ -137,15 +134,13 @@ class AppMixin:
             upsert=True
         )
 
-        # Trigger Webhook ONLY if role changed AND not suppressed
         if old_role != role and not suppress_webhook:
             self._trigger_event_for_user(account_id, "account_role_change", specific_app_id=app_id)
 
     def remove_user_from_app(self, account_id, app_id, is_self_action=False):
         """
         Completely unlinks a user from an application.
-        COMPLIANCE UPDATE: Only 'guest' users can be removed by admins.
-        Verified users (user, premium_user, admin) cannot be removed by anyone except themselves (GDPR/Compliance).
+        Verified users (user, premium_user, admin) cannot be removed by anyone except themselves.
         """
         query = {
             "account_id": ObjectId(account_id),
@@ -156,7 +151,6 @@ class AppMixin:
         if not link:
             return False, "Link not found."
 
-        # COMPLIANCE CHECK
         if not is_self_action:
             if link.get('role') not in ['guest', 'banned']:
                 return False, "COMPLIANCE ERROR: Verified users cannot be removed by Admins. They must delete their own account."
@@ -164,7 +158,6 @@ class AppMixin:
         result = self.db.app_links.delete_one(query)
 
         if result.deleted_count > 0:
-            # Trigger a 'banned' or 'removed' event so the app knows to kill the session
             self._trigger_event_for_user(
                 account_id=account_id,
                 event_type="account_role_change",
@@ -179,46 +172,30 @@ class AppMixin:
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
         if not link:
             return None
-
-        # Check Expiration
         if link.get('expires_at') and link['expires_at'].replace(tzinfo=UTC) < datetime.now(UTC):
             return "expired"
-
         return link.get('role', 'user')
 
     # ---------------------------------------------------------
-    # BACKOFFICE HELPERS
+    # BACKOFFICE & HEIMDALL HELPERS
     # ---------------------------------------------------------
-    def is_super_admin(self, email):
-        """Checks if the email belongs to a Super Admin."""
+    def is_heimdall(self, email):
+        """Checks if the email belongs to a Heimdall (God Admin)."""
         if not email: return False
-        return self.db.admins.find_one({"email": email.lower()}) is not None
-
-    def create_super_admin(self, email, password):
-        admin = {
-            "email": email.lower(),
-            "password_hash": generate_password_hash(password),
-            "role": "super_admin",
-            "created_at": datetime.now(UTC)
-        }
-        try:
-            self.db.admins.insert_one(admin)
-            return True
-        except Exception as e:
-            log.error(f"Could not create admin: {e}")
-            return False
+        admin = self.db.admins.find_one({"email": email.lower()})
+        return admin and admin.get('role') == 'heimdall'
 
     def get_managed_apps(self, account_id):
         """Returns a list of apps where the user is an 'admin' or 'owner'."""
         links = self.db.app_links.find({
             "account_id": ObjectId(account_id),
-            "role": {"$in": ["admin", "owner", "super_admin"]}
+            "role": {"$in": ["admin", "owner", "heimdall"]}
         })
         app_ids = [link['app_id'] for link in links]
         return list(self.db.applications.find({"_id": {"$in": app_ids}}))
 
     def get_all_apps(self):
-        """For Super Admin Dashboard."""
+        """For Heimdall Dashboard."""
         return list(self.db.applications.find({}))
 
     def get_app_users(self, app_id):
@@ -229,11 +206,8 @@ class AppMixin:
 
         user_ids = [link['account_id'] for link in links]
         users_cursor = self.db.accounts.find({"_id": {"$in": user_ids}})
-
-        # Create a lookup dictionary
         users_map = {u['_id']: u for u in users_cursor}
 
-        # Merge data
         results = []
         for link in links:
             user = users_map.get(link['account_id'])
@@ -249,3 +223,13 @@ class AppMixin:
                     "linked_at": link.get('linked_at')
                 })
         return results
+
+    def get_app_owner(self, app_id):
+        """Returns the user object of the current app owner."""
+        link = self.db.app_links.find_one({
+            "app_id": ObjectId(app_id),
+            "role": "owner"
+        })
+        if link:
+            return self.db.accounts.find_one({"_id": link['account_id']})
+        return None

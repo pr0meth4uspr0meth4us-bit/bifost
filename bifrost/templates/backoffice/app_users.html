@@ -16,9 +16,13 @@
             <div class="h-6 w-px bg-slate-200"></div>
             <h1 class="text-xl font-bold text-slate-900">{{ app.app_name }} <span class="text-slate-400 font-normal">| Management</span></h1>
         </div>
-        {% if session['is_super_admin'] %}
-        <a href="{{ url_for('backoffice.global_users') }}" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 border border-indigo-100">
-            🌍 Global Users DB
+        {% if session['is_heimdall'] %}
+        <a href="{{ url_for('backoffice.global_users') }}" class="flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg hover:bg-indigo-100 border border-indigo-100 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            HEIMDALL VISION
         </a>
         {% endif %}
     </div>
@@ -100,7 +104,7 @@
                                 {% elif user.role == 'premium_user' %}bg-green-100 text-green-700
                                 {% elif user.role == 'guest' %}bg-amber-100 text-amber-700
                                 {% else %}bg-slate-100 text-slate-600{% endif %}">
-                                {{ user.role }}
+                                 {{ user.role }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm font-medium text-slate-500">
@@ -139,6 +143,22 @@
                 </div>
 
                 <form action="{{ url_for('backoffice.update_app_settings', app_id=app._id) }}" method="POST" class="space-y-5">
+                    <div class="p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
+                        <div>
+                            <label class="block text-[10px] font-bold text-indigo-400 uppercase mb-0.5">Current Owner</label>
+                            <div class="text-sm font-bold text-indigo-900">
+                                {% if owner %}
+                                    {{ owner.display_name }} <span class="text-indigo-400 font-normal">({{ owner.email }})</span>
+                                {% else %}
+                                    <span class="text-red-500">No Owner Assigned</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <button type="button" @click="activeTab = 'users'" class="text-xs bg-white text-indigo-600 border border-indigo-100 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-100 transition">
+                            Change in Users Tab
+                        </button>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
                             <label class="block text-xs font-bold text-slate-400 uppercase mb-1">App Name</label>
@@ -157,6 +177,11 @@
                     <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Webhook URL (API)</label>
                         <input :disabled="!editConfig" type="url" name="api_url" value="{{ app.app_api_url }}" class="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white disabled:cursor-not-allowed">
+                    </div>
+
+                    <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Telegram Bot Token</label>
+                        <input :disabled="!editConfig" type="text" name="telegram_bot_token" value="{{ app.telegram_bot_token or '' }}" placeholder="123456:ABC-..." class="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:bg-white disabled:cursor-not-allowed font-mono">
                     </div>
 
                     <div class="opacity-100 transition-opacity" :class="!editConfig && 'opacity-60'">

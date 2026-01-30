@@ -20,12 +20,12 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def super_admin_required(f):
+def heimdall_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('is_super_admin'):
-            flash("Super Admin privileges required.", "danger")
+        if not session.get('is_heimdall'):
+            flash("Heimdall Access Required. You are but a mortal.", "danger")
             return redirect(url_for('backoffice.dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -37,15 +37,16 @@ def login():
         password = request.form.get('password')
         db = get_db()
 
-        # 1. Check Super Admin
-        super_admin = db.db.admins.find_one({"email": identifier.lower()})
-        if super_admin and check_password_hash(super_admin['password_hash'], password):
-            session['backoffice_user'] = str(super_admin['_id'])
-            session['is_super_admin'] = True
-            session['role'] = 'Super Admin'
+        # 1. Check Heimdall (God Admin)
+        admin_doc = db.db.admins.find_one({"email": identifier.lower()})
+        if admin_doc and check_password_hash(admin_doc['password_hash'], password):
+            session['backoffice_user'] = str(admin_doc['_id'])
+            # We map 'super_admin' or 'heimdall' to True
+            session['is_heimdall'] = True
+            session['role'] = 'Heimdall'
             return redirect(url_for('backoffice.dashboard'))
 
-        # 2. Check App Admin
+        # 2. Check App Tenant
         user = db.find_account_by_email(identifier)
         if not user:
             user = db.find_account_by_username(identifier)
@@ -54,7 +55,7 @@ def login():
             managed_apps = db.get_managed_apps(user['_id'])
             if managed_apps:
                 session['backoffice_user'] = str(user['_id'])
-                session['is_super_admin'] = False
+                session['is_heimdall'] = False
                 session['role'] = 'App Admin'
                 return redirect(url_for('backoffice.dashboard'))
             else:
@@ -73,21 +74,21 @@ def logout():
 @login_required
 def dashboard():
     db = get_db()
-    if session.get('is_super_admin'):
+    if session.get('is_heimdall'):
         apps = db.get_all_apps()
-        title = "Super Admin Dashboard"
+        title = "Heimdall Dashboard"
     else:
         apps = db.get_managed_apps(session['backoffice_user'])
         title = "Tenant Dashboard"
     return render_template('backoffice/dashboard.html', apps=apps, title=title)
 
-# --- SUPER ADMIN: GLOBAL USER DB ---
+# --- HEIMDALL: GLOBAL VISION ---
 
-@backoffice_bp.route('/users')
+@backoffice_bp.route('/heimdall/users')
 @login_required
-@super_admin_required
+@heimdall_required
 def global_users():
-    """View global accounts."""
+    """View global accounts (Heimdall Vision)."""
     db = get_db()
     query = request.args.get('q', '').strip()
 
@@ -106,15 +107,13 @@ def global_users():
 
 @backoffice_bp.route('/users/<user_id>/details', methods=['GET'])
 @login_required
-@super_admin_required
+@heimdall_required
 def get_global_user_details(user_id):
-    """AJAX endpoint to fetch user details for the modal."""
     db = get_db()
     user = db.find_account_by_id(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Get linked apps
     links = list(db.db.app_links.find({"account_id": ObjectId(user_id)}))
     linked_apps = []
     for link in links:
@@ -138,19 +137,13 @@ def get_global_user_details(user_id):
 
 @backoffice_bp.route('/users/<user_id>/delete', methods=['POST'])
 @login_required
-@super_admin_required
+@heimdall_required
 def delete_global_user(user_id):
-    """PERMANENTLY DELETE A USER FROM THE SYSTEM."""
     db = get_db()
     try:
-        # 1. Delete App Links
         db.db.app_links.delete_many({"account_id": ObjectId(user_id)})
-        # 2. Delete Transactions (Optional, maybe keep for audit? User asked for deletion)
-        # We will keep transactions anonymized but delete the user account
-        # 3. Delete Account
         db.db.accounts.delete_one({"_id": ObjectId(user_id)})
-
-        flash("Global account deleted permanently. They can now be re-created.", "warning")
+        flash("Mortal removed from existence.", "warning")
     except Exception as e:
         flash(f"Error deleting user: {e}", "danger")
 
@@ -160,7 +153,7 @@ def delete_global_user(user_id):
 
 @backoffice_bp.route('/apps/create', methods=['GET', 'POST'])
 @login_required
-@super_admin_required
+@heimdall_required
 def create_app():
     if request.method == 'POST':
         db = get_db()
@@ -197,7 +190,6 @@ def create_app():
                 user_id = user['_id']
                 flash(f"App created & {admin_email} linked as Owner", "success")
 
-            # CHANGED: Role is now 'owner', duration 'lifetime'
             db.link_user_to_app(user_id, app_doc['_id'], role="owner", duration_str="lifetime")
         else:
             flash(f"App created without an admin.", "warning")
@@ -210,7 +202,8 @@ def create_app():
 @login_required
 def view_app(app_id):
     db = get_db()
-    if not session.get('is_super_admin'):
+    # Security Check
+    if not session.get('is_heimdall'):
         owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
         if app_id not in owned_apps:
             flash("Unauthorized access to this app.", "danger")
@@ -218,14 +211,15 @@ def view_app(app_id):
 
     app = db.db.applications.find_one({"_id": ObjectId(app_id)})
     users = db.get_app_users(app_id)
-    return render_template('backoffice/app_users.html', app=app, users=users)
+    owner = db.get_app_owner(app_id) # Fetch Owner Info for Config Tab
+
+    return render_template('backoffice/app_users.html', app=app, users=users, owner=owner)
 
 @backoffice_bp.route('/app/<app_id>/update', methods=['POST'])
 @login_required
 def update_app_settings(app_id):
     db = get_db()
-    # Security Check
-    if not session.get('is_super_admin'):
+    if not session.get('is_heimdall'):
         owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
         if app_id not in owned_apps:
             flash("Unauthorized.", "danger")
@@ -237,7 +231,8 @@ def update_app_settings(app_id):
         'app_callback_url': request.form.get('callback_url'),
         'app_api_url': request.form.get('api_url'),
         'app_logo_url': request.form.get('logo_url'),
-        'app_qr_url': request.form.get('qr_url')
+        'app_qr_url': request.form.get('qr_url'),
+        'telegram_bot_token': request.form.get('telegram_bot_token')
     }
 
     if db.update_app_details(app_id, data):
@@ -251,8 +246,7 @@ def update_app_settings(app_id):
 @login_required
 def rotate_secret(app_id):
     db = get_db()
-    # Security Check
-    if not session.get('is_super_admin'):
+    if not session.get('is_heimdall'):
         owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
         if app_id not in owned_apps:
             flash("Unauthorized.", "danger")
@@ -266,8 +260,7 @@ def rotate_secret(app_id):
 @login_required
 def add_user_to_app(app_id):
     db = get_db()
-    # Security Check
-    if not session.get('is_super_admin'):
+    if not session.get('is_heimdall'):
         owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
         if app_id not in owned_apps:
             flash("Unauthorized.", "danger")
@@ -275,7 +268,7 @@ def add_user_to_app(app_id):
 
     email = request.form.get('email').strip().lower()
     role = request.form.get('role')
-    duration = request.form.get('duration') # Explicit duration from form
+    duration = request.form.get('duration')
 
     app = db.db.applications.find_one({"_id": ObjectId(app_id)})
     user = db.find_account_by_email(email)
@@ -294,7 +287,6 @@ def add_user_to_app(app_id):
         user_id = user['_id']
         flash(f"Existing user {email} added to app.", "success")
 
-    # FIX: Ensure duration is passed correctly
     db.link_user_to_app(user_id, app_id, role=role, duration_str=duration)
 
     return redirect(url_for('backoffice.view_app', app_id=app_id))
@@ -303,8 +295,7 @@ def add_user_to_app(app_id):
 @login_required
 def update_user_role(app_id, user_id):
     db = get_db()
-    # Security Check
-    if not session.get('is_super_admin'):
+    if not session.get('is_heimdall'):
         owned_apps = [str(app['_id']) for app in db.get_managed_apps(session['backoffice_user'])]
         if app_id not in owned_apps:
             return "Unauthorized", 403
@@ -312,7 +303,6 @@ def update_user_role(app_id, user_id):
     action = request.form.get('action')
 
     if action == 'remove':
-        # CHANGED: Now handles success/message tuple return
         success, msg = db.remove_user_from_app(user_id, app_id)
         if success:
             flash(msg, "warning")

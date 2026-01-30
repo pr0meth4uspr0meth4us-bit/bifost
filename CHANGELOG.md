@@ -3,6 +3,23 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-01-30
+
+### Added
+- **Heimdall Vision**: Added a direct shortcut in the Backoffice Dashboard for God Admins to access the Global User Database.
+- **App Owner Display**: Added a read-only field in the App Configuration tab that displays the current App Owner's name and email, with a prompt to change it via the Users tab.
+
+### Changed
+- **Rebranding**: Renamed "Super Admin" role to **Heimdall** throughout the codebase (Database `admins` collection now uses `role: "heimdall"`).
+- **Admin Script**: Updated `create_super_admin.py` to assign the `heimdall` role by default.
+- **Permissions**: Updated `backoffice.py` decorators to check for `is_heimdall` session flags.
+
+## [0.7.4] - 2026-01-30
+
+### Fixed
+- **Bot Token UI**: Restored the ability to view and edit the `telegram_bot_token` in the App Configuration settings within the Backoffice.
+- **Data Model**: Updated `update_app_details` in `bifrost/models/apps.py` to allow `telegram_bot_token` updates.
+
 ## [0.7.3] - 2026-01-29
 
 ### Added
