@@ -1,3 +1,4 @@
+# bifrost/internal/routes.py
 import os
 from flask import request, jsonify, current_app
 import jwt
@@ -135,14 +136,17 @@ def validate_token():
         if not user or not user.get('is_active', True):
             return jsonify({"is_valid": False, "error": "User inactive or not found"}), 403
 
-        # Get Role from App Link
+        # Get Role from App Link (STRICT: app_specific_role)
+        log.info(f"🔎 Validate Token: Checking role for User {account_id} in Client {client_id}")
         role = db.get_user_role_for_app(account_id, app_doc['_id'])
         final_role = role if role else "user"
+        log.info(f"✅ Validate Token Result: {final_role}")
 
         return jsonify({
             "is_valid": True,
             "account_id": account_id,
-            "app_specific_role": final_role,
+            "app_specific_role": final_role, # Primary field
+            "role": final_role,              # Legacy support for API consumers
             "email": user.get('email'),
             "username": user.get('username'),
             "display_name": user.get('display_name'),
@@ -272,6 +276,8 @@ def get_user_role_internal():
     telegram_id = data.get('telegram_id')
     client_id = request.authenticated_client_id
 
+    log.info(f"🔎 Get Role Request: TelegramID={telegram_id} for Client={client_id}")
+
     if not telegram_id:
         return jsonify({"error": "Missing telegram_id"}), 400
 
@@ -280,17 +286,22 @@ def get_user_role_internal():
     # 1. Find the User Account
     user = db.find_account_by_telegram(telegram_id)
     if not user:
+        log.warning(f"⚠️ User not found for TelegramID {telegram_id}. Returning 'guest'.")
         return jsonify({"role": "guest"}), 200
 
     # 2. Find the App ID for the calling service
     app_doc = db.get_app_by_client_id(client_id)
     if not app_doc:
+        log.error(f"❌ Calling App {client_id} not found in DB.")
         return jsonify({"error": "Calling App not found"}), 404
 
-    # 3. Get the Role
+    # 3. Get the Role (Uses strict app_specific_role check)
     role = db.get_user_role_for_app(user['_id'], app_doc['_id'])
 
-    return jsonify({"role": role or "user"}), 200
+    final_response = role or "user"
+    log.info(f"✅ Role Result for {telegram_id}: {final_response}")
+
+    return jsonify({"role": final_response}), 200
 
 
 @internal_bp.route('/me', methods=['GET'])

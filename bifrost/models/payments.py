@@ -1,4 +1,4 @@
-# bifrost/models/payments.py
+# bifrost/models/payment.py
 import secrets
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -11,24 +11,19 @@ UTC = ZoneInfo("UTC")
 
 class PaymentMixin:
     # ---------------------------------------------------------
-    # PAYMENT & TRANSACTIONS
+    # TRANSACTION MANAGEMENT
     # ---------------------------------------------------------
-    def create_transaction(self, account_id, app_id, app_name, amount, currency, description, target_role=None,
-                           duration=None,
-                           ref_id=None):
-        """
-        Creates a pending transaction.
-        Stores app_name directly to prevent lookup failures later.
-        """
-        # SECURITY: Double check at model level
-        forbidden = ['admin', 'super_admin', 'owner', 'god_admin']
-        if target_role and (target_role.lower() in forbidden or 'admin' in target_role.lower()):
-            raise ValueError(f"Role '{target_role}' is restricted and cannot be purchased.")
+    def create_transaction(self, account_id, app_id, amount, currency, description, target_role="premium_user",
+                           duration="1m", client_ref_id=None, app_name=None):
+        """Creates a pending transaction record."""
+        tx_id = f"tx-{secrets.token_hex(8)}"
 
-        transaction_id = f"tx-{secrets.token_hex(8)}"
-        doc = {
-            "transaction_id": transaction_id,
-            "account_id": ObjectId(account_id) if account_id else None,
+        # Handle account_id being None (for pre-login intents)
+        acc_oid = ObjectId(account_id) if account_id else None
+
+        tx_doc = {
+            "transaction_id": tx_id,
+            "account_id": acc_oid,
             "app_id": ObjectId(app_id),
             "app_name": app_name,
             "amount": amount,
@@ -37,71 +32,97 @@ class PaymentMixin:
             "status": "pending",
             "target_role": target_role,
             "duration": duration,
-            "client_ref_id": ref_id,
+            "client_ref_id": client_ref_id,
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
             "provider_ref": None
         }
-        self.db.transactions.insert_one(doc)
-        return transaction_id
+        self.db.transactions.insert_one(tx_doc)
+        return tx_id
+
+    def get_transaction(self, transaction_id):
+        return self.db.transactions.find_one({"transaction_id": transaction_id})
 
     def complete_transaction(self, transaction_id, provider_ref=None):
+        """
+        Marks a transaction as completed and grants the role.
+        STRICT MODE: Writes ONLY to 'app_specific_role'.
+        Legacy 'role' field is completely deprecated.
+        """
         tx = self.db.transactions.find_one({"transaction_id": transaction_id})
-        if not tx: return False, "Transaction not found"
-        if tx['status'] == 'completed': return True, "Already completed"
+        if not tx:
+            return False, "Transaction not found"
 
-        now = datetime.now(UTC)
+        if tx['status'] == 'completed':
+            return True, "Already completed"
 
+        # 1. Update Transaction Status
         self.db.transactions.update_one(
             {"_id": tx['_id']},
-            {"$set": {"status": "completed", "provider_ref": provider_ref, "updated_at": now}}
+            {
+                "$set": {
+                    "status": "completed",
+                    "provider_ref": provider_ref,
+                    "updated_at": datetime.now(UTC)
+                }
+            }
         )
 
-        # Grant the role and Apply Duration
-        if tx.get('target_role') and tx.get('account_id'):
-            # 1. Update DB Link (SUPPRESS generic event)
-            self.link_user_to_app(
-                account_id=tx['account_id'],
-                app_id=tx['app_id'],
-                role=tx['target_role'],
-                duration_str=tx.get('duration'),
-                suppress_webhook=True  # <--- SILENCE GENERIC
-            )
-
-            # 2. Calculate Expiration for Webhook Payload
-            # We mirror the logic from link_user_to_app to ensure the client gets the correct date
-            duration_str = tx.get('duration')
-            expires_at = None
-            if duration_str == '1m':
+        # 2. Calculate Expiration
+        duration = tx.get('duration')
+        expires_at = None
+        if duration:
+            now = datetime.now(UTC)
+            if duration == '1m':
                 expires_at = now + timedelta(days=30)
-            elif duration_str == '3m':
+            elif duration == '3m':
                 expires_at = now + timedelta(days=90)
-            elif duration_str == '6m':
+            elif duration == '6m':
                 expires_at = now + timedelta(days=180)
-            elif duration_str == '1y':
+            elif duration == '1y':
                 expires_at = now + timedelta(days=365)
+            elif duration == 'lifetime':
+                expires_at = None
 
-            # Format as ISO string for JSON payload, or None if lifetime
-            expires_at_iso = expires_at.isoformat() if expires_at else None
+        # 3. Grant Role (STRICT)
+        # We exclusively use 'app_specific_role' for ALL apps.
+        target_role = tx.get('target_role', 'premium_user')
 
-            # 3. Trigger Specific Payment Success Webhook
-            log.info(f"🚀 Triggering subscription_success for TX {transaction_id}")
-            self._trigger_event_for_user(
-                account_id=tx['account_id'],
-                event_type="subscription_success",
-                specific_app_id=tx['app_id'],
-                extra_data={
-                    "transaction_id": transaction_id,
-                    "amount": tx['amount'],
-                    "currency": tx['currency'],
-                    "role": tx['target_role'],
-                    "client_ref_id": tx.get('client_ref_id'),
-                    "duration": duration_str,  # <--- Added
-                    "expires_at": expires_at_iso  # <--- Added
-                }
-            )
+        update_doc = {
+            "app_specific_role": target_role,
+            "last_login": datetime.now(UTC)
+        }
 
-        return True, "Transaction completed and role updated"
+        if expires_at:
+            update_doc["expires_at"] = expires_at
+        elif duration == 'lifetime':
+            # Explicitly clear expiration for lifetime
+            update_doc["expires_at"] = None
+
+        # 4. Perform Update
+        self.db.app_links.update_one(
+            {
+                "account_id": tx['account_id'],
+                "app_id": tx['app_id']
+            },
+            {
+                "$set": update_doc,
+                "$setOnInsert": {"linked_at": datetime.now(UTC)}
+                # NOTE: We intentionally DO NOT set "role": "user" here anymore.
+            },
+            upsert=True
+        )
+
+        log.info(f"✅ Transaction {transaction_id} completed. Granted '{target_role}' to {tx['account_id']} in app_specific_role.")
+
+        # 5. Return Data for Webhook
+        return True, {
+            "account_id": str(tx['account_id']),
+            "app_id": str(tx['app_id']),
+            "role": target_role,
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "duration": duration
+        }
 
     def save_pending_payment(self, trx_id, amount, currency, raw_text, payer_name):
         try:

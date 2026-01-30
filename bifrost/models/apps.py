@@ -78,13 +78,13 @@ class AppMixin:
     def link_user_to_app(self, account_id, app_id, role="user", duration_str=None, suppress_webhook=False):
         """
         Links a user to an app.
-        Enforces 'One Owner per App' rule if role is 'owner'.
+        STRICT: Writes to app_specific_role only.
         """
         # --- OWNER LOGIC: Enforce Single Owner ---
         if role == 'owner':
             existing_owners = self.db.app_links.find({
                 "app_id": ObjectId(app_id),
-                "role": "owner",
+                "app_specific_role": "owner",
                 "account_id": {"$ne": ObjectId(account_id)}
             })
 
@@ -101,11 +101,11 @@ class AppMixin:
         # ------------------------------------------
 
         current_link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
-        old_role = current_link.get('role') if current_link else None
+        old_role = current_link.get('app_specific_role') if current_link else None
 
         update_doc = {
             "last_login": datetime.now(UTC),
-            "role": role
+            "app_specific_role": role  # <--- STRICT WRITE
         }
 
         if duration_str and duration_str != 'lifetime':
@@ -153,9 +153,9 @@ class AppMixin:
             return False, "Link not found."
 
         if not is_self_action:
-            # Compliance check: Usually only guests can be removed hard,
-            # but Admins might need to ban users. We'll leave strict logic for now.
-            if link.get('role') not in ['guest', 'banned']:
+            # Compliance check: Check app_specific_role
+            current_role = link.get('app_specific_role', 'user')
+            if current_role not in ['guest', 'banned']:
                 return False, "COMPLIANCE ERROR: Verified users cannot be removed by Admins. They must delete their own account."
 
         result = self.db.app_links.delete_one(query)
@@ -172,12 +172,35 @@ class AppMixin:
         return False, "Database error during removal."
 
     def get_user_role_for_app(self, account_id, app_id):
+        log.info(f"🔍 DEBUG: Checking role for Account {account_id} in App {app_id}")
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
+
         if not link:
+            log.info(f"❌ DEBUG: No App Link found for Account {account_id}. Defaulting to None.")
             return None
-        if link.get('expires_at') and link['expires_at'].replace(tzinfo=UTC) < datetime.now(UTC):
-            return "expired"
-        return link.get('role', 'user')
+
+        # STRICT READ: We ONLY check app_specific_role.
+        role = link.get('app_specific_role', 'user')
+        expires_at = link.get('expires_at')
+
+        log.info(f"📄 DEBUG: Found Link: Role='{role}', Expires={expires_at}")
+
+        if expires_at:
+            # Ensure timezone awareness for accurate comparison
+            now = datetime.now(UTC)
+            # Handle case where stored date might be naive (older data) or aware
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            else:
+                expires_at = expires_at.astimezone(UTC)
+
+            log.info(f"⏳ DEBUG: Expiration Check: Now={now} vs Expires={expires_at}")
+
+            if expires_at < now:
+                log.info("🚫 DEBUG: Subscription EXPIRED")
+                return "expired"
+
+        return role
 
     # ---------------------------------------------------------
     # BACKOFFICE & HEIMDALL HELPERS
@@ -189,10 +212,10 @@ class AppMixin:
 
     def get_managed_apps(self, account_id):
         """Returns apps where user is admin, super_admin, or owner."""
-        # ADDED: super_admin to the query
+        # STRICT: check app_specific_role
         links = self.db.app_links.find({
             "account_id": ObjectId(account_id),
-            "role": {"$in": ["admin", "super_admin", "owner"]}
+            "app_specific_role": {"$in": ["admin", "super_admin", "owner"]}
         })
         app_ids = [link['app_id'] for link in links]
         return list(self.db.applications.find({"_id": {"$in": app_ids}}))
@@ -213,22 +236,25 @@ class AppMixin:
         for link in links:
             user = users_map.get(link['account_id'])
             if user:
+                # MAPPING: We read 'app_specific_role' but return it as 'role' key
+                # for API backward compatibility, assuming frontend expects 'role'.
                 results.append({
                     "account_id": str(user['_id']),
                     "display_name": user.get('display_name'),
                     "email": user.get('email'),
                     "username": user.get('username'),
                     "telegram_id": user.get('telegram_id'),
-                    "role": link.get('role'),
+                    "role": link.get('app_specific_role', 'user'),
                     "expires_at": link.get('expires_at'),
                     "linked_at": link.get('linked_at')
                 })
         return results
 
     def get_app_owner(self, app_id):
+        # STRICT: check app_specific_role
         link = self.db.app_links.find_one({
             "app_id": ObjectId(app_id),
-            "role": "owner"
+            "app_specific_role": "owner"
         })
         if link:
             return self.db.accounts.find_one({"_id": link['account_id']})
