@@ -172,12 +172,34 @@ class AppMixin:
         return False, "Database error during removal."
 
     def get_user_role_for_app(self, account_id, app_id):
+        log.info(f"🔍 DEBUG: Checking role for Account {account_id} in App {app_id}")
         link = self.db.app_links.find_one({"account_id": ObjectId(account_id), "app_id": ObjectId(app_id)})
+
         if not link:
+            log.info(f"❌ DEBUG: No App Link found for Account {account_id}. Defaulting to None.")
             return None
-        if link.get('expires_at') and link['expires_at'].replace(tzinfo=UTC) < datetime.now(UTC):
-            return "expired"
-        return link.get('role', 'user')
+
+        role = link.get('role', 'user')
+        expires_at = link.get('expires_at')
+
+        log.info(f"📄 DEBUG: Found Link: Role='{role}', Expires={expires_at}")
+
+        if expires_at:
+            # Ensure timezone awareness for accurate comparison
+            now = datetime.now(UTC)
+            # Handle case where stored date might be naive (older data) or aware
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            else:
+                expires_at = expires_at.astimezone(UTC)
+
+            log.info(f"⏳ DEBUG: Expiration Check: Now={now} vs Expires={expires_at}")
+
+            if expires_at < now:
+                log.info("🚫 DEBUG: Subscription EXPIRED")
+                return "expired"
+
+        return role
 
     # ---------------------------------------------------------
     # BACKOFFICE & HEIMDALL HELPERS

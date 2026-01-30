@@ -3,35 +3,46 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9] - 2026-01-30
+
+### Fixed
+- **Role Sync Debugging**: Added verbose logging to `get_user_role_for_app` in `models/apps.py` and internal API routes `get-role` and `validate-token`.
+  - Now logs resolving of Telegram ID to User ID.
+  - Logs the raw `app_link` document found (if any).
+  - Logs the specific expiration timestamp comparison (UTC vs UTC).
+  - This is to diagnose why Premium users are being reported as Guest/User.
+
 ## [0.7.8] - 2026-01-30
 
 ### Added
-- **App Super Admin Role**: Introduced an intermediate role (`super_admin`) between App Admin and Owner. 
-    - Can manage Users AND App Admins.
-    - Can manage App Configuration (Name, URLs, Bot Token).
-    - Cannot access Secrets.
+- **App Super Admin Role**: Introduced an intermediate role (`super_admin`) between App Admin and Owner.
+  - Can manage Users AND App Admins.
+  - Can manage App Configuration (Name, URLs, Bot Token).
+  - Cannot access Secrets.
 
 ### Changed
 - **Permission Hierarchy**: Enforced strict vertical permission logic in Backoffice.
-    - **Heimdall/Owner**: Full Access (Level 3/4).
-    - **Super Admin**: Config + User Management (Level 2).
-    - **App Admin**: User Management Only (Level 1).
+  - **Heimdall/Owner**: Full Access (Level 3/4).
+  - **Super Admin**: Config + User Management (Level 2).
+  - **App Admin**: User Management Only (Level 1).
 - **UI Logic**: Updated `app_users.html` to conditionally hide the "Secrets" pane and disable Config forms based on the logged-in user's role rank.
 
 ## [0.7.7] - 2026-01-30
 
 ### Added
 - **Password Recovery**: Implemented a full Forgot Password flow for the Backoffice.
-    - `/backoffice/forgot-password`: Email entry form.
-    - `/backoffice/reset-password`: OTP verification and new password setting.
-    - `send_reset_email` service to deliver OTPs via SMTPLIB.
+  - `/backoffice/forgot-password`: Email entry form.
+  - `/backoffice/reset-password`: OTP verification and new password setting.
+- `send_reset_email` service to deliver OTPs via SMTPLIB.
 - **Support**: Works for both **Heimdall** (Admins) and **App Owners** (Accounts) automatically.
 
 ## [0.7.6] - 2026-01-30
 
 ### Security
-- **Strict Role Enforcement**: Updated Backoffice login to strictly require `role: "heimdall"` for global access. Users with the legacy `super_admin` role will now be blocked and prompted to update.
-- **Access Control**: Hardened the check for Tenant Dashboard access. Users with no managed apps (zero ownership/admin links) will now be explicitly denied access with a clear error message.
+- **Strict Role Enforcement**: Updated Backoffice login to strictly require `role: "heimdall"` for global access.
+  - Users with the legacy `super_admin` role will now be blocked and prompted to update.
+- **Access Control**: Hardened the check for Tenant Dashboard access.
+  - Users with no managed apps (zero ownership/admin links) will now be explicitly denied access with a clear error message.
 
 ## [0.7.5] - 2026-01-30
 
@@ -56,7 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Owner Role**: New top-level role for App Creators.
   - Apps can now have only **one** Owner.
   - Transferring ownership automatically demotes the previous owner to Admin.
-- **UI Enhancements**: 
+- **UI Enhancements**:
   - Added "Show/Hide Password" (Eye Icon) to Backoffice Login.
   - Added "Show/Hide Secrets" (Eye Icon) to App Configuration.
 
@@ -82,14 +93,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.7.0] 2026-01-29
 
 ### Added
-- "Get Started" section in bifrost_docs.html outlining the 4-step integration process. 
+- "Get Started" section in bifrost_docs.html outlining the 4-step integration process.
 - Sidebar link for the "Get Started" section for improved navigation.
 
 ## [0.6.0] - 2026-01-29
 
 ### Added
 - **Payment Status Polling**: Added `GET /internal/payments/status/<transaction_id>`.
-  - Client frontends can now poll this endpoint (via their backend) to confirm payment success in real-time without relying solely on webhooks.
+- Client frontends can now poll this endpoint (via their backend) to confirm payment success in real-time without relying solely on webhooks.
 - **Custom App QR Codes**: Added `app_qr_url` to Application model and Bot logic.
 - **Security Check**: Added explicit blocklist (`FORBIDDEN_ROLES`) to payment routes to prevent unauthorized promotion to Admin/Super Admin via the payment API.
 
@@ -97,12 +108,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - **Custom App QR Codes**: Added `app_qr_url` to the Application model.
-  - Client Apps can now upload/set their own custom Payment QR code via the Backoffice configuration tab.
-  - The Bifrost Bot (`/pay` command) now dynamically loads this custom QR instead of the default system image if it exists.
+- Client Apps can now upload/set their own custom Payment QR code via the Backoffice configuration tab.
+- The Bifrost Bot (`/pay` command) now dynamically loads this custom QR instead of the default system image if it exists.
 - **Enhanced Role Permissions**:
   - Implemented `check_admin_permission` in `bot/services.py`.
-  - **Client App Admin Approval**: The Telegram Bot now allows users with the `admin` role for a specific app to approve/reject payments for *that app*, even if they are not in the main Payment Group.
-  - Updated `_verify_admin` in `bot/handlers/admin.py` to support this dual-verification strategy (Global Admin Group OR Client App Admin).
+- **Client App Admin Approval**: The Telegram Bot now allows users with the `admin` role for a specific app to approve/reject payments for *that app*, even if they are not in the main Payment Group.
+- Updated `_verify_admin` in `bot/handlers/admin.py` to support this dual-verification strategy (Global Admin Group OR Client App Admin).
 
 ### Changed
 - **Bot Logic**: The `/pay` command now prioritizes the App's custom QR URL over the local `assets/qr.jpg`.
@@ -112,11 +123,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Documentation
 - **Integration Guide**: Major overhaul of `bifrost/templates/docs.html`.
-  - Added comprehensive "Registration Flow" section covering OTP generation and verification.
+- Added comprehensive "Registration Flow" section covering OTP generation and verification.
   - Added "Account Linking" section detailing the `generate-link-token` flow.
-  - Added "Payment Proofs" section for the `submit-proof` API.
+- Added "Payment Proofs" section for the `submit-proof` API.
   - Added concrete Python code examples for HMAC Webhook verification.
-  - Added specific details on User Roles (`guest`, `user`, `premium_user`, `admin`).
+- Added specific details on User Roles (`guest`, `user`, `premium_user`, `admin`).
 - **Structure**: Organized docs with a sticky sidebar for easier navigation.
 
 ## [0.4.2] - 2026-01-29
@@ -128,16 +139,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Security & Compliance
 - **Immutable Verified Users**: Updated `remove_user_from_app` in `bifrost/models/apps.py`.
-  Administrators can no longer remove users whose role is anything other than `guest`.
-  This ensures verified users own their data and cannot be forcibly unlinked by a tenant admin.
+- Administrators can no longer remove users whose role is anything other than `guest`.
+- This ensures verified users own their data and cannot be forcibly unlinked by a tenant admin.
 - **Backoffice UI**: Added logic to `bifrost/backoffice.py` to catch compliance errors and flash a descriptive warning ("Verified users cannot be removed...").
-  Updated the UI button to label removal as "(Guest Only)".
+- Updated the UI button to label removal as "(Guest Only)".
 
 ## [0.4.1] - 2026-01-26
 
 ### Fixed
 - **OTP Race Condition**: Updated `create_otp` in `bifrost/models/auth.py` to delete any existing codes for the same identifier/channel before creating a new one.
-  This resolves issues where users try to use an "old" code after requesting a new one.
+- This resolves issues where users try to use an "old" code after requesting a new one.
 - **OTP Validation**: Added stricter whitespace cleaning to `verify_otp` to handle copy-paste errors better.
 - **UI UX**: Added double-submit protection (JavaScript disable button) to `verify_otp.html` to prevent the "Invalid/Expired" error that occurs when a user double-clicks the verify button.
 
@@ -170,13 +181,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 - **Security Hardening**:
   - **Masked Credentials**: Client IDs and Webhook Secrets are now hidden by default (`•••••`) and require a click to reveal.
-  - **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
+- **Read-Only Config**: Application settings (URLs, Name) are locked by default to prevent accidental edits.
 - **UX Overhaul**:
   - **App Management**: Split "Users" and "Configuration" into separate tabs.
-  - **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
+- **User Actions**: Replaced inline table forms with a single "Manage" button that opens a detailed Modal.
 - **Logic Fixes**:
   - **Default Duration**: The "Add User" and "Manual Bot Approval" flows now default to **1 Month** access instead of **Lifetime** if no duration is specified.
-  - **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
+- **User Feedback**: Clarified success messages to distinguish between "Inviting a new user" and "Linking an existing global user".
 
 ## [0.3.1] - 2026-01-23
 
@@ -191,7 +202,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 - **Backoffice Permissions**: Restored App Management capabilities for App Admins (Tenants).
-  They can now view and edit their own application details.
+- They can now view and edit their own application details.
 - **App Management**: Added a "General Settings" form to the App Details view allowing updates to App Name, URLs (Callback/Web/API), and Logo.
 - **Technical Details**: Exposed `client_id`, `webhook_secret`, and `rotate_secret` functionality to App Admins for their owned applications.
 
@@ -230,7 +241,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - **Missing Webhook**: Fixed an issue where Admin Approval via the Bot triggered `account_role_change` instead of `subscription_success`.
 - **Transaction Completion**: The `call_grant_premium` service now attempts to find and complete a pending transaction record before falling back to a manual role grant.
-  This ensures the client app receives the transaction ID and amount in the webhook payload.
+- This ensures the client app receives the transaction ID and amount in the webhook payload.
 
 ## [0.1.0] - 2026-01-22
 
@@ -242,15 +253,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rich Webhooks**: The webhook system now supports arbitrary data payloads via `extra_data`.
 - **Subscription Events**:
   - `subscription_success`: Fired when a payment completes. Payload includes `transaction_id`, `amount`, `currency`, and `role`.
-  - `subscription_expired`: Fired by the Reaper when a subscription expires.
+- `subscription_expired`: Fired by the Reaper when a subscription expires.
 - **Subscription Reaper**: Implemented `bifrost/scheduler.py`, a background cron job that runs every 60 minutes to automatically downgrade expired subscriptions.
 - **Enterprise Payment Flow**: Implemented "Intent-Based" payments to prevent parameter tampering.
-  - New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
-  - Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
+- New API: `POST /internal/payments/secure-intent` allows client apps to create a transaction record before generating a link.
+- Bot Update: `/pay` and `/start` commands now accept a `transaction_id` (e.g., `tx-a1b2c3...`).
 - **Tenant Dashboard**: Created `bifrost/backoffice.py` to allow App Admins to manage their specific users.
 - **Role Hierarchy**:
   - **Super Admin**: Full access to all apps via Backoffice login.
-  - **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
+- **App Admin**: Access restricted to apps where they hold the `admin` or `owner` role.
 - **User Management UI**: Added `app_users.html` allowing Admins to manually change user roles (e.g., grant Premium) and extend subscription duration.
 - **Subscription Expiration**: Updated `BifrostDB` models to support `expires_at` for app links.
 - **Dynamic Pricing**: Bifrost Bot now parses `duration` (e.g., '1m', '1y') and `client_ref_id` from the payment payload.
@@ -263,7 +274,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Scheduler**: The subscription reaper now sends `subscription_expired` instead of the generic `account_role_change` event for better clarity in client apps.
 - **Bot Architecture**: Migrated from Long Polling to Webhooks for cost efficiency and scalability on serverless platforms (Koyeb).
 - **Process Management**: Updated `run.sh` to exclusively run the Gunicorn Web Server.
-  The Bot process is now triggered internally via the `/telegram-webhook` route.
+- The Bot process is now triggered internally via the `/telegram-webhook` route.
 - **State Management**: Replaced local file storage (`PicklePersistence`) with `MongoPersistence` (`bot/persistence.py`) to store conversation states in MongoDB.
 - **Models**: Updated `create_transaction` in `BifrostDB` to accept `None` for `account_id`, allowing transactions to be created before a user is identified.
 - **Database Models**: Modularized the monolithic `BifrostDB` class into a `models` package containing `BaseMixin`, `AuthMixin`, `AppMixin`, and `PaymentMixin` for better maintainability.
@@ -277,10 +288,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - **UX**: The final "Payment Accepted" message now displays the human-readable App Name (e.g., "Savvify") instead of the internal `client_id`.
 - **Admin Approval**: Fixed a bug where the Admin Approve button failed with "App lookup_skipped not found".
-  The bot now correctly fetches the `client_id` from the database during the `/start` command instead of relying on a placeholder.
+- The bot now correctly fetches the `client_id` from the database during the `/start` command instead of relying on a placeholder.
 - **Critical Deadlock**: Replaced the HTTP call in `call_grant_premium` with a direct database operation to prevent server worker freezing.
 - **Persistence**: Fixed a critical bug where `user_data` was lost upon bot restart.
-  The `MongoPersistence` class now correctly reads/writes user data.
+- The `MongoPersistence` class now correctly reads/writes user data.
 - **Payment Flow**: Added a fallback in `receive_proof` for cases where payment details are forgotten.
 - **Webhook Crash**: Resolved `RuntimeError: Install Flask with the 'async' extra` by converting the `/telegram-webhook` route to a synchronous wrapper.
 - **Worker Compatibility**: Implemented a manual `asyncio` event loop within the webhook route.
