@@ -3,44 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>Bifrost Backoffice</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-        }
-    </style>
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center relative overflow-hidden">
-
-<div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-    <div class="absolute -top-[30%] -left-[10%] w-[70%] h-[70%] rounded-full bg-indigo-100 blur-3xl opacity-50 mix-blend-multiply animate-blob"></div>
-    <div class="absolute -bottom-[30%] -right-[10%] w-[70%] h-[70%] rounded-full bg-violet-100 blur-3xl opacity-50 mix-blend-multiply animate-blob animation-delay-2000"></div>
-</div>
-
-<div class="w-full max-w-lg px-6">
-    <div class="glass-effect rounded-[2rem] shadow-2xl shadow-slate-200/50 border border-white/50 p-10 sm:p-12">
-
-        <div class="text-center mb-10">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Bifrost Logo" class="h-20 w-auto mx-auto mb-6 hover:scale-105 transition-transform duration-300 drop-shadow-xl">
-
-            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Bifrost <span class="text-indigo-600">Backoffice</span></h1>
-            <p class="text-slate-500 mt-3 text-sm font-medium">Secure Access for Platform Administrators</p>
+<body class="bg-slate-900 flex items-center justify-center min-h-screen p-6">
+    <div class="w-full max-w-md bg-white rounded-3xl p-10 shadow-2xl">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Bifrost</h1>
+            <p class="text-slate-500 font-medium">Backoffice Login</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        <div class="mb-8 space-y-3">
+        <div class="mb-6 space-y-2">
             {% for category, message in messages %}
-            <div class="flex items-center p-4 rounded-xl text-sm font-bold border
-                            {% if category == 'success' %}bg-green-50 text-green-700 border-green-100
-                            {% elif category == 'danger' %}bg-red-50 text-red-700 border-red-100
-                            {% else %}bg-slate-50 text-slate-700 border-slate-100{% endif %}">
+            <div class="p-4 rounded-xl text-sm font-bold border
+                        {% if category == 'success' %}bg-green-50 border-green-200 text-green-700
+                        {% elif category == 'danger' %}bg-red-50 border-red-200 text-red-700
+                        {% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800
+                        {% else %}bg-slate-50 border-slate-200 text-slate-700{% endif %}">
                 {{ message }}
             </div>
             {% endfor %}
@@ -48,58 +30,22 @@
         {% endif %}
         {% endwith %}
 
-        <form method="POST" class="space-y-5" x-data="{ showPass: false }">
-            <div class="space-y-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Admin Email or Username</label>
-                <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                    </div>
-                    <input type="text" name="email" required placeholder="admin@helm.com"
-                           class="w-full pl-11 pr-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-medium text-slate-700 placeholder-slate-400">
-                </div>
+        <form method="POST" class="space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                <input type="email" name="email" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50 font-bold text-slate-900 transition-all">
             </div>
-
-            <div class="space-y-2">
-                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Password</label>
-                <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                    </div>
-                    <input :type="showPass ? 'text' : 'password'" name="password" required placeholder="••••••••••••"
-                           class="w-full pl-11 pr-12 py-4 bg-slate-50 border-2 border-slate-100 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-medium text-slate-700 placeholder-slate-400">
-
-                    <button type="button" @click="showPass = !showPass" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer">
-                        <svg x-show="showPass" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <svg x-show="!showPass" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                        </svg>
-                    </button>
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="block text-xs font-bold text-slate-500 uppercase">Password</label>
+                    <a href="{{ url_for('backoffice.forgot_password') }}" class="text-xs font-bold text-indigo-600 hover:text-indigo-800">Forgot Password?</a>
                 </div>
+                <input type="password" name="password" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-50 font-bold text-slate-900 transition-all">
             </div>
-
-            <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 transition-all duration-200">
-                Authenticate
+            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-slate-200">
+                Sign In
             </button>
         </form>
-
-        <div class="mt-10 pt-6 border-t border-slate-100 text-center">
-            <p class="text-xs font-bold text-slate-400">
-                Restricted Area • <span class="text-slate-500">Authorized Personnel Only</span>
-            </p>
-        </div>
     </div>
-
-    <div class="text-center mt-8 opacity-60 hover:opacity-100 transition-opacity">
-        <p class="text-sm font-semibold text-slate-500">Powered by <span class="text-indigo-600">Bifrost Identity</span> v2.2</p>
-    </div>
-</div>
 </body>
 </html>
