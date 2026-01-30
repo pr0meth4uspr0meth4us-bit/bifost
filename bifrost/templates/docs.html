@@ -119,230 +119,236 @@
 <div id="toast-container" class="toast toast-end z-50"></div>
 
 <div class="drawer lg:drawer-open">
-  <input id="docs-drawer" type="checkbox" class="drawer-toggle" />
+    <input id="docs-drawer" type="checkbox" class="drawer-toggle" />
 
-  <div class="drawer-content flex flex-col bg-white">
-    <!-- Navbar for Mobile -->
-    <div class="w-full navbar bg-white lg:hidden border-b border-base-200 sticky top-0 z-30">
-      <div class="flex-none">
-        <label for="docs-drawer" class="btn btn-square btn-ghost">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-        </label>
-      </div>
-      <div class="flex-1 px-2 mx-2 font-bold text-lg text-slate-800">Bifrost API</div>
-    </div>
-
-    <main class="p-6 lg:p-12 max-w-6xl mx-auto w-full">
-
-        <div class="alert alert-info bg-indigo-50 border-indigo-100 text-indigo-900 mb-12 shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6 text-indigo-600"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <span class="text-sm font-medium">Documentation updated to v{{ version }} ({{ date }}). See <a href="{{ url_for('changelog_page') }}" class="link underline decoration-indigo-300 underline-offset-4">Changelog</a> for details.</span>
+    <div class="drawer-content flex flex-col bg-white">
+        <!-- Navbar for Mobile -->
+        <div class="w-full navbar bg-white lg:hidden border-b border-base-200 sticky top-0 z-30">
+            <div class="flex-none">
+                <label for="docs-drawer" class="btn btn-square btn-ghost">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </label>
+            </div>
+            <div class="flex-1 px-2 mx-2 font-bold text-lg text-slate-800">Bifrost API</div>
         </div>
 
-        <section id="introduction" class="mb-24 scroll-mt-24">
-            <h1 class="text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Introduction</h1>
-            <p class="text-xl text-slate-600 leading-relaxed mb-8 font-medium">
-                <strong>Bifrost</strong> is the centralized Identity Provider (IdP) and Payment Gateway for the Helm Ecosystem.
-                It acts as the secure bridge between users, client applications, and financial providers.
-            </p>
-            <p class="text-slate-600 leading-loose mb-10 max-w-3xl">
-                By integrating with Bifrost, your application gains:
-                <br>• <strong>Unified Login:</strong> Single Sign-On (SSO) via Email or Telegram.
-                <br>• <strong>Role Management:</strong> Centralized permission handling (Guest, User, Premium, Admin).
-                <br>• <strong>Payment Processing:</strong> Abstraction layer for ABA PayWay, Gumroad, and Manual/Bot payments.
-                <br>• <strong>Branding Support:</strong> Custom logos, QR codes, and email templates per app.
-            </p>
+        <main class="p-6 lg:p-12 max-w-6xl mx-auto w-full">
 
-            <div class="flex flex-col sm:flex-row gap-4 items-center bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div class="badge badge-primary badge-lg gap-2 py-4 px-4 font-bold">Base URL</div>
-                <code onclick="copyText('https://objective-denna-auppecampus-9a7d86fc.koyeb.app')" class="endpoint-copy font-mono text-sm font-bold text-slate-700 flex-1 truncate w-full sm:w-auto bg-white p-3 rounded-lg border border-slate-200">https://objective-denna-auppecampus-9a7d86fc.koyeb.app</code>
+            <div class="alert alert-info bg-indigo-50 border-indigo-100 text-indigo-900 mb-12 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6 text-indigo-600"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="text-sm font-medium">Documentation updated to v{{ version }} ({{ date }}). See <a href="{{ url_for('changelog_page') }}" class="link underline decoration-indigo-300 underline-offset-4">Changelog</a> for details.</span>
             </div>
-        </section>
 
-        <section id="get-started" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">!</span>
-                Get Started
-            </h2>
+            <section id="introduction" class="mb-24 scroll-mt-24">
+                <h1 class="text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Introduction</h1>
+                <p class="text-xl text-slate-600 leading-relaxed mb-8 font-medium">
+                    <strong>Bifrost</strong> is the centralized Identity Provider (IdP) and Payment Gateway for the Helm Ecosystem.
+                    It acts as the secure bridge between users, client applications, and financial providers.
+                </p>
+                <p class="text-slate-600 leading-loose mb-10 max-w-3xl">
+                    By integrating with Bifrost, your application gains:
+                    <br>• <strong>Unified Login:</strong> Single Sign-On (SSO) via Email or Telegram.
+                    <br>• <strong>Role Management:</strong> Centralized permission handling (Guest, User, Premium, Admin).
+                    <br>• <strong>Payment Processing:</strong> Abstraction layer for ABA PayWay, Gumroad, and Manual/Bot payments.
+                    <br>• <strong>Branding Support:</strong> Custom logos, QR codes, and email templates per app.
+                </p>
 
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex items-center gap-4 mb-4">
-                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">1</span>
-                            <h3 class="font-bold text-slate-800">Register Application</h3>
+                <div class="flex flex-col sm:flex-row gap-4 items-center bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="badge badge-primary badge-lg gap-2 py-4 px-4 font-bold">Base URL</div>
+                    <code onclick="copyText('https://objective-denna-auppecampus-9a7d86fc.koyeb.app')" class="endpoint-copy font-mono text-sm font-bold text-slate-700 flex-1 truncate w-full sm:w-auto bg-white p-3 rounded-lg border border-slate-200">https://objective-denna-auppecampus-9a7d86fc.koyeb.app</code>
+                </div>
+            </section>
+
+            <section id="get-started" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">!</span>
+                    Get Started
+                </h2>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex items-center gap-4 mb-4">
+                                <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">1</span>
+                                <h3 class="font-bold text-slate-800">Register Application</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                Access the <strong>Bifrost Backoffice</strong> to create your application. You will receive a unique <code>client_id</code> and <code>client_secret</code>. These credentials are required for all Server-to-Server (S2S) requests.
+                            </p>
                         </div>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Access the <strong>Bifrost Backoffice</strong> to create your application. You will receive a unique <code>client_id</code> and <code>client_secret</code>. These credentials are required for all Server-to-Server (S2S) requests.
-                        </p>
                     </div>
-                </div>
 
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex items-center gap-4 mb-4">
-                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">2</span>
-                            <h3 class="font-bold text-slate-800">Choose Auth Strategy</h3>
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex items-center gap-4 mb-4">
+                                <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">2</span>
+                                <h3 class="font-bold text-slate-800">Choose Auth Strategy</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                Decide between using our <strong>Hosted UI</strong> (fastest) or the <strong>Headless API</strong> (full control). Most apps start with Hosted UI to handle password resets and email verification automatically.
+                            </p>
                         </div>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Decide between using our <strong>Hosted UI</strong> (fastest) or the <strong>Headless API</strong> (full control). Most apps start with Hosted UI to handle password resets and email verification automatically.
-                        </p>
                     </div>
-                </div>
 
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex items-center gap-4 mb-4">
-                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">3</span>
-                            <h3 class="font-bold text-slate-800">Configure Webhooks</h3>
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex items-center gap-4 mb-4">
+                                <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">3</span>
+                                <h3 class="font-bold text-slate-800">Configure Webhooks</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                Set your <code>Webhook URL</code> in the app settings. Bifrost will notify your server whenever a user pays, a subscription expires, or a profile is updated. Always verify the HMAC signature.
+                            </p>
                         </div>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Set your <code>Webhook URL</code> in the app settings. Bifrost will notify your server whenever a user pays, a subscription expires, or a profile is updated. Always verify the HMAC signature.
-                        </p>
                     </div>
-                </div>
 
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex items-center gap-4 mb-4">
-                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">4</span>
-                            <h3 class="font-bold text-slate-800">Secure Payments</h3>
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex items-center gap-4 mb-4">
+                                <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">4</span>
+                                <h3 class="font-bold text-slate-800">Secure Payments</h3>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                Use the <code>/internal/payments/secure-intent</code> endpoint to generate tamper-proof payment requests. This ensures that users cannot manipulate prices or durations on the frontend.
+                            </p>
                         </div>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Use the <code>/internal/payments/secure-intent</code> endpoint to generate tamper-proof payment requests. This ensures that users cannot manipulate prices or durations on the frontend.
+                    </div>
+                </div>
+            </section>
+
+            <div class="divider text-slate-300"></div>
+
+            <section id="roles-hierarchy" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md">0</span>
+                    Role Hierarchy
+                </h2>
+
+                <div class="grid lg:grid-cols-2 gap-16">
+                    <div>
+                        <p class="mb-8 text-slate-600 leading-relaxed">
+                            Bifrost maintains a clear hierarchy of roles, where each level builds on the access and capabilities of the ones below it. This structure ensures secure and scalable user management across applications.
                         </p>
+                        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-8 rounded-r-lg">
+                            <p class="text-xs text-amber-800 font-medium">
+                                <strong>Note:</strong> Client apps have full flexibility to define and name their subscription tiers. Bifrost records these roles without limits—apps can create as many tiers as needed (e.g., 'basic', 'gold', 'platinum').
+                            </p>
+                        </div>
+
+                        <ul class="steps steps-vertical w-full font-medium">
+                            <li class="step step-neutral" data-content="?">
+                                <div class="text-left w-full pl-6 py-2">
+                                    <strong class="block text-slate-900">Guest</strong>
+                                    <span class="text-sm text-slate-500">Unauthenticated or unverified users.</span>
+                                </div>
+                            </li>
+                            <li class="step step-primary" data-content="✓">
+                                <div class="text-left w-full pl-6 py-2">
+                                    <strong class="block text-slate-900">User</strong>
+                                    <span class="text-sm text-slate-500">Standard authenticated users (Free Tier).</span>
+                                </div>
+                            </li>
+                            <li class="step step-accent" data-content="★">
+                                <div class="text-left w-full pl-6 py-2">
+                                    <strong class="block text-slate-900">Subscriber</strong>
+                                    <span class="text-sm text-slate-500">Active subscription holders (Premium, Gold, etc.).</span>
+                                </div>
+                            </li>
+                            <li class="step step-secondary" data-content="🛡️">
+                                <div class="text-left w-full pl-6 py-2">
+                                    <strong class="block text-slate-900">Admin</strong>
+                                    <span class="text-sm text-slate-500">App-specific managers (User Management).</span>
+                                </div>
+                            </li>
+                            <li class="step step-secondary" data-content="⚡">
+                                <div class="text-left w-full pl-6 py-2">
+                                    <strong class="block text-slate-900">Super Admin</strong>
+                                    <span class="text-sm text-slate-500">App Configuration & Admin Management.</span>
+                                </div>
+                            </li>
+                            <li class="step step-secondary" data-content="👑">
+                                <div class="text-left w-full pl-6 py-2">
+                                    <strong class="block text-slate-900">Owner</strong>
+                                    <span class="text-sm text-slate-500">App Creator (Full Access + Secrets).</span>
+                                </div>
+                            </li>
+                        </ul>
                     </div>
-                </div>
-            </div>
-        </section>
 
-        <div class="divider text-slate-300"></div>
-
-        <section id="roles-hierarchy" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-slate-900 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md">0</span>
-                Role Hierarchy
-            </h2>
-
-            <div class="grid lg:grid-cols-2 gap-16">
-                <div>
-                    <p class="mb-8 text-slate-600 leading-relaxed">
-                        Bifrost maintains a clear hierarchy of roles, where each level builds on the access and capabilities of the ones below it. This structure ensures secure and scalable user management across applications.
-                    </p>
-                    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-8 rounded-r-lg">
-                        <p class="text-xs text-amber-800 font-medium">
-                            <strong>Note:</strong> Client apps have full flexibility to define and name their subscription tiers. Bifrost records these roles without limits—apps can create as many tiers as needed (e.g., 'basic', 'gold', 'platinum').
+                    <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-8 rounded-3xl border border-slate-200 h-fit shadow-inner">
+                        <div class="flex items-center gap-3 mb-6">
+                            <span class="badge badge-warning font-bold shadow-sm">System Level</span>
+                            <h3 class="font-bold text-lg text-slate-900">Heimdall (God Admin)</h3>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-6 leading-relaxed">
+                            This elevated role operates beyond individual client apps, providing ecosystem-wide oversight for tasks like debugging, billing oversight, and infrastructure management.
                         </p>
-                    </div>
-
-                    <ul class="steps steps-vertical w-full font-medium">
-                        <li class="step step-neutral" data-content="?">
-                            <div class="text-left w-full pl-6 py-2">
-                                <strong class="block text-slate-900">Guest</strong>
-                                <span class="text-sm text-slate-500">Unauthenticated or unverified users.</span>
-                            </div>
-                        </li>
-                        <li class="step step-primary" data-content="✓">
-                            <div class="text-left w-full pl-6 py-2">
-                                <strong class="block text-slate-900">User</strong>
-                                <span class="text-sm text-slate-500">Standard authenticated users (Free Tier).</span>
-                            </div>
-                        </li>
-                        <li class="step step-accent" data-content="★">
-                            <div class="text-left w-full pl-6 py-2">
-                                <strong class="block text-slate-900">Subscriber</strong>
-                                <span class="text-sm text-slate-500">Active subscription holders (Premium, Gold, etc.).</span>
-                            </div>
-                        </li>
-                        <li class="step step-secondary" data-content="🛡️">
-                            <div class="text-left w-full pl-6 py-2">
-                                <strong class="block text-slate-900">Admin</strong>
-                                <span class="text-sm text-slate-500">App-specific managers (Payments & Config).</span>
-                            </div>
-                        </li>
-                        <li class="step step-secondary" data-content="⚡">
-                            <div class="text-left w-full pl-6 py-2">
-                                <strong class="block text-slate-900">Super Admin</strong>
-                                <span class="text-sm text-slate-500">Global system overseers.</span>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-8 rounded-3xl border border-slate-200 h-fit shadow-inner">
-                    <div class="flex items-center gap-3 mb-6">
-                        <span class="badge badge-warning font-bold shadow-sm">System Level</span>
-                        <h3 class="font-bold text-lg text-slate-900">God Admin (Bifrost Admin)</h3>
-                    </div>
-                    <p class="text-sm text-slate-600 mb-6 leading-relaxed">
-                        This elevated role operates beyond individual client apps, providing ecosystem-wide oversight for tasks like debugging, billing oversight, and infrastructure management.
-                    </p>
-                    <div class="alert bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-500">
-                        This role cannot be assigned through the API and is reserved exclusively for Bifrost system maintainers.
+                        <div class="alert bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-500">
+                            This role cannot be assigned through the API and is reserved exclusively for Bifrost system maintainers.
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="flows-guides" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">1</span>
-                Flows & Guides
-            </h2>
-            <p class="mb-8 text-slate-600 text-lg">Step-by-step guides for key integration processes.</p>
+            <section id="flows-guides" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">1</span>
+                    Flows & Guides
+                </h2>
+                <p class="mb-8 text-slate-600 text-lg">Step-by-step guides for key integration processes.</p>
 
-            <div class="space-y-10">
-                <!-- Registration Flow -->
-                <div class="card bg-white border border-slate-200 shadow-lg shadow-slate-100/50 feature-card">
-                    <div class="card-body p-8">
-                        <h3 class="card-title text-xl text-slate-900 mb-2">Registration Flow (Email OTP)</h3>
-                        <p class="text-sm mb-6 text-slate-500">Secure user sign-ups with email verification.</p>
-                        <ol class="relative border-l border-slate-200 ml-3">
-                            <li class="mb-10 ml-6">
+                <div class="space-y-10">
+                    <!-- Registration Flow -->
+                    <div class="card bg-white border border-slate-200 shadow-lg shadow-slate-100/50 feature-card">
+                        <div class="card-body p-8">
+                            <h3 class="card-title text-xl text-slate-900 mb-2">Registration Flow (Email OTP)</h3>
+                            <p class="text-sm mb-6 text-slate-500">Secure user sign-ups with email verification.</p>
+                            <ol class="relative border-l border-slate-200 ml-3">
+                                <li class="mb-10 ml-6">
                                 <span class="absolute flex items-center justify-center w-6 h-6 bg-indigo-100 rounded-full -left-3 ring-8 ring-white">
                                     <svg class="w-3 h-3 text-indigo-800" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path></svg>
                                 </span>
-                                <h3 class="flex items-center mb-1 text-lg font-semibold text-slate-900">Check Email</h3>
-                                <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/check-email</code>
-                                <div class="payload-block">
-                                    <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
-                                </div>
-                            </li>
-                            <li class="mb-10 ml-6">
+                                    <h3 class="flex items-center mb-1 text-lg font-semibold text-slate-900">Check Email</h3>
+                                    <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/check-email</code>
+                                    <div class="payload-block">
+                                        <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
+                                    </div>
+                                </li>
+                                <li class="mb-10 ml-6">
                                 <span class="absolute flex items-center justify-center w-6 h-6 bg-indigo-100 rounded-full -left-3 ring-8 ring-white">
                                     <span class="text-xs font-bold text-indigo-800">2</span>
                                 </span>
-                                <h3 class="flex items-center mb-1 text-lg font-semibold text-slate-900">Request OTP</h3>
-                                <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/request-email-otp</code>
-                                <div class="payload-block">
-                                    <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
-                                </div>
-                            </li>
-                            <li class="ml-6">
+                                    <h3 class="flex items-center mb-1 text-lg font-semibold text-slate-900">Request OTP</h3>
+                                    <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/request-email-otp</code>
+                                    <div class="payload-block">
+                                        <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
+                                    </div>
+                                </li>
+                                <li class="ml-6">
                                 <span class="absolute flex items-center justify-center w-6 h-6 bg-indigo-100 rounded-full -left-3 ring-8 ring-white">
                                     <span class="text-xs font-bold text-indigo-800">3</span>
                                 </span>
-                                <h3 class="flex items-center mb-1 text-lg font-semibold text-slate-900">Complete Registration</h3>
-                                <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/complete-registration</code>
-                                <div class="payload-block">
+                                    <h3 class="flex items-center mb-1 text-lg font-semibold text-slate-900">Complete Registration</h3>
+                                    <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/complete-registration</code>
+                                    <div class="payload-block">
                                     <pre><code class="language-json">{
   "proof_token": "from_verify_step",
   "password": "user_password",
   "display_name": "User Name",
   "client_id": "your_client_id"
 }</code></pre>
-                                </div>
-                            </li>
-                        </ol>
+                                    </div>
+                                </li>
+                            </ol>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Webhook Verification -->
-                <div class="card bg-white border border-slate-200 shadow-lg shadow-slate-100/50 feature-card">
-                    <div class="card-body p-8">
-                        <h3 class="card-title text-xl text-slate-900 mb-4">HMAC Webhook Verification (Python)</h3>
-                        <p class="text-sm mb-6 text-slate-500">Secure your webhook endpoints by verifying the X-Bifrost-Signature header.</p>
-                        <div class="payload-block mt-0">
+                    <!-- Webhook Verification -->
+                    <div class="card bg-white border border-slate-200 shadow-lg shadow-slate-100/50 feature-card">
+                        <div class="card-body p-8">
+                            <h3 class="card-title text-xl text-slate-900 mb-4">HMAC Webhook Verification (Python)</h3>
+                            <p class="text-sm mb-6 text-slate-500">Secure your webhook endpoints by verifying the X-Bifrost-Signature header.</p>
+                            <div class="payload-block mt-0">
                             <pre><code class="language-python">import hmac
 import hashlib
 
@@ -353,29 +359,29 @@ def verify_webhook(request_body, signature_header, client_secret):
         hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(computed_sig, signature_header)</code></pre>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="auth-hosted" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">2</span>
-                Hosted Login UI
-            </h2>
-            <p class="mb-8 text-slate-600">Pre-built, branded authentication pages.</p>
+            <section id="auth-hosted" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">2</span>
+                    Hosted Login UI
+                </h2>
+                <p class="mb-8 text-slate-600">Pre-built, branded authentication pages.</p>
 
-            <div class="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm">
-                <table class="table w-full">
-                    <thead>
+                <div class="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm">
+                    <table class="table w-full">
+                        <thead>
                         <tr class="bg-slate-50 text-slate-700 uppercase text-xs font-bold tracking-wider">
                             <th class="py-4 pl-6">View Name</th>
                             <th class="py-4">Endpoint URL (Click to Copy)</th>
                             <th class="py-4 pr-6">Parameters</th>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="font-bold text-slate-800 pl-6">Sign In</td>
                             <td><code onclick="copyText('/auth/ui/login')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/auth/ui/login</code></td>
@@ -391,84 +397,84 @@ def verify_webhook(request_body, signature_header, client_secret):
                             <td><code onclick="copyText('/auth/ui/set-password')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/auth/ui/set-password</code></td>
                             <td class="text-sm text-slate-500 pr-6"><code>verification_id</code>, <code>client_id</code></td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-        <section id="auth-api" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">3</span>
-                Client API
-            </h2>
-            <p class="mb-8 text-slate-600">Headless endpoints for custom frontends. No Basic Auth required.</p>
+            <section id="auth-api" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">3</span>
+                    Client API
+                </h2>
+                <p class="mb-8 text-slate-600">Headless endpoints for custom frontends. No Basic Auth required.</p>
 
-            <div class="space-y-4">
-                <!-- GET /health -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-info text-xs font-bold py-3 px-3 text-white">GET</span>
-                        <code onclick="copyText('/health')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/health</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
-                            <pre><code class="language-json">{ "status": "ok", "message": "Bifrost IdP operational." }</code></pre>
+                <div class="space-y-4">
+                    <!-- GET /health -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-info text-xs font-bold py-3 px-3 text-white">GET</span>
+                            <code onclick="copyText('/health')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/health</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
+                                <pre><code class="language-json">{ "status": "ok", "message": "Bifrost IdP operational." }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/check-email -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/check-email')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/check-email</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
-                            <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
+                    <!-- POST /auth/api/check-email -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/check-email')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/check-email</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
+                                <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/request-email-otp -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/request-email-otp')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/request-email-otp</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
-                            <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
+                    <!-- POST /auth/api/request-email-otp -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/request-email-otp')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/request-email-otp</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
+                                <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/verify-email-otp -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/verify-email-otp')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/verify-email-otp</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
-                            <pre><code class="language-json">{ "verification_id": "...", "code": "123456" }</code></pre>
+                    <!-- POST /auth/api/verify-email-otp -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/verify-email-otp')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/verify-email-otp</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
+                                <pre><code class="language-json">{ "verification_id": "...", "code": "123456" }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/complete-registration -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/complete-registration')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/complete-registration</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
+                    <!-- POST /auth/api/complete-registration -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/complete-registration')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/complete-registration</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "proof_token": "...",
     "password": "new_password",
@@ -476,96 +482,96 @@ def verify_webhook(request_body, signature_header, client_secret):
     "username": "johndoe",
     "client_id": "your_client_id"
 }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/reset-password -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/reset-password')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/reset-password</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
-                            <pre><code class="language-json">{ "proof_token": "...", "password": "new_password" }</code></pre>
+                    <!-- POST /auth/api/reset-password -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/reset-password')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/reset-password</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
+                                <pre><code class="language-json">{ "proof_token": "...", "password": "new_password" }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/login -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/login')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/login</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
+                    <!-- POST /auth/api/login -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/login')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/login</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "client_id": "YOUR_CLIENT_ID",
     "identifier": "user@example.com",
     "password": "secret_password"
 }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/verify-otp-login -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/verify-otp-login')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/verify-otp-login</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
-                            <pre><code class="language-json">{ "client_id": "...", "code": "123456" }</code></pre>
+                    <!-- POST /auth/api/verify-otp-login -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/verify-otp-login')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/verify-otp-login</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
+                                <pre><code class="language-json">{ "client_id": "...", "code": "123456" }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- POST /auth/api/telegram-login -->
-                <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <input type="checkbox" />
-                    <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
-                        <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
-                        <code onclick="copyText('/auth/api/telegram-login')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/telegram-login</code>
-                    </div>
-                    <div class="collapse-content px-4 pb-4">
-                         <div class="payload-block">
+                    <!-- POST /auth/api/telegram-login -->
+                    <div class="collapse collapse-arrow border border-slate-200 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                        <input type="checkbox" />
+                        <div class="collapse-title text-lg font-medium flex gap-4 items-center p-4">
+                            <span class="badge badge-success text-xs font-bold py-3 px-3 text-white">POST</span>
+                            <code onclick="copyText('/auth/api/telegram-login')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/auth/api/telegram-login</code>
+                        </div>
+                        <div class="collapse-content px-4 pb-4">
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "client_id": "YOUR_CLIENT_ID",
     "telegram_data": { "id": 12345, "first_name": "...", "hash": "..." }
 }</code></pre>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="internal-api" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">4</span>
-                Internal API (S2S)
-            </h2>
-            <div class="alert alert-warning bg-amber-50 border-amber-200 text-amber-900 shadow-sm mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333 .192 3 1.732 3z" /></svg>
-                <div class="text-xs font-medium">
-                    <strong>Auth Required:</strong> <code>Username = Client ID</code>, <code>Password = Client Secret</code>.
+            <section id="internal-api" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">4</span>
+                    Internal API (S2S)
+                </h2>
+                <div class="alert alert-warning bg-amber-50 border-amber-200 text-amber-900 shadow-sm mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333 .192 3 1.732 3z" /></svg>
+                    <div class="text-xs font-medium">
+                        <strong>Auth Required:</strong> <code>Username = Client ID</code>, <code>Password = Client Secret</code>.
+                    </div>
                 </div>
-            </div>
-             <div class="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm">
-                <table class="table w-full">
-                    <thead>
+                <div class="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm">
+                    <table class="table w-full">
+                        <thead>
                         <tr class="bg-slate-50 text-slate-700 uppercase text-xs font-bold tracking-wider">
                             <th class="py-4 pl-6">Endpoint</th>
                             <th class="py-4">Method</th>
                             <th class="py-4 pr-6">Example Payload/Description</th>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/validate-token')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/validate-token</code></td>
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
@@ -596,28 +602,33 @@ def verify_webhook(request_body, signature_header, client_secret):
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
                             <td class="text-xs font-mono text-slate-500 pr-6">{ "telegram_id": "123456" }</td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="pl-6"><code onclick="copyText('/internal/payments/status/<id>')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/payments/status/&lt;id&gt;</code></td>
+                            <td><span class="badge badge-info badge-xs font-bold text-white">GET</span></td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">Check payment status (Polling)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-        <section id="payments-api" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">5</span>
-                Payments API
-            </h2>
-            <p class="mb-6 text-slate-600">Supports tamper-proof intents. Apps can set custom QR codes (app_qr_url) via Backoffice for Bot payments.</p>
+            <section id="payments-api" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">5</span>
+                    Payments API
+                </h2>
+                <p class="mb-6 text-slate-600">Supports tamper-proof intents. Apps can set custom QR codes (app_qr_url) via Backoffice for Bot payments.</p>
 
-            <div class="space-y-6">
-                <!-- Secure Payment Intent -->
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex justify-between items-start">
-                             <h3 class="card-title text-base text-slate-800">Secure Payment Intent</h3>
-                             <span class="badge badge-success text-xs font-bold text-white">POST</span>
-                        </div>
-                        <code onclick="copyText('/internal/payments/secure-intent')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 mt-2 font-mono">/internal/payments/secure-intent</code>
-                         <div class="payload-block">
+                <div class="space-y-6">
+                    <!-- Secure Payment Intent -->
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex justify-between items-start">
+                                <h3 class="card-title text-base text-slate-800">Secure Payment Intent</h3>
+                                <span class="badge badge-success text-xs font-bold text-white">POST</span>
+                            </div>
+                            <code onclick="copyText('/internal/payments/secure-intent')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 mt-2 font-mono">/internal/payments/secure-intent</code>
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "amount": 9.99,
     "currency": "USD",
@@ -625,101 +636,101 @@ def verify_webhook(request_body, signature_header, client_secret):
     "duration": "1m",
     "client_ref_id": "INV-1001"
 }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Check Payment Status -->
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex justify-between items-start">
-                             <h3 class="card-title text-base text-slate-800">Check Payment Status (Polling)</h3>
-                             <span class="badge badge-info text-xs font-bold text-white">GET</span>
-                        </div>
-                        <p class="text-xs text-slate-500 my-2">Check if a transaction has been completed (real-time alternative to webhooks).</p>
-                        <code onclick="copyText('/internal/payments/status/<transaction_id>')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/status/&lt;transaction_id&gt;</code>
-                         <div class="payload-block">
+                    <!-- Check Payment Status -->
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex justify-between items-start">
+                                <h3 class="card-title text-base text-slate-800">Check Payment Status (Polling)</h3>
+                                <span class="badge badge-info text-xs font-bold text-white">GET</span>
+                            </div>
+                            <p class="text-xs text-slate-500 my-2">Check if a transaction has been completed (real-time alternative to webhooks).</p>
+                            <code onclick="copyText('/internal/payments/status/<transaction_id>')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/status/&lt;transaction_id&gt;</code>
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "transaction_id": "tx-123...",
     "status": "completed",
     "amount": 9.99
 }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Universal Claim -->
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex justify-between items-start">
-                             <h3 class="card-title text-base text-slate-800">Universal Claim</h3>
-                             <span class="badge badge-success text-xs font-bold text-white">POST</span>
-                        </div>
-                        <p class="text-xs text-slate-500 my-2">Manually claim a transaction (found via bank logs, etc.) for a specific user.</p>
-                        <code onclick="copyText('/internal/payments/claim')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/claim</code>
-                         <div class="payload-block">
+                    <!-- Universal Claim -->
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex justify-between items-start">
+                                <h3 class="card-title text-base text-slate-800">Universal Claim</h3>
+                                <span class="badge badge-success text-xs font-bold text-white">POST</span>
+                            </div>
+                            <p class="text-xs text-slate-500 my-2">Manually claim a transaction (found via bank logs, etc.) for a specific user.</p>
+                            <code onclick="copyText('/internal/payments/claim')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/claim</code>
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "trx_input": "ABA_123456789",
     "target_app_id": "your_client_id_here",
     "identity_type": "telegram_id",
     "identity_value": "9988776655"
 }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Admin Grant -->
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex justify-between items-start">
-                             <h3 class="card-title text-base text-slate-800">Admin Grant (Manual Upgrade)</h3>
-                             <span class="badge badge-success text-xs font-bold text-white">POST</span>
-                        </div>
-                        <p class="text-xs text-slate-500 my-2">Forcefully upgrade a user's role without payment.</p>
-                        <code onclick="copyText('/internal/grant-role')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/grant-role</code>
-                         <div class="payload-block">
+                    <!-- Admin Grant -->
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex justify-between items-start">
+                                <h3 class="card-title text-base text-slate-800">Admin Grant (Manual Upgrade)</h3>
+                                <span class="badge badge-success text-xs font-bold text-white">POST</span>
+                            </div>
+                            <p class="text-xs text-slate-500 my-2">Forcefully upgrade a user's role without payment.</p>
+                            <code onclick="copyText('/internal/grant-role')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/grant-role</code>
+                            <div class="payload-block">
                             <pre><code class="language-json">{
     "telegram_id": "123456789",
     "target_client_id": "optional_if_cross_app",
     "target_role": "premium_user",
     "duration": "1m"
 }</code></pre>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Submit Proof (Web) -->
-                <div class="card bg-white border border-slate-200 shadow-sm feature-card">
-                    <div class="card-body p-6">
-                        <div class="flex justify-between items-start">
-                             <h3 class="card-title text-base text-slate-800">Submit Proof (Web Upload)</h3>
-                             <span class="badge badge-success text-xs font-bold text-white">POST</span>
-                        </div>
-                        <p class="text-xs text-slate-500 my-2">Forwards proof to Telegram admin group for approval (supports app admins).</p>
-                        <code onclick="copyText('/internal/payments/submit-proof')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/submit-proof</code>
-                         <div class="payload-block">
+                    <!-- Submit Proof (Web) -->
+                    <div class="card bg-white border border-slate-200 shadow-sm feature-card">
+                        <div class="card-body p-6">
+                            <div class="flex justify-between items-start">
+                                <h3 class="card-title text-base text-slate-800">Submit Proof (Web Upload)</h3>
+                                <span class="badge badge-success text-xs font-bold text-white">POST</span>
+                            </div>
+                            <p class="text-xs text-slate-500 my-2">Forwards proof to Telegram admin group for approval (supports app admins).</p>
+                            <code onclick="copyText('/internal/payments/submit-proof')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/submit-proof</code>
+                            <div class="payload-block">
                             <pre><code class="language-text">Multipart Form Data:
 > file: (binary_image_data)
 > account_id: "65a..."
 > transaction_id: "tx-..." (optional)</code></pre>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="webhooks" class="mb-24 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">6</span>
-                Webhooks
-            </h2>
-            <p class="text-slate-600 mb-6">Bifrost sends real-time notifications to your configured webhook URL. Verify signature using `X-Bifrost-Signature`.</p>
+            <section id="webhooks" class="mb-24 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">6</span>
+                    Webhooks
+                </h2>
+                <p class="text-slate-600 mb-6">Bifrost sends real-time notifications to your configured webhook URL. Verify signature using `X-Bifrost-Signature`.</p>
 
-             <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
-                <input type="radio" name="webhook-accordion" checked="checked" />
-                <div class="collapse-title text-md font-bold text-indigo-600">subscription_success</div>
-                <div class="collapse-content">
-                    <div class="payload-block">
+                <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
+                    <input type="radio" name="webhook-accordion" checked="checked" />
+                    <div class="collapse-title text-md font-bold text-indigo-600">subscription_success</div>
+                    <div class="collapse-content">
+                        <div class="payload-block">
                         <pre><code class="language-json">{
   "event": "subscription_success",
   "account_id": "65a...",
@@ -728,29 +739,29 @@ def verify_webhook(request_body, signature_header, client_secret):
   "duration": "1m",
   "expires_at": "2026-03-01T12:00:00Z"
 }</code></pre>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
-                <input type="radio" name="webhook-accordion" />
-                <div class="collapse-title text-md font-bold text-rose-600">subscription_expired</div>
-                <div class="collapse-content">
-                    <div class="payload-block">
+                <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
+                    <input type="radio" name="webhook-accordion" />
+                    <div class="collapse-title text-md font-bold text-rose-600">subscription_expired</div>
+                    <div class="collapse-content">
+                        <div class="payload-block">
                         <pre><code class="language-json">{
   "event": "subscription_expired",
   "account_id": "65a...",
   "new_role": "user"
 }</code></pre>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
-                <input type="radio" name="webhook-accordion" />
-                <div class="collapse-title text-md font-bold text-emerald-600">account_update</div>
-                <div class="collapse-content">
-                    <div class="payload-block">
+                <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
+                    <input type="radio" name="webhook-accordion" />
+                    <div class="collapse-title text-md font-bold text-emerald-600">account_update</div>
+                    <div class="collapse-content">
+                        <div class="payload-block">
                         <pre><code class="language-json">{
   "event": "account_update",
   "account_id": "65a...",
@@ -759,147 +770,147 @@ def verify_webhook(request_body, signature_header, client_secret):
     "email": "user@example.com"
   }
 }</code></pre>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
-                <input type="radio" name="webhook-accordion" />
-                <div class="collapse-title text-md font-bold text-purple-600">account_role_change</div>
-                <div class="collapse-content">
-                    <div class="payload-block">
+                <div class="collapse collapse-plus bg-white border border-slate-200 rounded-xl mb-4">
+                    <input type="radio" name="webhook-accordion" />
+                    <div class="collapse-title text-md font-bold text-purple-600">account_role_change</div>
+                    <div class="collapse-content">
+                        <div class="payload-block">
                         <pre><code class="language-json">{
   "event": "account_role_change",
   "account_id": "65a...",
   "new_role": "premium_user"
 }</code></pre>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="advanced" class="mb-32 scroll-mt-24">
-            <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
-                <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">7</span>
-                Advanced Features
-            </h2>
-            <p class="text-lg text-slate-600 mb-12 leading-relaxed max-w-3xl">
-                Bifrost includes powerful tools to enhance security, branding, and user management. Below, we dive into each feature with practical examples.
-            </p>
+            <section id="advanced" class="mb-32 scroll-mt-24">
+                <h2 class="text-3xl font-bold mb-8 flex items-center gap-4 text-slate-900">
+                    <span class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md shadow-indigo-200">7</span>
+                    Advanced Features
+                </h2>
+                <p class="text-lg text-slate-600 mb-12 leading-relaxed max-w-3xl">
+                    Bifrost includes powerful tools to enhance security, branding, and user management. Below, we dive into each feature with practical examples.
+                </p>
 
-            <div class="space-y-16">
+                <div class="space-y-16">
 
-                <!-- FEATURE 1: Bifrost Bot -->
-                <div class="card bg-white border border-slate-200 shadow-xl overflow-hidden rounded-3xl">
-                    <div class="card-body p-0 flex flex-col md:flex-row">
-                        <div class="p-10 md:w-1/2 flex flex-col justify-center bg-white">
-                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
+                    <!-- FEATURE 1: Bifrost Bot -->
+                    <div class="card bg-white border border-slate-200 shadow-xl overflow-hidden rounded-3xl">
+                        <div class="card-body p-0 flex flex-col md:flex-row">
+                            <div class="p-10 md:w-1/2 flex flex-col justify-center bg-white">
+                                <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
                                 <span class="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                                 </span>
-                                Bifrost Bot
-                            </h3>
-                            <p class="text-slate-600 leading-relaxed mb-8 text-lg">
-                                The central hub for authentication and payments. It supports deep links for seamless account linking and the <code>/pay</code> command.
-                                <br><br>
-                                <strong>Admins</strong> receive real-time approval requests directly in chat, with inline buttons to instantly Approve or Reject payment proofs.
-                            </p>
-                            <div class="flex flex-wrap gap-2">
-                                <div class="badge badge-lg py-3 px-4 bg-slate-100 border-slate-200 text-slate-600">Deep Linking</div>
-                                <div class="badge badge-lg py-3 px-4 bg-slate-100 border-slate-200 text-slate-600">Payments</div>
-                                <div class="badge badge-lg py-3 px-4 bg-slate-100 border-slate-200 text-slate-600">Admin Tools</div>
+                                    Bifrost Bot
+                                </h3>
+                                <p class="text-slate-600 leading-relaxed mb-8 text-lg">
+                                    The central hub for authentication and payments. It supports deep links for seamless account linking and the <code>/pay</code> command.
+                                    <br><br>
+                                    <strong>Admins</strong> receive real-time approval requests directly in chat, with inline buttons to instantly Approve or Reject payment proofs.
+                                </p>
+                                <div class="flex flex-wrap gap-2">
+                                    <div class="badge badge-lg py-3 px-4 bg-slate-100 border-slate-200 text-slate-600">Deep Linking</div>
+                                    <div class="badge badge-lg py-3 px-4 bg-slate-100 border-slate-200 text-slate-600">Payments</div>
+                                    <div class="badge badge-lg py-3 px-4 bg-slate-100 border-slate-200 text-slate-600">Admin Tools</div>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Visual: Phone Mockup -->
-                        <div class="bg-slate-50 md:w-1/2 p-10 flex items-center justify-center border-l border-slate-100">
-                            <div class="mockup-phone border-slate-800 shadow-2xl">
-                                <div class="camera"></div>
-                                <div class="display">
-                                    <div class="artboard artboard-demo phone-1 bg-slate-900 text-sm p-4 overflow-y-auto justify-start block">
-                                        <div class="chat chat-start mt-6">
-                                            <div class="chat-header text-slate-500 mb-1 text-xs">User</div>
-                                            <div class="chat-bubble bg-slate-800 text-slate-200">/pay your_app_id</div>
-                                        </div>
-                                        <div class="chat chat-end mt-2">
-                                            <div class="chat-header text-slate-500 mb-1 text-xs">Bifrost Bot</div>
-                                            <div class="chat-bubble bg-indigo-600 text-white shadow-md">
-                                                <p class="font-bold mb-2">Upgrade to Premium</p>
-                                                <p class="mb-3 text-xs opacity-90">Scan below to pay <strong>$9.99</strong></p>
-                                                <div class="bg-white p-2 rounded-lg inline-block shadow-sm">
-                                                    <img src="{{ url_for('static', filename='qr.jpg') }}" alt="QR" class="w-20 h-20 opacity-90">
+                            <!-- Visual: Phone Mockup -->
+                            <div class="bg-slate-50 md:w-1/2 p-10 flex items-center justify-center border-l border-slate-100">
+                                <div class="mockup-phone border-slate-800 shadow-2xl">
+                                    <div class="camera"></div>
+                                    <div class="display">
+                                        <div class="artboard artboard-demo phone-1 bg-slate-900 text-sm p-4 overflow-y-auto justify-start block">
+                                            <div class="chat chat-start mt-6">
+                                                <div class="chat-header text-slate-500 mb-1 text-xs">User</div>
+                                                <div class="chat-bubble bg-slate-800 text-slate-200">/pay your_app_id</div>
+                                            </div>
+                                            <div class="chat chat-end mt-2">
+                                                <div class="chat-header text-slate-500 mb-1 text-xs">Bifrost Bot</div>
+                                                <div class="chat-bubble bg-indigo-600 text-white shadow-md">
+                                                    <p class="font-bold mb-2">Upgrade to Premium</p>
+                                                    <p class="mb-3 text-xs opacity-90">Scan below to pay <strong>$9.99</strong></p>
+                                                    <div class="bg-white p-2 rounded-lg inline-block shadow-sm">
+                                                        <img src="{{ url_for('static', filename='qr.jpg') }}" alt="QR" class="w-20 h-20 opacity-90">
+                                                    </div>
+                                                    <p class="text-[10px] mt-2 opacity-70 font-mono">Ref: INV-9988</p>
                                                 </div>
-                                                <p class="text-[10px] mt-2 opacity-70 font-mono">Ref: INV-9988</p>
                                             </div>
-                                        </div>
-                                        <div class="chat chat-start mt-2">
-                                            <div class="chat-bubble bg-slate-800 text-slate-200 flex items-center gap-2 text-xs">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                                [Image Uploaded]
+                                            <div class="chat chat-start mt-2">
+                                                <div class="chat-bubble bg-slate-800 text-slate-200 flex items-center gap-2 text-xs">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    [Image Uploaded]
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="chat chat-end mt-2">
-                                            <div class="chat-bubble bg-emerald-600 text-white text-xs font-medium">Payment Approved! You are now a Premium Member.</div>
+                                            <div class="chat chat-end mt-2">
+                                                <div class="chat-bubble bg-emerald-600 text-white text-xs font-medium">Payment Approved! You are now a Premium Member.</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="divider text-slate-300"></div>
+                    <div class="divider text-slate-300"></div>
 
-                <!-- FEATURE 2: Custom QR Branding -->
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <div>
-                        <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
-                            <span class="w-1.5 h-8 bg-pink-500 rounded-full"></span>
-                            Custom QR Branding
-                        </h3>
-                        <p class="text-slate-600 leading-relaxed mb-6 text-lg">
-                            Personalize the payment experience by uploading your own QR code (e.g., for ABA or ACLEDA) in the Backoffice under app settings.
-                        </p>
-                        <p class="text-slate-600 leading-relaxed">
-                            When users trigger <code>/pay</code> in the Bifrost Bot for your app, they'll see your specific QR instead of the system default, creating a fully white-labeled flow that aligns with your brand identity.
-                        </p>
-                    </div>
+                    <!-- FEATURE 2: Custom QR Branding -->
+                    <div class="grid md:grid-cols-2 gap-12 items-center">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
+                                <span class="w-1.5 h-8 bg-pink-500 rounded-full"></span>
+                                Custom QR Branding
+                            </h3>
+                            <p class="text-slate-600 leading-relaxed mb-6 text-lg">
+                                Personalize the payment experience by uploading your own QR code (e.g., for ABA or ACLEDA) in the Backoffice under app settings.
+                            </p>
+                            <p class="text-slate-600 leading-relaxed">
+                                When users trigger <code>/pay</code> in the Bifrost Bot for your app, they'll see your specific QR instead of the system default, creating a fully white-labeled flow that aligns with your brand identity.
+                            </p>
+                        </div>
 
-                    <!-- Visual: Backoffice Settings Simulator -->
-                    <div class="mockup-window border border-slate-300 bg-slate-50 shadow-xl w-full">
-                        <div class="bg-white p-8 border-t border-slate-200">
-                            <div class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-6">Backoffice Settings</div>
+                        <!-- Visual: Backoffice Settings Simulator -->
+                        <div class="mockup-window border border-slate-300 bg-slate-50 shadow-xl w-full">
+                            <div class="bg-white p-8 border-t border-slate-200">
+                                <div class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-6">Backoffice Settings</div>
 
-                            <div class="form-control w-full">
-                                <label class="label mb-1">
-                                    <span class="label-text font-bold text-slate-700">Payment QR Code</span>
-                                    <span class="badge badge-success badge-sm text-white font-bold">Active</span>
-                                </label>
-                                <div class="flex items-center gap-5 p-5 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
-                                    <div class="w-20 h-20 bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
-                                        <img src="{{ url_for('static', filename='qr.jpg') }}" class="w-full h-full object-cover">
+                                <div class="form-control w-full">
+                                    <label class="label mb-1">
+                                        <span class="label-text font-bold text-slate-700">Payment QR Code</span>
+                                        <span class="badge badge-success badge-sm text-white font-bold">Active</span>
+                                    </label>
+                                    <div class="flex items-center gap-5 p-5 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
+                                        <div class="w-20 h-20 bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+                                            <img src="{{ url_for('static', filename='qr.jpg') }}" class="w-full h-full object-cover">
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="text-sm font-bold text-slate-800">my_shop_aba.png</div>
+                                            <div class="text-xs text-slate-500 mt-1">245 KB • PNG • Uploaded just now</div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline border-slate-300 text-slate-600 hover:bg-slate-800 hover:text-white hover:border-slate-800">Replace</button>
                                     </div>
-                                    <div class="flex-1">
-                                        <div class="text-sm font-bold text-slate-800">my_shop_aba.png</div>
-                                        <div class="text-xs text-slate-500 mt-1">245 KB • PNG • Uploaded just now</div>
+                                    <div class="label mt-2">
+                                        <span class="label-text-alt text-slate-400">This image will be shown to users during the /pay flow.</span>
                                     </div>
-                                    <button class="btn btn-sm btn-outline border-slate-300 text-slate-600 hover:bg-slate-800 hover:text-white hover:border-slate-800">Replace</button>
-                                </div>
-                                <div class="label mt-2">
-                                    <span class="label-text-alt text-slate-400">This image will be shown to users during the /pay flow.</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="divider text-slate-300"></div>
+                    <div class="divider text-slate-300"></div>
 
-                <!-- FEATURE 3: Enhanced Permissions -->
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <!-- Visual: Logic Code Block -->
-                    <div class="order-2 md:order-1">
-                         <div class="payload-block mt-0 shadow-lg">
+                    <!-- FEATURE 3: Enhanced Permissions -->
+                    <div class="grid md:grid-cols-2 gap-12 items-center">
+                        <!-- Visual: Logic Code Block -->
+                        <div class="order-2 md:order-1">
+                            <div class="payload-block mt-0 shadow-lg">
                             <pre><code class="language-python"># Pseudo-code: Decentralized Admin Approval Logic
 
 def handle_admin_approval(admin_user, transaction):
@@ -916,147 +927,147 @@ def handle_admin_approval(admin_user, transaction):
             raise PermissionError("Access Denied: Wrong App")
 
     return deny_access()</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="order-1 md:order-2">
-                        <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
-                            <span class="w-1.5 h-8 bg-amber-500 rounded-full"></span>
-                            Enhanced Permissions
-                        </h3>
-                        <p class="text-slate-600 leading-relaxed mb-6 text-lg">
-                            Bifrost implements a decentralized permission model. App-specific admins gain targeted control, allowing them to review and approve payment proofs <strong>only for their own application</strong> via the Bifrost Bot.
-                        </p>
-                        <p class="text-slate-600 leading-relaxed">
-                            This ensures that an admin for "App A" cannot interfere with "App B" transactions, while Global Super Admins retain oversight of the entire ecosystem.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="divider text-slate-300"></div>
-
-                <!-- FEATURE 4: Smart Invites -->
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <div>
-                        <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
-                            <span class="w-1.5 h-8 bg-sky-500 rounded-full"></span>
-                            Smart Invites
-                        </h3>
-                        <p class="text-slate-600 leading-relaxed mb-6 text-lg">
-                            Streamline onboarding with automated, branded email invitations sent directly from the Backoffice.
-                        </p>
-                        <p class="text-slate-600 leading-relaxed">
-                            When adding new users or admins, Bifrost generates a unique activation link embedded in the email. Users can click to set their password directly without needing an OTP, simplifying the process while maintaining high security.
-                        </p>
-                    </div>
-
-                    <!-- Visual: Email Card -->
-                    <div class="card bg-white text-slate-800 shadow-xl border border-slate-200 overflow-hidden transform rotate-1 hover:rotate-0 transition-all duration-300 hover:shadow-2xl">
-                        <div class="bg-slate-50 border-b border-slate-200 p-4 flex justify-between items-center">
-                            <span class="text-xs font-mono text-slate-500">Subject: Invitation to join <strong>Savvify</strong></span>
-                            <div class="flex gap-1.5 opacity-50"><div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div></div>
-                        </div>
-                        <div class="p-8">
-                            <div class="flex items-center gap-4 mb-8">
-                                <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">S</div>
-                                <div>
-                                    <div class="font-bold text-lg text-slate-900">Savvify</div>
-                                    <div class="text-xs text-slate-500 font-medium">via Bifrost IdP</div>
-                                </div>
                             </div>
-                            <h4 class="text-xl font-bold mb-3 text-slate-900">You've been invited!</h4>
-                            <p class="text-sm text-slate-600 mb-8 leading-relaxed">An administrator has created an account for you on Savvify. Click the button below to set your password and activate your account instantly.</p>
-                            <button class="btn btn-primary w-full normal-case shadow-lg shadow-primary/30">Activate Account</button>
-                            <div class="text-[10px] text-center text-slate-400 mt-6">Link expires in 24 hours. • Secured by Bifrost</div>
                         </div>
-                    </div>
-                </div>
 
-                <div class="divider text-slate-300"></div>
-
-                <!-- FEATURE 5: Passkeys (Future) -->
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <!-- Visual: DB Model Code -->
-                    <div class="order-2 md:order-1">
-                        <div class="mockup-code bg-[#282c34] text-xs shadow-lg">
-                            <pre class="text-gray-400"><code>class User(Document):</code></pre>
-                            <pre class="text-gray-400"><code>    email = StringField(required=True)</code></pre>
-                            <pre class="text-gray-400"><code>    password = StringField()</code></pre>
-                            <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500"><code>    # Future Implementation: WebAuthn</code></pre>
-                            <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500 text-yellow-100"><code>    webauthn_credentials = ListField(</code></pre>
-                            <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500 text-yellow-100"><code>        EmbeddedDocumentField(WebAuthnCred)</code></pre>
-                            <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500 text-yellow-100"><code>    )</code></pre>
+                        <div class="order-1 md:order-2">
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
+                                <span class="w-1.5 h-8 bg-amber-500 rounded-full"></span>
+                                Enhanced Permissions
+                            </h3>
+                            <p class="text-slate-600 leading-relaxed mb-6 text-lg">
+                                Bifrost implements a decentralized permission model. App-specific admins gain targeted control, allowing them to review and approve payment proofs <strong>only for their own application</strong> via the Bifrost Bot.
+                            </p>
+                            <p class="text-slate-600 leading-relaxed">
+                                This ensures that an admin for "App A" cannot interfere with "App B" transactions, while Global Super Admins retain oversight of the entire ecosystem.
+                            </p>
                         </div>
                     </div>
 
-                    <div class="order-1 md:order-2">
-                        <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
-                            <span class="w-1.5 h-8 bg-slate-800 rounded-full"></span>
-                            Passkeys (Future)
-                        </h3>
-                        <p class="text-slate-600 leading-relaxed mb-6 text-lg">
-                            Bifrost is prepared for passwordless authentication with built-in support for <strong>WebAuthn</strong> credentials in the database models.
-                        </p>
-                        <p class="text-slate-600 leading-relaxed mb-4">
-                            Once fully implemented, this feature will enable seamless, secure logins using biometrics (TouchID, FaceID) or hardware keys (YubiKey), eliminating the need for passwords entirely.
-                        </p>
-                        <div class="badge badge-neutral font-bold py-3">Coming Soon</div>
+                    <div class="divider text-slate-300"></div>
+
+                    <!-- FEATURE 4: Smart Invites -->
+                    <div class="grid md:grid-cols-2 gap-12 items-center">
+                        <div>
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
+                                <span class="w-1.5 h-8 bg-sky-500 rounded-full"></span>
+                                Smart Invites
+                            </h3>
+                            <p class="text-slate-600 leading-relaxed mb-6 text-lg">
+                                Streamline onboarding with automated, branded email invitations sent directly from the Backoffice.
+                            </p>
+                            <p class="text-slate-600 leading-relaxed">
+                                When adding new users or admins, Bifrost generates a unique activation link embedded in the email. Users can click to set their password directly without needing an OTP, simplifying the process while maintaining high security.
+                            </p>
+                        </div>
+
+                        <!-- Visual: Email Card -->
+                        <div class="card bg-white text-slate-800 shadow-xl border border-slate-200 overflow-hidden transform rotate-1 hover:rotate-0 transition-all duration-300 hover:shadow-2xl">
+                            <div class="bg-slate-50 border-b border-slate-200 p-4 flex justify-between items-center">
+                                <span class="text-xs font-mono text-slate-500">Subject: Invitation to join <strong>Savvify</strong></span>
+                                <div class="flex gap-1.5 opacity-50"><div class="w-2.5 h-2.5 rounded-full bg-red-400"></div><div class="w-2.5 h-2.5 rounded-full bg-yellow-400"></div><div class="w-2.5 h-2.5 rounded-full bg-green-400"></div></div>
+                            </div>
+                            <div class="p-8">
+                                <div class="flex items-center gap-4 mb-8">
+                                    <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-200">S</div>
+                                    <div>
+                                        <div class="font-bold text-lg text-slate-900">Savvify</div>
+                                        <div class="text-xs text-slate-500 font-medium">via Bifrost IdP</div>
+                                    </div>
+                                </div>
+                                <h4 class="text-xl font-bold mb-3 text-slate-900">You've been invited!</h4>
+                                <p class="text-sm text-slate-600 mb-8 leading-relaxed">An administrator has created an account for you on Savvify. Click the button below to set your password and activate your account instantly.</p>
+                                <button class="btn btn-primary w-full normal-case shadow-lg shadow-primary/30">Activate Account</button>
+                                <div class="text-[10px] text-center text-slate-400 mt-6">Link expires in 24 hours. • Secured by Bifrost</div>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="divider text-slate-300"></div>
+
+                    <!-- FEATURE 5: Passkeys (Future) -->
+                    <div class="grid md:grid-cols-2 gap-12 items-center">
+                        <!-- Visual: DB Model Code -->
+                        <div class="order-2 md:order-1">
+                            <div class="mockup-code bg-[#282c34] text-xs shadow-lg">
+                                <pre class="text-gray-400"><code>class User(Document):</code></pre>
+                                <pre class="text-gray-400"><code>    email = StringField(required=True)</code></pre>
+                                <pre class="text-gray-400"><code>    password = StringField()</code></pre>
+                                <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500"><code>    # Future Implementation: WebAuthn</code></pre>
+                                <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500 text-yellow-100"><code>    webauthn_credentials = ListField(</code></pre>
+                                <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500 text-yellow-100"><code>        EmbeddedDocumentField(WebAuthnCred)</code></pre>
+                                <pre class="block bg-yellow-900/30 -mx-4 px-4 my-1 border-l-4 border-yellow-500 text-yellow-100"><code>    )</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="order-1 md:order-2">
+                            <h3 class="text-2xl font-bold mb-4 flex items-center gap-3 text-slate-900">
+                                <span class="w-1.5 h-8 bg-slate-800 rounded-full"></span>
+                                Passkeys (Future)
+                            </h3>
+                            <p class="text-slate-600 leading-relaxed mb-6 text-lg">
+                                Bifrost is prepared for passwordless authentication with built-in support for <strong>WebAuthn</strong> credentials in the database models.
+                            </p>
+                            <p class="text-slate-600 leading-relaxed mb-4">
+                                Once fully implemented, this feature will enable seamless, secure logins using biometrics (TouchID, FaceID) or hardware keys (YubiKey), eliminating the need for passwords entirely.
+                            </p>
+                            <div class="badge badge-neutral font-bold py-3">Coming Soon</div>
+                        </div>
+                    </div>
+
                 </div>
+            </section>
 
+        </main>
+    </div>
+
+    <div class="drawer-side z-40">
+        <label for="docs-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+        <aside class="bg-slate-50 w-80 min-h-full flex flex-col border-r border-slate-200">
+
+            <div class="p-6 border-b border-slate-200 bg-white">
+                <div class="flex items-center gap-3">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Bifrost" class="h-8 w-auto">
+                    <span class="font-bold text-xl tracking-tight text-slate-800">Bifrost API</span>
+                </div>
+                <div class="badge badge-success badge-outline mt-4 font-bold gap-2 w-full py-3 bg-green-50">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    System Operational
+                </div>
             </div>
-        </section>
 
-    </main>
-  </div>
+            <ul class="menu p-4 w-full text-slate-600 font-medium gap-1">
+                <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-2 font-bold text-slate-400">Getting Started</li>
+                <li><a href="#introduction" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Introduction</a></li>
+                <li><a href="#get-started" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Get Started</a></li>
+                <li><a href="#roles-hierarchy" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Role Hierarchy</a></li>
 
-  <div class="drawer-side z-40">
-    <label for="docs-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
-    <aside class="bg-slate-50 w-80 min-h-full flex flex-col border-r border-slate-200">
+                <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Guides</li>
+                <li><a href="#flows-guides" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Flows & Guides</a></li>
 
-        <div class="p-6 border-b border-slate-200 bg-white">
-            <div class="flex items-center gap-3">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Bifrost" class="h-8 w-auto">
-                <span class="font-bold text-xl tracking-tight text-slate-800">Bifrost API</span>
+                <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Authentication</li>
+                <li><a href="#auth-hosted" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Hosted UI</a></li>
+                <li><a href="#auth-api" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Client API</a></li>
+
+                <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Backend Integration</li>
+                <li><a href="#internal-api" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Internal API (S2S)</a></li>
+                <li><a href="#payments-api" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Payments</a></li>
+                <li><a href="#webhooks" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Webhooks</a></li>
+                <li><a href="#advanced" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg text-indigo-600 bg-indigo-50">Advanced Features</a></li>
+
+                <li class="mt-8">
+                    <a href="{{ url_for('changelog_page') }}" class="btn btn-warning btn-sm btn-outline w-full justify-start normal-case gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                        System Changelog
+                    </a>
+                </li>
+            </ul>
+
+            <div class="mt-auto p-4 border-t border-slate-200 bg-white">
+                <a href="/backoffice" class="btn btn-neutral w-full shadow-lg shadow-slate-300/50">← Back to Portal</a>
             </div>
-            <div class="badge badge-success badge-outline mt-4 font-bold gap-2 w-full py-3 bg-green-50">
-                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                System Operational
-            </div>
-        </div>
-
-        <ul class="menu p-4 w-full text-slate-600 font-medium gap-1">
-            <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-2 font-bold text-slate-400">Getting Started</li>
-            <li><a href="#introduction" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Introduction</a></li>
-            <li><a href="#get-started" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Get Started</a></li>
-            <li><a href="#roles-hierarchy" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Role Hierarchy</a></li>
-
-            <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Guides</li>
-            <li><a href="#flows-guides" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Flows & Guides</a></li>
-
-            <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Authentication</li>
-            <li><a href="#auth-hosted" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Hosted UI</a></li>
-            <li><a href="#auth-api" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Client API</a></li>
-
-            <li class="menu-title opacity-60 uppercase tracking-widest text-xs mt-6 font-bold text-slate-400">Backend Integration</li>
-            <li><a href="#internal-api" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Internal API (S2S)</a></li>
-            <li><a href="#payments-api" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Payments</a></li>
-            <li><a href="#webhooks" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg">Webhooks</a></li>
-            <li><a href="#advanced" class="nav-link hover:bg-slate-100 hover:text-indigo-600 rounded-lg text-indigo-600 bg-indigo-50">Advanced Features</a></li>
-
-            <li class="mt-8">
-                <a href="{{ url_for('changelog_page') }}" class="btn btn-warning btn-sm btn-outline w-full justify-start normal-case gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
-                    System Changelog
-                </a>
-            </li>
-        </ul>
-
-        <div class="mt-auto p-4 border-t border-slate-200 bg-white">
-            <a href="/backoffice" class="btn btn-neutral w-full shadow-lg shadow-slate-300/50">← Back to Portal</a>
-        </div>
-    </aside>
-  </div>
+        </aside>
+    </div>
 </div>
 
 <script>
