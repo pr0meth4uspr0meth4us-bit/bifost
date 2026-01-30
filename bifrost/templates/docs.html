@@ -86,6 +86,12 @@
             align-items: center;
         }
 
+        /* Modifier for Responses */
+        .payload-block.response::before {
+            content: 'JSON Response';
+            color: #98c379; /* Atom Green */
+        }
+
         .payload-block pre {
             margin: 0 !important;
             padding: 1.25rem !important;
@@ -313,6 +319,10 @@
                                     <div class="payload-block">
                                         <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
                                     </div>
+                                    <div class="mt-2"></div>
+                                    <div class="payload-block response">
+                                        <pre><code class="language-json">{ "exists": false, "provider": "email" }</code></pre>
+                                    </div>
                                 </li>
                                 <li class="mb-10 ml-6">
                                 <span class="absolute flex items-center justify-center w-6 h-6 bg-indigo-100 rounded-full -left-3 ring-8 ring-white">
@@ -322,6 +332,10 @@
                                     <code class="text-xs bg-slate-100 p-1 rounded border border-slate-200">POST /auth/api/request-email-otp</code>
                                     <div class="payload-block">
                                         <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
+                                    </div>
+                                    <div class="mt-2"></div>
+                                    <div class="payload-block response">
+                                        <pre><code class="language-json">{ "status": "sent", "message": "OTP sent." }</code></pre>
                                     </div>
                                 </li>
                                 <li class="ml-6">
@@ -336,6 +350,14 @@
   "password": "user_password",
   "display_name": "User Name",
   "client_id": "your_client_id"
+}</code></pre>
+                                    </div>
+                                    <div class="mt-2"></div>
+                                    <div class="payload-block response">
+                                    <pre><code class="language-json">{
+  "status": "created",
+  "token": "eyJhbGci...",
+  "user": { "id": "...", "email": "user@example.com" }
 }</code></pre>
                                     </div>
                                 </li>
@@ -418,7 +440,7 @@ def verify_webhook(request_body, signature_header, client_secret):
                             <code onclick="copyText('/health')" class="font-mono text-sm text-slate-700 hover:bg-slate-100 px-2 py-1 rounded transition-colors">/health</code>
                         </div>
                         <div class="collapse-content px-4 pb-4">
-                            <div class="payload-block">
+                            <div class="payload-block response">
                                 <pre><code class="language-json">{ "status": "ok", "message": "Bifrost IdP operational." }</code></pre>
                             </div>
                         </div>
@@ -435,6 +457,10 @@ def verify_webhook(request_body, signature_header, client_secret):
                             <div class="payload-block">
                                 <pre><code class="language-json">{ "email": "user@example.com" }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                                <pre><code class="language-json">{ "exists": true, "provider": "email" }</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -449,6 +475,10 @@ def verify_webhook(request_body, signature_header, client_secret):
                             <div class="payload-block">
                                 <pre><code class="language-json">{ "email": "user@example.com", "client_id": "your_client_id" }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                                <pre><code class="language-json">{ "status": "sent", "message": "OTP sent to email." }</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -462,6 +492,10 @@ def verify_webhook(request_body, signature_header, client_secret):
                         <div class="collapse-content px-4 pb-4">
                             <div class="payload-block">
                                 <pre><code class="language-json">{ "verification_id": "...", "code": "123456" }</code></pre>
+                            </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                                <pre><code class="language-json">{ "status": "verified", "proof_token": "pt_abc123..." }</code></pre>
                             </div>
                         </div>
                     </div>
@@ -483,6 +517,14 @@ def verify_webhook(request_body, signature_header, client_secret):
     "client_id": "your_client_id"
 }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                            <pre><code class="language-json">{
+    "status": "created",
+    "token": "eyJhb...",
+    "user": { "id": "...", "email": "user@example.com" }
+}</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -496,6 +538,10 @@ def verify_webhook(request_body, signature_header, client_secret):
                         <div class="collapse-content px-4 pb-4">
                             <div class="payload-block">
                                 <pre><code class="language-json">{ "proof_token": "...", "password": "new_password" }</code></pre>
+                            </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                                <pre><code class="language-json">{ "status": "success", "message": "Password updated." }</code></pre>
                             </div>
                         </div>
                     </div>
@@ -515,6 +561,13 @@ def verify_webhook(request_body, signature_header, client_secret):
     "password": "secret_password"
 }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                            <pre><code class="language-json">{
+    "token": "eyJhb...",
+    "user": { "id": "...", "email": "user@example.com", "role": "user" }
+}</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -528,6 +581,13 @@ def verify_webhook(request_body, signature_header, client_secret):
                         <div class="collapse-content px-4 pb-4">
                             <div class="payload-block">
                                 <pre><code class="language-json">{ "client_id": "...", "code": "123456" }</code></pre>
+                            </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                            <pre><code class="language-json">{
+    "token": "eyJhb...",
+    "user": { "id": "...", "email": "user@example.com", "role": "user" }
+}</code></pre>
                             </div>
                         </div>
                     </div>
@@ -544,6 +604,13 @@ def verify_webhook(request_body, signature_header, client_secret):
                             <pre><code class="language-json">{
     "client_id": "YOUR_CLIENT_ID",
     "telegram_data": { "id": 12345, "first_name": "...", "hash": "..." }
+}</code></pre>
+                            </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                            <pre><code class="language-json">{
+    "token": "eyJhb...",
+    "user": { "id": "...", "telegram_id": "12345", "role": "user" }
 }</code></pre>
                             </div>
                         </div>
@@ -575,37 +642,58 @@ def verify_webhook(request_body, signature_header, client_secret):
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/validate-token')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/validate-token</code></td>
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">{ "jwt": "..." }</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Payload: <code>{ "jwt": "..." }</code></div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "is_valid": true, "account_id": "...", "role": "admin" }</code></div>
+                            </td>
                         </tr>
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/users/<id>')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/users/&lt;id&gt;</code></td>
                             <td><span class="badge badge-info badge-xs font-bold text-white">GET</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">Fetch basic user profile</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Fetch basic user profile</div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "id": "...", "email": "...", "role": "user" }</code></div>
+                            </td>
                         </tr>
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/generate-link-token')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/generate-link-token</code></td>
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">{ "account_id": "..." }</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Payload: <code>{ "account_id": "..." }</code></div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "link_token": "lt_789...", "expires_in": 300 }</code></div>
+                            </td>
                         </tr>
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/link-account')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/link-account</code></td>
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">{ "link_token": "...", "telegram_id": "..." }</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Payload: <code>{ "link_token": "...", "telegram_id": "..." }</code></div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "status": "linked", "account_id": "..." }</code></div>
+                            </td>
                         </tr>
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/generate-otp')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/generate-otp</code></td>
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">{ "telegram_id": "123456" }</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Payload: <code>{ "telegram_id": "123456" }</code></div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "otp": "123456", "expires_in": 300 }</code></div>
+                            </td>
                         </tr>
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/get-role')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/get-role</code></td>
                             <td><span class="badge badge-success badge-xs font-bold text-white">POST</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">{ "telegram_id": "123456" }</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Payload: <code>{ "telegram_id": "123456" }</code></div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "role": "premium_user", "expires_at": "..." }</code></div>
+                            </td>
                         </tr>
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="pl-6"><code onclick="copyText('/internal/payments/status/<id>')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 inline-block font-mono">/internal/payments/status/&lt;id&gt;</code></td>
                             <td><span class="badge badge-info badge-xs font-bold text-white">GET</span></td>
-                            <td class="text-xs font-mono text-slate-500 pr-6">Check payment status (Polling)</td>
+                            <td class="text-xs font-mono text-slate-500 pr-6">
+                                <div>Check payment status (Polling)</div>
+                                <div class="mt-1 text-green-600">Response: <code>{ "status": "completed", "amount": 9.99 }</code></div>
+                            </td>
                         </tr>
                         </tbody>
                     </table>
@@ -637,6 +725,13 @@ def verify_webhook(request_body, signature_header, client_secret):
     "client_ref_id": "INV-1001"
 }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                            <pre><code class="language-json">{
+    "transaction_id": "tx-123...",
+    "payment_url": "https://t.me/BifrostBot?start=tx-123..."
+}</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -649,7 +744,7 @@ def verify_webhook(request_body, signature_header, client_secret):
                             </div>
                             <p class="text-xs text-slate-500 my-2">Check if a transaction has been completed (real-time alternative to webhooks).</p>
                             <code onclick="copyText('/internal/payments/status/<transaction_id>')" class="endpoint-copy text-xs bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 block mb-2 font-mono">/internal/payments/status/&lt;transaction_id&gt;</code>
-                            <div class="payload-block">
+                            <div class="payload-block response">
                             <pre><code class="language-json">{
     "transaction_id": "tx-123...",
     "status": "completed",
@@ -676,6 +771,10 @@ def verify_webhook(request_body, signature_header, client_secret):
     "identity_value": "9988776655"
 }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                                <pre><code class="language-json">{ "status": "claimed", "account_id": "65a..." }</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -696,6 +795,14 @@ def verify_webhook(request_body, signature_header, client_secret):
     "duration": "1m"
 }</code></pre>
                             </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                            <pre><code class="language-json">{
+    "status": "granted",
+    "new_role": "premium_user",
+    "expires_at": "..."
+}</code></pre>
+                            </div>
                         </div>
                     </div>
 
@@ -713,6 +820,10 @@ def verify_webhook(request_body, signature_header, client_secret):
 > file: (binary_image_data)
 > account_id: "65a..."
 > transaction_id: "tx-..." (optional)</code></pre>
+                            </div>
+                            <div class="mt-2"></div>
+                            <div class="payload-block response">
+                                <pre><code class="language-json">{ "status": "submitted", "message": "Proof forwarded." }</code></pre>
                             </div>
                         </div>
                     </div>
