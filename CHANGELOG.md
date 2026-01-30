@@ -3,6 +3,13 @@
 All notable changes to the `bifrost` project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-01-30
+
+### Fixed
+- **Role Corruption Recovery**: Modified `get_user_role_for_app` in `bifrost/models/apps.py` to handle cases where the database record incorrectly stores the role in `app_specific_role` instead of `role`.
+  - This fixes the "Premium users reported as Guest" bug caused by manual database edits or legacy scripts using the wrong field name.
+  - Added warning logs when this corruption is detected.
+
 ## [0.7.9] - 2026-01-30
 
 ### Fixed
